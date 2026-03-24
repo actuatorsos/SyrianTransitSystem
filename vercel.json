@@ -22,11 +22,5 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     }
-  ],
-  "env": {
-    "SUPABASE_URL": "@supabase-url",
-    "SUPABASE_KEY": "@supabase-key",
-    "SUPABASE_SERVICE_KEY": "@supabase-service-key",
-    "JWT_SECRET": "@jwt-secret"
-  }
+  ]
 }
