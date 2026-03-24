@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#002623">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>DamascusTransit Driver</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+<style>
+:root {
+  --green-dark:#002623; --green-mid:#054239; --green-light:#428177;
+  --gold:#b9a779; --gold-light:#edebe0; --umber:#6b1f2a;
+  --charcoal:#3d3a3b; --white:#ffffff;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--green-dark);overflow:hidden;height:100vh;height:100dvh;}
+
+#map{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;}
+
+/* Driver top bar */
+.driver-bar {
+  position:absolute;top:0;left:0;right:0;z-index:100;
+  padding:calc(var(--safe-top)+10px) 16px 10px;
+  background:linear-gradient(180deg,rgba(0,38,35,0.95),rgba(0,38,35,0.8) 80%,transparent);
+  display:flex;align-items:center;gap:12px;
+}
+.driver-bar .logo{font-size:18px;font-weight:700;color:var(--white);}
+.driver-bar .route-badge{
+  background:var(--gold);color:var(--green-dark);padding:4px 12px;border-radius:10px;
+  font-size:12px;font-weight:700;
+}
+.driver-bar .status-pill{
+  margin-left:auto;display:flex;align-items:center;gap:6px;
+  background:rgba(16,185,129,0.2);padding:4px 12px;border-radius:10px;
+}
+.driver-bar .status-pill .dot{width:8px;height:8px;background:#10B981;border-radius:50%;animation:pulse 2s infinite;}
+.driver-bar .status-pill span{font-size:12px;color:#10B981;font-weight:600;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* Speed HUD */
+.speed-hud {
+  position:absolute;top:calc(var(--safe-top)+70px);left:16px;z-index:100;
+  background:var(--white);border-radius:16px;padding:16px;width:100px;
+  text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.2);
+}
+.speed-hud .number{font-size:42px;font-weight:700;color:var(--green-mid);line-height:1;}
+.speed-hud .unit{font-size:12px;color:#888;margin-top:2px;}
+.speed-hud .label{font-size:10px;color:var(--charcoal);margin-top:6px;padding-top:6px;border-top:1px solid #eee;}
+
+/* Trip stats bar */
+.trip-stats {
+  position:absolute;top:calc(var(--safe-top)+70px);right:16px;z-index:100;
+  display:flex;flex-direction:column;gap:8px;
+}
+.stat-card {
+  background:var(--white);border-radius:12px;padding:10px 14px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);min-width:90px;text-align:center;
+}
+.stat-card .val{font-size:18px;font-weight:700;color:var(--green-mid);}
+.stat-card .lbl{font-size:10px;color:#888;margin-top:2px;}
+
+/* Bottom Panel */
+.bottom-panel {
+  position:absolute;bottom:0;left:0;right:0;z-index:200;
+  background:var(--white);border-radius:20px 20px 0 0;
+  box-shadow:0 -4px 30px rgba(0,0,0,0.15);
+  padding:16px 16px calc(var(--safe-bottom)+16px);
+}
+.panel-handle{width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 12px;}
+
+/* Next stop card */
+.next-stop {
+  background:linear-gradient(135deg,var(--green-mid),var(--green-light));
+  border-radius:14px;padding:16px;color:var(--white);margin-bottom:12px;
+}
+.next-stop .label{font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;}
+.next-stop .name{font-size:20px;font-weight:700;margin:4px 0;}
+.next-stop .name-ar{font-size:14px;opacity:0.8;margin-bottom:8px;}
+.next-stop .eta-row{display:flex;align-items:center;gap:12px;}
+.next-stop .eta-big{font-size:32px;font-weight:700;}
+.next-stop .eta-big small{font-size:14px;font-weight:400;}
+.next-stop .eta-detail{font-size:12px;opacity:0.8;}
+
+/* Stop progress */
+.stops-progress{display:flex;align-items:center;gap:0;margin-bottom:12px;}
+.stop-dot{
+  width:12px;height:12px;border-radius:50%;border:2px solid var(--green-mid);
+  background:var(--white);position:relative;flex-shrink:0;z-index:2;
+}
+.stop-dot.completed{background:var(--green-mid);}
+.stop-dot.current{background:var(--gold);border-color:var(--gold);width:16px;height:16px;box-shadow:0 0 8px rgba(185,167,121,0.6);}
+.stop-line{flex:1;height:3px;background:#ddd;margin:0 -1px;}
+.stop-line.completed{background:var(--green-mid);}
+
+/* Action buttons */
+.actions{display:flex;gap:10px;}
+.action-btn{
+  flex:1;padding:14px;border-radius:12px;border:none;font-family:inherit;
+  font-size:14px;font-weight:700;cursor:pointer;transition:transform 0.15s;
+}
+.action-btn:active{transform:scale(0.96);}
+.btn-primary{background:var(--green-mid);color:var(--white);}
+.btn-secondary{background:var(--gold-light);color:var(--green-mid);}
+.btn-danger{background:var(--umber);color:var(--white);}
+
+/* Passenger count */
+.passenger-counter{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  background:var(--gold-light);border-radius:14px;padding:12px;margin-bottom:12px;
+}
+.counter-btn{
+  width:44px;height:44px;border-radius:50%;border:2px solid var(--green-mid);
+  background:var(--white);font-size:22px;font-weight:700;color:var(--green-mid);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.counter-btn:active{background:var(--green-mid);color:var(--white);}
+.counter-val{text-align:center;}
+.counter-val .num{font-size:36px;font-weight:700;color:var(--green-mid);}
+.counter-val .lbl{font-size:11px;color:#888;}
+
+/* Alert banner */
+.alert-banner{
+  position:absolute;bottom:260px;left:16px;right:16px;z-index:150;
+  background:var(--umber);color:var(--white);border-radius:12px;padding:12px 16px;
+  font-size:13px;font-weight:600;text-align:center;
+  display:none;animation:slideUp 0.3s ease;
+}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Top bar -->
+<div class="driver-bar">
+  <div class="logo">🚌 Driver</div>
+  <div class="route-badge" id="routeBadge">Marjeh → Western</div>
+  <div class="status-pill"><div class="dot"></div><span>ON DUTY</span></div>
+</div>
+
+<!-- Speed HUD -->
+<div class="speed-hud">
+  <div class="number" id="speedVal">0</div>
+  <div class="unit">km/h</div>
+  <div class="label" id="statusLabel">Stopped</div>
+</div>
+
+<!-- Trip stats -->
+<div class="trip-stats">
+  <div class="stat-card"><div class="val" id="tripTime">0:00</div><div class="lbl">Trip Time</div></div>
+  <div class="stat-card"><div class="val" id="tripDist">0.0</div><div class="lbl">km driven</div></div>
+  <div class="stat-card"><div class="val" id="onTimeRate">98%</div><div class="lbl">On-Time</div></div>
+</div>
+
+<!-- Alert banner -->
+<div class="alert-banner" id="alertBanner"></div>
+
+<!-- Bottom panel -->
+<div class="bottom-panel">
+  <div class="panel-handle"></div>
+
+  <!-- Next stop -->
+  <div class="next-stop">
+    <div class="label">Next Stop</div>
+    <div class="name" id="nextStopName">Hijaz Station</div>
+    <div class="name-ar" id="nextStopAr">محطة الحجاز</div>
+    <div class="eta-row">
+      <div class="eta-big" id="nextStopETA">3<small> min</small></div>
+      <div>
+        <div class="eta-detail" id="nextStopDist">1.2 km ahead</div>
+        <div class="eta-detail" id="waitingPassengers">~8 passengers waiting</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stop progress -->
+  <div class="stops-progress" id="stopsProgress"></div>
+
+  <!-- Passenger counter -->
+  <div class="passenger-counter">
+    <button class="counter-btn" onclick="adjustPassengers(-1)">−</button>
+    <div class="counter-val">
+      <div class="num" id="passengerCount">0</div>
+      <div class="lbl">Passengers</div>
+    </div>
+    <button class="counter-btn" onclick="adjustPassengers(1)">+</button>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="action-btn btn-primary" id="arriveBtn" onclick="arriveAtStop()">📍 Arrive at Stop</button>
+    <button class="action-btn btn-secondary" onclick="reportIssue()">⚠️ Report</button>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? `http://${window.location.hostname}:8080` : window.location.origin;
+
+const ROUTE_STOPS = [
+  { name:"Al-Marjeh Square", nameAr:"ساحة المرجة", lat:33.5117, lon:36.2963 },
+  { name:"Hijaz Station", nameAr:"محطة الحجاز", lat:33.5133, lon:36.2936 },
+  { name:"Baramkeh", nameAr:"البرامكة", lat:33.5096, lon:36.2913 },
+  { name:"Shaalan", nameAr:"الشعلان", lat:33.5125, lon:36.2810 },
+  { name:"Jisr Al-Abyad", nameAr:"جسر الأبيض", lat:33.5115, lon:36.2750 },
+  { name:"Mazzeh Jabal", nameAr:"مزة جبل", lat:33.5090, lon:36.2650 },
+  { name:"Western Bus Station", nameAr:"المحطة الغربية", lat:33.5098, lon:36.2587 },
+];
+
+let map, driverMarker, userPos = null;
+let currentStopIndex = 0;
+let passengers = 0;
+let tripStartTime = Date.now();
+let tripDistance = 0;
+let lastPos = null;
+
+// ─── Map ───
+function initMap() {
+  map = new maplibregl.Map({
+    container:'map',
+    style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    center:[36.2913,33.5138], zoom:14,
+    attributionControl:false,
+  });
+
+  map.on('load', () => {
+    // Draw route line
+    const coords = ROUTE_STOPS.map(s => [s.lon, s.lat]);
+    map.addSource('route', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:coords } } });
+    map.addLayer({ id:'route-line', type:'line', source:'route', paint:{ 'line-color':'#b9a779', 'line-width':4, 'line-dasharray':[2,1] } });
+
+    // Stop markers
+    ROUTE_STOPS.forEach((stop, i) => {
+      const el = document.createElement('div');
+      const isCurrent = i === currentStopIndex;
+      const isCompleted = i < currentStopIndex;
+      el.style.cssText = `width:${isCurrent?20:14}px;height:${isCurrent?20:14}px;border-radius:50%;background:${isCompleted?'#054239':isCurrent?'#b9a779':'#fff'};border:2px solid ${isCompleted?'#054239':'#b9a779'};box-shadow:0 2px 6px rgba(0,0,0,0.3);`;
+      new maplibregl.Marker({ element:el }).setLngLat([stop.lon,stop.lat]).addTo(map);
+    });
+
+    // Driver position via geolocation
+    startTracking();
+    renderStopProgress();
+    updateNextStop();
+    startTripTimer();
+  });
+}
+
+// ─── GPS Tracking ───
+function startTracking() {
+  if (!navigator.geolocation) { showAlert("GPS not available on this device"); return; }
+
+  navigator.geolocation.watchPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    const speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
+
+    userPos = { lat, lon, speed };
+
+    // Update speed HUD
+    document.getElementById('speedVal').textContent = speed;
+    document.getElementById('statusLabel').textContent = speed > 2 ? 'Moving' : 'Stopped';
+
+    // Track distance
+    if (lastPos) {
+      tripDistance += haversine(lastPos.lat, lastPos.lon, lat, lon);
+      document.getElementById('tripDist').textContent = tripDistance.toFixed(1);
+    }
+    lastPos = { lat, lon };
+
+    // Update driver marker
+    if (!driverMarker) {
+      const el = document.createElement('div');
+      el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#054239;border:3px solid #b9a779;box-shadow:0 0 16px rgba(185,167,121,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;';
+      el.textContent = '🚌';
+      driverMarker = new maplibregl.Marker({ element:el }).setLngLat([lon,lat]).addTo(map);
+      map.flyTo({ center:[lon,lat], zoom:15 });
+    } else {
+      driverMarker.setLngLat([lon,lat]);
+    }
+
+    // Auto-detect stop arrival
+    const nextStop = ROUTE_STOPS[currentStopIndex];
+    if (nextStop) {
+      const dist = haversine(lat, lon, nextStop.lat, nextStop.lon);
+      document.getElementById('nextStopDist').textContent = `${(dist).toFixed(1)} km ahead`;
+      const eta = speed > 0 ? Math.ceil(dist / speed * 60) : '--';
+      document.getElementById('nextStopETA').innerHTML = `${eta}<small> min</small>`;
+
+      if (dist < 0.1) { // within 100m
+        showAlert(`Approaching ${nextStop.name}`);
+        document.getElementById('arriveBtn').style.background = '#b9a779';
+        document.getElementById('arriveBtn').style.color = '#002623';
+      }
+    }
+  }, err => {
+    console.log('GPS error:', err);
+    // Demo mode: simulate position
+    simulateDriver();
+  }, { enableHighAccuracy:true, maximumAge:3000, timeout:10000 });
+}
+
+// ─── Demo: simulate driver if no GPS ───
+let simStep = 0;
+function simulateDriver() {
+  const interval = setInterval(() => {
+    if (simStep >= ROUTE_STOPS.length) { simStep = 0; currentStopIndex = 0; }
+    const from = ROUTE_STOPS[simStep];
+    const to = ROUTE_STOPS[Math.min(simStep+1, ROUTE_STOPS.length-1)];
+    const progress = (Date.now() % 10000) / 10000;
+    const lat = from.lat + (to.lat - from.lat) * progress;
+    const lon = from.lon + (to.lon - from.lon) * progress;
+    const speed = 20 + Math.floor(Math.random() * 25);
+
+    document.getElementById('speedVal').textContent = speed;
+    document.getElementById('statusLabel').textContent = 'Moving';
+
+    if (!driverMarker) {
+      const el = document.createElement('div');
+      el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#054239;border:3px solid #b9a779;box-shadow:0 0 16px rgba(185,167,121,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;';
+      el.textContent = '🚌';
+      driverMarker = new maplibregl.Marker({ element:el }).setLngLat([lon,lat]).addTo(map);
+      map.flyTo({ center:[lon,lat], zoom:15 });
+    } else {
+      driverMarker.setLngLat([lon,lat]);
+    }
+
+    if (lastPos) {
+      tripDistance += haversine(lastPos.lat, lastPos.lon, lat, lon);
+      document.getElementById('tripDist').textContent = tripDistance.toFixed(1);
+    }
+    lastPos = { lat, lon };
+
+    // ETA to next stop
+    const nextStop = ROUTE_STOPS[currentStopIndex];
+    if (nextStop) {
+      const dist = haversine(lat, lon, nextStop.lat, nextStop.lon);
+      document.getElementById('nextStopDist').textContent = `${dist.toFixed(1)} km ahead`;
+      const eta = Math.ceil(dist / speed * 60);
+      document.getElementById('nextStopETA').innerHTML = `${Math.max(1,eta)}<small> min</small>`;
+    }
+  }, 1000);
+}
+
+// ─── Stop Progress ───
+function renderStopProgress() {
+  const el = document.getElementById('stopsProgress');
+  el.innerHTML = ROUTE_STOPS.map((s, i) => {
+    const cls = i < currentStopIndex ? 'completed' : i === currentStopIndex ? 'current' : '';
+    const line = i < ROUTE_STOPS.length-1 ? `<div class="stop-line ${i < currentStopIndex ? 'completed' : ''}"></div>` : '';
+    return `<div class="stop-dot ${cls}" title="${s.name}"></div>${line}`;
+  }).join('');
+}
+
+function updateNextStop() {
+  const stop = ROUTE_STOPS[currentStopIndex];
+  if (stop) {
+    document.getElementById('nextStopName').textContent = stop.name;
+    document.getElementById('nextStopAr').textContent = stop.nameAr;
+    document.getElementById('waitingPassengers').textContent = `~${Math.floor(Math.random()*15)+3} passengers waiting`;
+  }
+}
+
+function arriveAtStop() {
+  if (currentStopIndex < ROUTE_STOPS.length - 1) {
+    showAlert(`Arrived at ${ROUTE_STOPS[currentStopIndex].name} ✓`);
+    currentStopIndex++;
+    renderStopProgress();
+    updateNextStop();
+    document.getElementById('arriveBtn').style.background = '';
+    document.getElementById('arriveBtn').style.color = '';
+
+    if (currentStopIndex >= ROUTE_STOPS.length) {
+      showAlert("🎉 Route complete! Great job.");
+      document.getElementById('arriveBtn').textContent = '🔄 Start New Trip';
+      document.getElementById('arriveBtn').onclick = () => {
+        currentStopIndex = 0; tripDistance = 0; tripStartTime = Date.now();
+        renderStopProgress(); updateNextStop();
+        document.getElementById('arriveBtn').textContent = '📍 Arrive at Stop';
+        document.getElementById('arriveBtn').onclick = arriveAtStop;
+      };
+    }
+  }
+}
+
+// ─── Passengers ───
+function adjustPassengers(delta) {
+  passengers = Math.max(0, passengers + delta);
+  document.getElementById('passengerCount').textContent = passengers;
+}
+
+// ─── Trip Timer ───
+function startTripTimer() {
+  setInterval(() => {
+    const elapsed = Math.floor((Date.now() - tripStartTime) / 1000);
+    const min = Math.floor(elapsed / 60);
+    const sec = String(elapsed % 60).padStart(2,'0');
+    document.getElementById('tripTime').textContent = `${min}:${sec}`;
+  }, 1000);
+}
+
+// ─── Alert ───
+function showAlert(msg) {
+  const el = document.getElementById('alertBanner');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+function reportIssue() {
+  showAlert("Issue report sent to dispatch");
+}
+
+// ─── Haversine ───
+function haversine(lat1,lon1,lat2,lon2) {
+  const R = 6371;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLon = (lon2-lon1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+initMap();
+</script>
+</body>
+</html>

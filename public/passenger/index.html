@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#002623">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>DamascusTransit</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+<style>
+:root {
+  --green-dark: #002623;
+  --green-mid: #054239;
+  --green-light: #428177;
+  --gold: #b9a779;
+  --gold-light: #edebe0;
+  --umber: #6b1f2a;
+  --charcoal: #3d3a3b;
+  --white: #ffffff;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(--green-dark); overflow:hidden; height:100vh; height:100dvh; }
+
+/* ─── Map ─── */
+#map { position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; }
+
+/* ─── Top Bar ─── */
+.top-bar {
+  position:absolute; top:0; left:0; right:0; z-index:100;
+  padding:calc(var(--safe-top) + 12px) 16px 12px;
+  background:linear-gradient(180deg, rgba(0,38,35,0.95) 0%, rgba(0,38,35,0.7) 70%, transparent 100%);
+}
+.top-bar .logo-row { display:flex; align-items:center; gap:10px; }
+.top-bar h1 { color:var(--white); font-size:20px; font-weight:700; }
+.top-bar .badge { background:var(--gold); color:var(--green-dark); padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
+.top-bar .live-dot { width:8px; height:8px; background:#10B981; border-radius:50%; margin-left:auto; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ─── Search Bar ─── */
+.search-bar {
+  margin-top:12px; background:var(--white); border-radius:14px; padding:12px 16px;
+  display:flex; align-items:center; gap:10px; box-shadow:0 4px 20px rgba(0,0,0,0.15);
+}
+.search-bar input {
+  flex:1; border:none; outline:none; font-size:15px; font-family:inherit;
+  background:transparent; color:var(--charcoal);
+}
+.search-bar input::placeholder { color:#aaa; }
+.search-icon { font-size:18px; opacity:0.4; }
+
+/* ─── Bottom Sheet ─── */
+.bottom-sheet {
+  position:absolute; bottom:0; left:0; right:0; z-index:200;
+  background:var(--white); border-radius:20px 20px 0 0;
+  box-shadow:0 -4px 30px rgba(0,0,0,0.15);
+  transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  max-height:70vh; overflow:hidden;
+  padding-bottom:var(--safe-bottom);
+}
+.bottom-sheet.collapsed { transform:translateY(calc(100% - 180px - var(--safe-bottom))); }
+.bottom-sheet.expanded { transform:translateY(0); }
+
+.sheet-handle {
+  width:36px; height:4px; background:#ddd; border-radius:2px;
+  margin:10px auto; cursor:grab;
+}
+
+.sheet-header {
+  padding:4px 20px 16px; display:flex; align-items:center; justify-content:space-between;
+}
+.sheet-header h2 { font-size:18px; font-weight:700; color:var(--green-dark); }
+.sheet-header .count { font-size:13px; color:var(--green-light); font-weight:600; }
+
+/* ─── Route Cards ─── */
+.routes-scroll { overflow-y:auto; max-height:calc(70vh - 100px); padding:0 16px 20px; }
+
+.route-card {
+  background:var(--gold-light); border-radius:14px; padding:16px;
+  margin-bottom:12px; position:relative; overflow:hidden;
+  transition:transform 0.15s, box-shadow 0.15s;
+  cursor:pointer;
+}
+.route-card:active { transform:scale(0.98); }
+.route-card::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+  background:var(--green-mid);
+}
+
+.route-card .route-name { font-size:16px; font-weight:700; color:var(--green-dark); margin-bottom:4px; }
+.route-card .route-meta { display:flex; gap:12px; font-size:12px; color:var(--charcoal); opacity:0.7; }
+
+.route-card .eta-row {
+  display:flex; align-items:center; gap:8px; margin-top:10px;
+  background:var(--white); border-radius:10px; padding:10px 12px;
+}
+.eta-badge {
+  background:var(--green-mid); color:var(--white); padding:4px 10px;
+  border-radius:8px; font-size:14px; font-weight:700; min-width:44px; text-align:center;
+}
+.eta-badge.arriving { background:var(--umber); animation:urgentPulse 1s infinite; }
+@keyframes urgentPulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+
+.eta-info { flex:1; }
+.eta-info .vehicle-name { font-size:13px; font-weight:600; color:var(--charcoal); }
+.eta-info .vehicle-detail { font-size:11px; color:#888; }
+
+.eta-source { font-size:9px; padding:2px 6px; border-radius:6px; font-weight:600; }
+.eta-source.real { background:#EDE9FE; color:#7C3AED; }
+.eta-source.sim { background:#F3F4F6; color:#6B7280; }
+
+/* ─── Stop Detail View ─── */
+.stop-detail { display:none; }
+.stop-detail.active { display:block; }
+.stop-detail .back-btn {
+  display:flex; align-items:center; gap:6px; font-size:14px; color:var(--green-mid);
+  font-weight:600; cursor:pointer; padding:0 20px 12px; border:none; background:none;
+}
+.stop-detail .stop-name { font-size:20px; font-weight:700; color:var(--green-dark); padding:0 20px 4px; }
+.stop-detail .stop-address { font-size:13px; color:#888; padding:0 20px 16px; }
+.arrival-list { padding:0 16px 20px; }
+.arrival-item {
+  display:flex; align-items:center; gap:12px; padding:14px;
+  background:var(--gold-light); border-radius:12px; margin-bottom:8px;
+}
+.arrival-eta { font-size:22px; font-weight:700; color:var(--green-mid); min-width:50px; text-align:center; }
+.arrival-eta small { font-size:11px; font-weight:400; display:block; }
+.arrival-info { flex:1; }
+.arrival-info .name { font-size:14px; font-weight:600; color:var(--charcoal); }
+.arrival-info .detail { font-size:12px; color:#888; }
+
+/* ─── Nav Bar ─── */
+.nav-bar {
+  position:absolute; bottom:0; left:0; right:0; z-index:300;
+  background:var(--white); border-top:1px solid #eee;
+  display:flex; padding:8px 0 calc(var(--safe-bottom) + 4px);
+}
+.nav-item {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+  font-size:10px; color:#999; cursor:pointer; border:none; background:none; padding:4px;
+}
+.nav-item.active { color:var(--green-mid); }
+.nav-item .nav-icon { font-size:22px; }
+
+/* ─── Status Bar (connection) ─── */
+.connection-bar {
+  position:absolute; top:calc(var(--safe-top) + 82px); left:16px; right:16px; z-index:100;
+  background:var(--umber); color:var(--white); text-align:center;
+  padding:6px; border-radius:8px; font-size:12px; font-weight:600;
+  display:none;
+}
+.connection-bar.disconnected { display:block; }
+
+/* ─── Loading ─── */
+.loading-overlay {
+  position:absolute; top:0; left:0; right:0; bottom:0; z-index:500;
+  background:var(--green-dark); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  transition:opacity 0.5s;
+}
+.loading-overlay.hidden { opacity:0; pointer-events:none; }
+.loading-overlay h2 { color:var(--white); font-size:24px; }
+.loading-overlay p { color:var(--gold); font-size:14px; }
+.spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading">
+  <h2>DamascusTransit</h2>
+  <div class="spinner"></div>
+  <p>Loading live fleet data...</p>
+</div>
+
+<!-- Connection status -->
+<div class="connection-bar" id="connectionBar">Reconnecting to live data...</div>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="logo-row">
+    <h1>DamascusTransit</h1>
+    <div class="badge">LIVE</div>
+    <div class="live-dot"></div>
+  </div>
+  <div class="search-bar" onclick="focusSearch()">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Search routes or stops..." oninput="filterRoutes(this.value)">
+  </div>
+</div>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- Bottom Sheet -->
+<div class="bottom-sheet collapsed" id="bottomSheet">
+  <div class="sheet-handle" id="sheetHandle"></div>
+
+  <!-- Routes list view -->
+  <div id="routesView">
+    <div class="sheet-header">
+      <h2>Nearby Routes</h2>
+      <span class="count" id="routeCount">8 routes</span>
+    </div>
+    <div class="routes-scroll" id="routesList"></div>
+  </div>
+
+  <!-- Stop detail view -->
+  <div class="stop-detail" id="stopDetail">
+    <button class="back-btn" onclick="showRoutes()">← Back to routes</button>
+    <div class="stop-name" id="stopName"></div>
+    <div class="stop-address" id="stopAddress"></div>
+    <div class="arrival-list" id="arrivalList"></div>
+  </div>
+</div>
+
+<!-- Nav Bar -->
+<div class="nav-bar">
+  <button class="nav-item active" onclick="switchTab('map')"><span class="nav-icon">🗺️</span>Map</button>
+  <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span>Routes</button>
+  <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span>Stops</button>
+  <button class="nav-item" onclick="switchTab('alerts')"><span class="nav-icon">🔔</span>Alerts</button>
+</div>
+
+<script>
+// ─── CONFIG ───
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? `http://${window.location.hostname}:8080`
+  : window.location.origin;
+const SSE_URL = `${API_BASE}/api/stream`;
+const DAMASCUS_CENTER = [36.2913, 33.5138];
+
+// ─── Damascus Routes Data ───
+const ROUTES = [
+  { id: "marjeh_western", name: "Marjeh → Western Station", nameAr: "المرجة → المحطة الغربية", stops: 8, distance: "6.2 km", busCount: 0, color: "#3B82F6" },
+  { id: "mezzeh_autostrade", name: "Mezzeh Autostrade", nameAr: "أوتوستراد المزة", stops: 6, distance: "8.5 km", busCount: 0, color: "#10B981" },
+  { id: "harasta", name: "Harasta → Damascus", nameAr: "حرستا → دمشق", stops: 5, distance: "7.8 km", busCount: 0, color: "#F59E0B" },
+  { id: "douma", name: "Douma → Damascus", nameAr: "دوما → دمشق", stops: 6, distance: "12.3 km", busCount: 0, color: "#EF4444" },
+  { id: "jaramana", name: "Jaramana → Center", nameAr: "جرمانا → المركز", stops: 4, distance: "5.1 km", busCount: 0, color: "#8B5CF6" },
+  { id: "qudsaya", name: "Qudsaya → Damascus", nameAr: "قدسيا → دمشق", stops: 5, distance: "9.7 km", busCount: 0, color: "#EC4899" },
+  { id: "airport", name: "Airport Road", nameAr: "طريق المطار", stops: 3, distance: "22.0 km", busCount: 0, color: "#06B6D4" },
+  { id: "barzeh", name: "Barzeh → Center", nameAr: "برزة → المركز", stops: 4, distance: "5.8 km", busCount: 0, color: "#F97316" },
+];
+
+// Damascus bus stops with coordinates
+const STOPS = [
+  { name: "Al-Marjeh Square", nameAr: "ساحة المرجة", lat: 33.5117, lon: 36.2963, routes: ["marjeh_western","mezzeh_autostrade"] },
+  { name: "Hijaz Station", nameAr: "محطة الحجاز", lat: 33.5133, lon: 36.2936, routes: ["marjeh_western"] },
+  { name: "Umayyad Square", nameAr: "ساحة الأمويين", lat: 33.5142, lon: 36.2765, routes: ["mezzeh_autostrade","airport"] },
+  { name: "Western Station", nameAr: "المحطة الغربية", lat: 33.5098, lon: 36.2587, routes: ["marjeh_western"] },
+  { name: "Mezzeh 86", nameAr: "مزة 86", lat: 33.5067, lon: 36.2461, routes: ["mezzeh_autostrade"] },
+  { name: "Harasta Roundabout", nameAr: "دوار حرستا", lat: 33.5573, lon: 36.3637, routes: ["harasta"] },
+  { name: "Douma Main", nameAr: "دوما الرئيسي", lat: 33.5728, lon: 36.4012, routes: ["douma"] },
+  { name: "Jaramana Square", nameAr: "ساحة جرمانا", lat: 33.4894, lon: 36.3365, routes: ["jaramana"] },
+  { name: "Qudsaya Center", nameAr: "وسط قدسيا", lat: 33.5399, lon: 36.1957, routes: ["qudsaya"] },
+  { name: "Airport Terminal", nameAr: "مبنى المطار", lat: 33.4114, lon: 36.5144, routes: ["airport"] },
+  { name: "Barzeh Roundabout", nameAr: "دوار برزة", lat: 33.5470, lon: 36.3130, routes: ["barzeh"] },
+  { name: "Baramkeh", nameAr: "البرامكة", lat: 33.5096, lon: 36.2913, routes: ["marjeh_western","jaramana","barzeh"] },
+  { name: "Muhajreen", nameAr: "المهاجرين", lat: 33.5233, lon: 36.2835, routes: ["qudsaya"] },
+  { name: "Abbasiyeen Square", nameAr: "ساحة العباسيين", lat: 33.5263, lon: 36.3152, routes: ["harasta","douma","barzeh"] },
+];
+
+// ─── State ───
+let vehicles = {};
+let markers = {};
+let stopMarkers = [];
+let map;
+let sheetExpanded = false;
+let eventSource = null;
+
+// ─── Map Init ───
+function initMap() {
+  map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    center: DAMASCUS_CENTER,
+    zoom: 12,
+    attributionControl: false,
+  });
+
+  map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+  // Add user location
+  map.addControl(new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: true,
+    showUserHeading: true,
+  }), 'top-right');
+
+  // Add stop markers
+  STOPS.forEach(stop => {
+    const el = document.createElement('div');
+    el.style.cssText = `width:14px;height:14px;background:var(--gold);border:2px solid var(--white);border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:pointer;`;
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([stop.lon, stop.lat])
+      .setPopup(new maplibregl.Popup({ offset: 15, className: 'stop-popup' })
+        .setHTML(`<div style="font-family:'IBM Plex Sans Arabic';padding:4px;">
+          <strong>${stop.name}</strong><br>
+          <span style="color:#888;font-size:12px;">${stop.nameAr}</span><br>
+          <span style="font-size:12px;color:var(--green-mid);">Tap for arrivals →</span>
+        </div>`))
+      .addTo(map);
+
+    el.addEventListener('click', () => setTimeout(() => showStopDetail(stop), 200));
+    stopMarkers.push(marker);
+  });
+
+  map.on('load', () => {
+    document.getElementById('loading').classList.add('hidden');
+    connectSSE();
+    fetchVehicles();
+  });
+}
+
+// ─── SSE Connection ───
+function connectSSE() {
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(SSE_URL);
+
+  eventSource.onmessage = (event) => {
+    document.getElementById('connectionBar').classList.remove('disconnected');
+    try {
+      const positions = JSON.parse(event.data);
+      positions.forEach(pos => {
+        vehicles[pos.device_id] = pos;
+        updateMarker(pos);
+      });
+      updateRouteCards();
+    } catch(e) {}
+  };
+
+  eventSource.onerror = () => {
+    document.getElementById('connectionBar').classList.add('disconnected');
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+// ─── Fetch all vehicles ───
+async function fetchVehicles() {
+  try {
+    const res = await fetch(`${API_BASE}/api/vehicles`);
+    const data = await res.json();
+    data.forEach(v => {
+      vehicles[v.device_id] = v;
+      updateMarker(v);
+    });
+    updateRouteCards();
+  } catch(e) { console.log('Fetch error:', e); }
+}
+
+// ─── Marker Management ───
+const typeColors = { bus:'#3B82F6', microbus:'#10B981', taxi:'#F59E0B' };
+
+function updateMarker(v) {
+  if (!map) return;
+  const isReal = v.source === 'traccar';
+
+  if (markers[v.device_id]) {
+    markers[v.device_id].setLngLat([v.lon, v.lat]);
+    return;
+  }
+
+  const el = document.createElement('div');
+  const color = isReal ? '#8B5CF6' : (v.status === 'stopped' ? '#EF4444' : (typeColors[v.vehicle_type] || '#6B7280'));
+  const size = isReal ? 28 : 20;
+  el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid ${isReal?'#DDD6FE':'#fff'};box-shadow:${isReal?'0 0 10px rgba(139,92,246,0.5),':''}0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:${isReal?14:11}px;cursor:pointer;`;
+  el.textContent = isReal ? '📍' : (v.vehicle_type === 'bus' ? '🚌' : v.vehicle_type === 'microbus' ? '🚐' : '🚕');
+
+  const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
+    <div style="font-family:'IBM Plex Sans Arabic';padding:4px;">
+      <strong>${v.device_id}</strong>
+      ${isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;margin-left:4px;">REAL GPS</span>' : ''}
+      <br><span style="color:#888;font-size:12px;">${v.route_name || 'Unknown route'}</span>
+      <br><span style="font-size:12px;">${v.speed || 0} km/h · ${v.status}</span>
+    </div>
+  `);
+
+  markers[v.device_id] = new maplibregl.Marker({ element: el })
+    .setLngLat([v.lon, v.lat])
+    .setPopup(popup)
+    .addTo(map);
+}
+
+// ─── Route Cards ───
+function updateRouteCards() {
+  const routeCounts = {};
+  const routeETAs = {};
+
+  Object.values(vehicles).forEach(v => {
+    const rname = v.route_name || '';
+    ROUTES.forEach(r => {
+      if (rname.toLowerCase().includes(r.id.replace(/_/g,' ')) || rname.includes(r.name.split('→')[0].trim()) || rname.includes(r.nameAr)) {
+        routeCounts[r.id] = (routeCounts[r.id] || 0) + 1;
+        if (!routeETAs[r.id]) {
+          const eta = Math.floor(Math.random() * 12) + 1;
+          routeETAs[r.id] = { eta, vehicle: v };
+        }
+      }
+    });
+  });
+
+  // Assign unmatched vehicles to routes round-robin
+  const unmatched = Object.values(vehicles).filter(v => {
+    const rname = v.route_name || '';
+    return !ROUTES.some(r => rname.toLowerCase().includes(r.id.replace(/_/g,' ')));
+  });
+  unmatched.forEach((v, i) => {
+    const r = ROUTES[i % ROUTES.length];
+    routeCounts[r.id] = (routeCounts[r.id] || 0) + 1;
+    if (!routeETAs[r.id]) {
+      routeETAs[r.id] = { eta: Math.floor(Math.random() * 15) + 2, vehicle: v };
+    }
+  });
+
+  const searchVal = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = ROUTES.filter(r =>
+    !searchVal || r.name.toLowerCase().includes(searchVal) || r.nameAr.includes(searchVal)
+  );
+
+  document.getElementById('routeCount').textContent = `${filtered.length} routes`;
+  document.getElementById('routesList').innerHTML = filtered.map(r => {
+    const count = routeCounts[r.id] || 0;
+    const etaInfo = routeETAs[r.id];
+    const eta = etaInfo ? etaInfo.eta : '--';
+    const isReal = etaInfo && etaInfo.vehicle && etaInfo.vehicle.source === 'traccar';
+    const etaClass = eta <= 2 ? 'arriving' : '';
+
+    return `
+    <div class="route-card" onclick="showRouteOnMap('${r.id}')">
+      <div class="route-name">${r.name}</div>
+      <div class="route-meta">
+        <span>${r.nameAr}</span>
+        <span>·</span>
+        <span>${r.stops} stops</span>
+        <span>·</span>
+        <span>${count} vehicles active</span>
+      </div>
+      <div class="eta-row">
+        <div class="eta-badge ${etaClass}">${eta}<small>min</small></div>
+        <div class="eta-info">
+          <div class="vehicle-name">Next arrival${etaInfo ? ': ' + etaInfo.vehicle.device_id : ''}</div>
+          <div class="vehicle-detail">${r.distance} · ${count} on route</div>
+        </div>
+        <span class="eta-source ${isReal ? 'real' : 'sim'}">${isReal ? 'GPS' : 'EST'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Stop Detail ───
+function showStopDetail(stop) {
+  document.getElementById('routesView').style.display = 'none';
+  document.getElementById('stopDetail').classList.add('active');
+  document.getElementById('stopName').textContent = stop.name;
+  document.getElementById('stopAddress').textContent = stop.nameAr;
+
+  // Generate arrivals
+  const arrivals = stop.routes.map(rid => {
+    const route = ROUTES.find(r => r.id === rid);
+    if (!route) return null;
+    const eta = Math.floor(Math.random() * 20) + 1;
+    const nearbyVehicles = Object.values(vehicles).filter(v =>
+      (v.route_name || '').toLowerCase().includes(rid.replace(/_/g,' '))
+    );
+    const v = nearbyVehicles[0];
+    const isReal = v && v.source === 'traccar';
+    return { route, eta, vehicle: v, isReal };
+  }).filter(Boolean).sort((a,b) => a.eta - b.eta);
+
+  document.getElementById('arrivalList').innerHTML = arrivals.map(a => `
+    <div class="arrival-item">
+      <div class="arrival-eta">${a.eta}<small>min</small></div>
+      <div class="arrival-info">
+        <div class="name">${a.route.name} ${a.isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 5px;border-radius:6px;font-size:9px;">GPS</span>' : ''}</div>
+        <div class="detail">${a.vehicle ? a.vehicle.device_id + ' · ' + a.vehicle.speed + ' km/h' : 'Estimated'}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // Expand sheet and fly to stop
+  expandSheet();
+  map.flyTo({ center: [stop.lon, stop.lat], zoom: 15 });
+}
+
+function showRoutes() {
+  document.getElementById('stopDetail').classList.remove('active');
+  document.getElementById('routesView').style.display = 'block';
+}
+
+function showRouteOnMap(routeId) {
+  const stop = STOPS.find(s => s.routes.includes(routeId));
+  if (stop) map.flyTo({ center: [stop.lon, stop.lat], zoom: 14 });
+}
+
+// ─── Sheet Gestures ───
+function expandSheet() {
+  sheetExpanded = true;
+  document.getElementById('bottomSheet').classList.remove('collapsed');
+  document.getElementById('bottomSheet').classList.add('expanded');
+}
+function collapseSheet() {
+  sheetExpanded = false;
+  document.getElementById('bottomSheet').classList.remove('expanded');
+  document.getElementById('bottomSheet').classList.add('collapsed');
+  showRoutes();
+}
+
+document.getElementById('sheetHandle').addEventListener('click', () => {
+  sheetExpanded ? collapseSheet() : expandSheet();
+});
+
+// Touch gesture for sheet
+let touchStartY = 0;
+document.getElementById('bottomSheet').addEventListener('touchstart', e => {
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+document.getElementById('bottomSheet').addEventListener('touchend', e => {
+  const diff = e.changedTouches[0].clientY - touchStartY;
+  if (diff > 60) collapseSheet();
+  else if (diff < -60) expandSheet();
+}, { passive: true });
+
+// ─── Search ───
+function filterRoutes(val) { updateRouteCards(); }
+function focusSearch() { document.getElementById('searchInput').focus(); }
+
+// ─── Nav Tabs ───
+function switchTab(tab) {
+  document.querySelectorAll('.nav-item').forEach((el,i) => {
+    el.classList.toggle('active', ['map','routes','stops','alerts'][i] === tab);
+  });
+  if (tab === 'routes' || tab === 'stops') expandSheet();
+  else collapseSheet();
+}
+
+// ─── Init ───
+initMap();
+</script>
+</body>
+</html>
