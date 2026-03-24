@@ -2,41 +2,269 @@
 DamascusTransit FastAPI Backend - Production Server
 Handles real-time vehicle tracking, route management, driver dispatch, and fleet analytics.
 Deployed on Vercel with Supabase PostgreSQL backend.
+
+SELF-CONTAINED VERSION: All auth and database code inlined for Vercel Python serverless compatibility.
 """
 
 import os
 import time
 import asyncio
+import hashlib
+import hmac
 from datetime import datetime, timedelta
 from typing import Optional, List, Literal
 from decimal import Decimal
 
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Response
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPBearer, HTTPAuthCredentials
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, Field, validator
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from supabase import create_client, Client
 from dotenv import load_dotenv
-
-from lib.database import get_db, SupabaseDB
-from lib.auth import (
-    get_current_user,
-    require_role,
-    create_access_token,
-    hash_password,
-    verify_password,
-    CurrentUser,
-)
 
 load_dotenv()
 
-# Initialize FastAPI app
+# ============================================================================
+# FastAPI App Initialization
+# ============================================================================
+
 app = FastAPI(
     title="DamascusTransit API",
     description="Real-time transit tracking and fleet management",
     version="1.0.0",
 )
 
-# Security
+# ============================================================================
+# JWT Authentication (Inlined from lib/auth.py)
+# ============================================================================
+
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = 24
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# HTTP Bearer security scheme
+security = HTTPBearer()
+
+UserRole = Literal["admin", "dispatcher", "driver", "viewer"]
+
+
+def _get_jwt_secret() -> str:
+    """Get JWT secret from environment (lazy initialization for Vercel)."""
+    secret = os.getenv("JWT_SECRET")
+    if not secret:
+        raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
+    return secret
+
+
+class TokenPayload(BaseModel):
+    """JWT token payload structure."""
+
+    user_id: str
+    email: str
+    role: UserRole
+    exp: datetime
+
+
+class CurrentUser(BaseModel):
+    """Current authenticated user context."""
+
+    user_id: str
+    email: str
+    role: UserRole
+
+
+def hash_password(password: str) -> str:
+    """Hash a plain text password using bcrypt."""
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain text password against a bcrypt hash."""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def create_access_token(
+    user_id: str, email: str, role: UserRole, expires_delta: Optional[timedelta] = None
+) -> str:
+    """
+    Create a JWT access token.
+
+    Args:
+        user_id: User UUID
+        email: User email address
+        role: User role (admin, dispatcher, driver, viewer)
+        expires_delta: Custom expiration time (default: 24 hours)
+
+    Returns:
+        Encoded JWT token string
+    """
+    if expires_delta is None:
+        expires_delta = timedelta(hours=JWT_EXPIRATION_HOURS)
+
+    expire = datetime.utcnow() + expires_delta
+    to_encode = {"user_id": user_id, "email": email, "role": role, "exp": expire}
+
+    encoded_jwt = jwt.encode(to_encode, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
+    return encoded_jwt
+
+
+def verify_token(token: str) -> TokenPayload:
+    """
+    Verify and decode a JWT token.
+
+    Args:
+        token: JWT token string
+
+    Returns:
+        Decoded token payload
+
+    Raises:
+        HTTPException: If token is invalid or expired
+    """
+    try:
+        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        user_id: str = payload.get("user_id")
+        email: str = payload.get("email")
+        role: str = payload.get("role")
+
+        if user_id is None or email is None or role is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
+            )
+
+        return TokenPayload(user_id=user_id, email=email, role=role, exp=payload.get("exp"))
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
+
+
+async def get_current_user(credentials: HTTPAuthCredentials = Depends(security)) -> CurrentUser:
+    """
+    FastAPI dependency: Extract and verify current user from Bearer token.
+
+    Args:
+        credentials: HTTP Bearer token from Authorization header
+
+    Returns:
+        Current user context
+
+    Raises:
+        HTTPException: If token is invalid or missing
+    """
+    token = credentials.credentials
+    token_payload = verify_token(token)
+    return CurrentUser(user_id=token_payload.user_id, email=token_payload.email, role=token_payload.role)
+
+
+def require_role(*allowed_roles: UserRole):
+    """
+    FastAPI dependency factory: Require specific user role(s).
+
+    Args:
+        allowed_roles: One or more allowed roles
+
+    Returns:
+        Dependency function
+    """
+
+    async def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions. Required roles: {', '.join(allowed_roles)}",
+            )
+        return current_user
+
+    return role_checker
+
+
+def optional_auth(credentials: Optional[HTTPAuthCredentials] = Depends(security)) -> Optional[CurrentUser]:
+    """
+    FastAPI dependency: Optional authentication (returns None if no token).
+
+    Args:
+        credentials: Optional HTTP Bearer token
+
+    Returns:
+        Current user context or None
+    """
+    if credentials is None:
+        return None
+    token_payload = verify_token(credentials.credentials)
+    return CurrentUser(user_id=token_payload.user_id, email=token_payload.email, role=token_payload.role)
+
+
+# ============================================================================
+# Supabase Database Client (Inlined from lib/database.py)
+# ============================================================================
+
+_supabase_client: Optional[Client] = None
+
+
+def get_supabase() -> Client:
+    """Get the Supabase client (lazy initialization for Vercel)."""
+    global _supabase_client
+    if _supabase_client is None:
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+        if not url or not key:
+            raise HTTPException(status_code=500, detail="Supabase not configured")
+        _supabase_client = create_client(url, key)
+    return _supabase_client
+
+
+class SupabaseDB:
+    """Singleton Supabase client wrapper with connection pooling."""
+
+    _instance: Optional["SupabaseDB"] = None
+    _client: Optional[Client] = None
+
+    def __new__(cls) -> "SupabaseDB":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if self._client is None:
+            self._client = get_supabase()
+
+    @property
+    def client(self) -> Client:
+        """Get the Supabase client instance."""
+        return self._client
+
+    def table(self, name: str):
+        """Get a table reference."""
+        return self._client.table(name)
+
+    def rpc(self, func_name: str, params: dict):
+        """Call a remote procedure (PostgreSQL function)."""
+        return self._client.rpc(func_name, params)
+
+    def health_check(self) -> bool:
+        """Check database connectivity."""
+        try:
+            result = self._client.table("users").select("id").limit(1).execute()
+            return True
+        except Exception as e:
+            print(f"Database health check failed: {e}")
+            return False
+
+
+def get_db() -> SupabaseDB:
+    """Get the global Supabase database instance."""
+    return SupabaseDB()
+
+
+# ============================================================================
+# Security Configuration
+# ============================================================================
+
 TRACCAR_WEBHOOK_SECRET = os.getenv("TRACCAR_WEBHOOK_SECRET", "")
 
 # ============================================================================
@@ -55,7 +283,7 @@ class HealthResponse(BaseModel):
 class LoginRequest(BaseModel):
     """Login request with credentials."""
 
-    email: EmailStr
+    email: str
     password: str
 
 
@@ -71,7 +299,7 @@ class TokenResponse(BaseModel):
 class UserCreate(BaseModel):
     """Create user request (admin only)."""
 
-    email: EmailStr
+    email: str
     password: str
     full_name: str
     full_name_ar: Optional[str] = None
@@ -274,6 +502,30 @@ class NearestStop(BaseModel):
     longitude: float
     distance_m: Optional[float] = None
     has_shelter: bool
+
+
+class TraccarPosition(BaseModel):
+    """Traccar position webhook payload."""
+
+    deviceId: int
+    latitude: float
+    longitude: float
+    altitude: Optional[float] = None
+    speed: Optional[float] = None
+    heading: Optional[float] = None
+    accuracy: Optional[float] = None
+    timestamp: int
+
+
+class TraccarEvent(BaseModel):
+    """Traccar event webhook payload."""
+
+    eventId: Optional[int] = None
+    type: str
+    serverTime: int
+    deviceId: int
+    deviceName: str
+    data: dict
 
 
 # ============================================================================
@@ -1456,35 +1708,8 @@ def verify_traccar_signature(request_body: str, signature: str) -> bool:
     Returns:
         True if signature is valid
     """
-    import hashlib
-    import hmac
-
     computed = hmac.new(TRACCAR_WEBHOOK_SECRET.encode(), request_body.encode(), hashlib.sha256).hexdigest()
     return hmac.compare_digest(computed, signature)
-
-
-class TraccarPosition(BaseModel):
-    """Traccar position webhook payload."""
-
-    deviceId: int
-    latitude: float
-    longitude: float
-    altitude: Optional[float] = None
-    speed: Optional[float] = None
-    heading: Optional[float] = None
-    accuracy: Optional[float] = None
-    timestamp: int
-
-
-class TraccarEvent(BaseModel):
-    """Traccar event webhook payload."""
-
-    eventId: Optional[int] = None
-    type: str
-    serverTime: int
-    deviceId: int
-    deviceName: str
-    data: dict
 
 
 @app.post("/api/traccar/position")
