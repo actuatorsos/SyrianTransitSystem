@@ -1,9 +1,10 @@
 """
-DamascusTransit FastAPI Backend - Production Server
+DamascusTransit FastAPI Backend - Production Server (Lightweight Edition)
 Handles real-time vehicle tracking, route management, driver dispatch, and fleet analytics.
 Deployed on Vercel with Supabase PostgreSQL backend.
 
-SELF-CONTAINED VERSION: All auth and database code inlined for Vercel Python serverless compatibility.
+LIGHTWEIGHT VERSION: Uses httpx for Supabase REST API, PyJWT for auth, bcrypt directly.
+All auth and database code inlined for Vercel Python serverless compatibility.
 """
 
 import os
@@ -11,17 +12,18 @@ import time
 import asyncio
 import hashlib
 import hmac
+import json
+import bcrypt
+import jwt
 from datetime import datetime, timedelta
 from typing import Optional, List, Literal
 from decimal import Decimal
 
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Response
 from fastapi.security import HTTPBearer, HTTPAuthCredentials
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, validator
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from supabase import create_client, Client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,14 +39,11 @@ app = FastAPI(
 )
 
 # ============================================================================
-# JWT Authentication (Inlined from lib/auth.py)
+# JWT Authentication (using PyJWT)
 # ============================================================================
 
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
-
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # HTTP Bearer security scheme
 security = HTTPBearer()
@@ -79,12 +78,16 @@ class CurrentUser(BaseModel):
 
 def hash_password(password: str) -> str:
     """Hash a plain text password using bcrypt."""
-    return pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode(), salt).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain text password against a bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    except (ValueError, TypeError):
+        return False
 
 
 def create_access_token(
@@ -137,9 +140,13 @@ def verify_token(token: str) -> TokenPayload:
             )
 
         return TokenPayload(user_id=user_id, email=email, role=role, exp=payload.get("exp"))
-    except JWTError:
+    except jwt.ExpiredSignatureError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
 
 
@@ -200,65 +207,93 @@ def optional_auth(credentials: Optional[HTTPAuthCredentials] = Depends(security)
 
 
 # ============================================================================
-# Supabase Database Client (Inlined from lib/database.py)
+# Supabase REST API Helpers (using httpx)
 # ============================================================================
 
-_supabase_client: Optional[Client] = None
+def _supabase_headers() -> dict:
+    """Get headers for Supabase REST API requests."""
+    key = os.getenv("SUPABASE_SERVICE_KEY", os.getenv("SUPABASE_KEY", ""))
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
 
 
-def get_supabase() -> Client:
-    """Get the Supabase client (lazy initialization for Vercel)."""
-    global _supabase_client
-    if _supabase_client is None:
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-        if not url or not key:
-            raise HTTPException(status_code=500, detail="Supabase not configured")
-        _supabase_client = create_client(url, key)
-    return _supabase_client
+def _supabase_url(path: str) -> str:
+    """Build Supabase REST API URL."""
+    base = os.getenv("SUPABASE_URL", "")
+    return f"{base}/rest/v1/{path}"
 
 
-class SupabaseDB:
-    """Singleton Supabase client wrapper with connection pooling."""
-
-    _instance: Optional["SupabaseDB"] = None
-    _client: Optional[Client] = None
-
-    def __new__(cls) -> "SupabaseDB":
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
-    def __init__(self):
-        if self._client is None:
-            self._client = get_supabase()
-
-    @property
-    def client(self) -> Client:
-        """Get the Supabase client instance."""
-        return self._client
-
-    def table(self, name: str):
-        """Get a table reference."""
-        return self._client.table(name)
-
-    def rpc(self, func_name: str, params: dict):
-        """Call a remote procedure (PostgreSQL function)."""
-        return self._client.rpc(func_name, params)
-
-    def health_check(self) -> bool:
-        """Check database connectivity."""
-        try:
-            result = self._client.table("users").select("id").limit(1).execute()
-            return True
-        except Exception as e:
-            print(f"Database health check failed: {e}")
-            return False
+async def _supabase_get(path: str, params: Optional[dict] = None) -> list:
+    """Make GET request to Supabase REST API."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(_supabase_url(path), headers=_supabase_headers(), params=params or {})
+            resp.raise_for_status()
+            data = resp.json()
+            return data if isinstance(data, list) else [data] if data else []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
 
-def get_db() -> SupabaseDB:
-    """Get the global Supabase database instance."""
-    return SupabaseDB()
+async def _supabase_post(path: str, data: dict) -> dict:
+    """Make POST request to Supabase REST API."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(_supabase_url(path), headers=_supabase_headers(), json=data)
+            resp.raise_for_status()
+            return resp.json() if resp.content else {}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database operation failed: {str(e)}")
+
+
+async def _supabase_patch(path: str, data: dict) -> list:
+    """Make PATCH request to Supabase REST API (update)."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.patch(_supabase_url(path), headers=_supabase_headers(), json=data)
+            resp.raise_for_status()
+            result = resp.json()
+            return result if isinstance(result, list) else [result] if result else []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
+
+
+async def _supabase_delete(path: str) -> None:
+    """Make DELETE request to Supabase REST API."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.delete(_supabase_url(path), headers=_supabase_headers())
+            resp.raise_for_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database delete failed: {str(e)}")
+
+
+async def _supabase_rpc(func_name: str, params: dict) -> any:
+    """Call Supabase RPC (PostgreSQL function)."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                f"{os.getenv('SUPABASE_URL')}/rest/v1/rpc/{func_name}",
+                headers=_supabase_headers(),
+                json=params
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"RPC call failed: {str(e)}")
+
+
+async def _health_check() -> bool:
+    """Check database connectivity."""
+    try:
+        result = await _supabase_get("users?select=id&limit=1")
+        return True
+    except:
+        return False
 
 
 # ============================================================================
@@ -541,8 +576,7 @@ async def health_check():
     Returns:
         Health status including database connectivity
     """
-    db = get_db()
-    db_healthy = db.health_check()
+    db_healthy = await _health_check()
 
     return HealthResponse(
         status="healthy" if db_healthy else "degraded",
@@ -565,11 +599,8 @@ async def login(request: LoginRequest):
     Raises:
         HTTPException: Invalid credentials
     """
-    db = get_db()
-
     try:
-        result = db.table("users").select("id, email, password_hash, role").eq("email", request.email).execute()
-        users = result.data
+        users = await _supabase_get(f"users?email=eq.{request.email}&select=id,email,password_hash,role")
 
         if not users:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -599,17 +630,14 @@ async def list_routes():
     Returns:
         List of active routes
     """
-    db = get_db()
-
     try:
-        result = db.table("routes").select("*").eq("is_active", True).execute()
-        routes = result.data
+        routes = await _supabase_get("routes?is_active=eq.true&select=*")
 
         # Get stop counts for each route
         enriched_routes = []
         for route in routes:
-            stops_result = db.table("route_stops").select("id", count="exact").eq("route_id", route["id"]).execute()
-            stop_count = stops_result.count or 0
+            stops = await _supabase_get(f"route_stops?route_id=eq.{route['id']}&select=id")
+            stop_count = len(stops)
 
             enriched_routes.append(
                 RouteResponse(
@@ -646,19 +674,17 @@ async def get_route(route_id: str):
     Raises:
         HTTPException: Route not found
     """
-    db = get_db()
-
     try:
-        result = db.table("routes").select("*").eq("id", route_id).execute()
+        routes = await _supabase_get(f"routes?id=eq.{route_id}&select=*")
 
-        if not result.data:
+        if not routes:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
 
-        route = result.data[0]
+        route = routes[0]
 
         # Get stop count
-        stops_result = db.table("route_stops").select("id", count="exact").eq("route_id", route_id).execute()
-        stop_count = stops_result.count or 0
+        stops = await _supabase_get(f"route_stops?route_id=eq.{route_id}&select=id")
+        stop_count = len(stops)
 
         return RouteResponse(
             id=route["id"],
@@ -687,11 +713,8 @@ async def list_stops():
     Returns:
         List of active stops
     """
-    db = get_db()
-
     try:
-        result = db.table("stops").select("*").eq("is_active", True).execute()
-        stops = result.data
+        stops = await _supabase_get("stops?is_active=eq.true&select=*")
 
         return [
             StopResponse(
@@ -719,7 +742,7 @@ async def find_nearest_stops(
     limit: int = Query(10, ge=1, le=50),
 ):
     """
-    Find nearest stops using PostGIS.
+    Find nearest stops using PostGIS RPC.
 
     Args:
         lat: Latitude
@@ -730,15 +753,13 @@ async def find_nearest_stops(
     Returns:
         Nearest stops sorted by distance
     """
-    db = get_db()
-
     try:
         # Call PostGIS RPC function
-        result = db.rpc(
+        stops = await _supabase_rpc(
             "find_nearest_stops", {"p_lat": lat, "p_lon": lon, "p_limit": limit, "p_radius_m": radius}
-        ).execute()
+        )
 
-        stops = result.data or []
+        stops = stops if isinstance(stops, list) else [stops] if stops else []
 
         return [
             NearestStop(
@@ -766,13 +787,11 @@ async def list_vehicles():
     Returns:
         List of active vehicles with real-time position data
     """
-    db = get_db()
-
     try:
-        # Get vehicles with latest positions
-        result = db.table("vehicle_positions_latest").select("*, vehicles(id, vehicle_id, name, name_ar, vehicle_type, capacity, status, assigned_route_id)").eq("vehicles.is_active", True).execute()
+        # Get vehicles with latest positions (join with vehicle_positions_latest)
+        positions = await _supabase_get("vehicle_positions_latest?select=*,vehicles(id,vehicle_id,name,name_ar,vehicle_type,capacity,status,assigned_route_id)")
 
-        vehicles_data = result.data or []
+        vehicles_data = positions or []
 
         return [
             VehicleResponse(
@@ -806,12 +825,10 @@ async def get_vehicle_positions():
     Returns:
         Vehicle ID, location, and basic tracking data
     """
-    db = get_db()
-
     try:
-        result = db.table("vehicle_positions_latest").select("vehicle_id, latitude, longitude, speed_kmh, occupancy_pct, recorded_at").execute()
+        result = await _supabase_get("vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at")
 
-        return result.data or []
+        return result or []
 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -826,9 +843,6 @@ async def stream_positions():
     Returns:
         Streaming response with position updates
     """
-    db = get_db()
-    last_timestamp = datetime.utcnow().isoformat()
-
     async def generate():
         start_time = time.time()
         max_duration = 25  # Vercel hobby timeout
@@ -836,9 +850,9 @@ async def stream_positions():
         while time.time() - start_time < max_duration:
             try:
                 # Get positions updated since last poll
-                result = db.table("vehicle_positions_latest").select("*, vehicles(name, name_ar)").execute()
+                positions = await _supabase_get("vehicle_positions_latest?select=*,vehicles(name,name_ar)")
 
-                positions = result.data or []
+                positions = positions or []
 
                 for pos in positions:
                     vehicle = pos.get("vehicles", {})
@@ -873,41 +887,39 @@ async def get_fleet_stats():
     Returns:
         Fleet overview stats
     """
-    db = get_db()
-
     try:
         # Vehicle counts
-        vehicles_result = db.table("vehicles").select("id, status", count="exact").eq("is_active", True).execute()
+        vehicles = await _supabase_get("vehicles?is_active=eq.true&select=id,status")
 
-        active_count = len([v for v in vehicles_result.data if v["status"] == "active"]) if vehicles_result.data else 0
-        idle_count = len([v for v in vehicles_result.data if v["status"] == "idle"]) if vehicles_result.data else 0
-        maintenance_count = len([v for v in vehicles_result.data if v["status"] == "maintenance"]) if vehicles_result.data else 0
+        active_count = len([v for v in vehicles if v.get("status") == "active"]) if vehicles else 0
+        idle_count = len([v for v in vehicles if v.get("status") == "idle"]) if vehicles else 0
+        maintenance_count = len([v for v in vehicles if v.get("status") == "maintenance"]) if vehicles else 0
 
         # Route counts
-        routes_result = db.table("routes").select("id", count="exact").eq("is_active", True).execute()
+        routes = await _supabase_get("routes?is_active=eq.true&select=id")
 
         # Stops count
-        stops_result = db.table("stops").select("id", count="exact").eq("is_active", True).execute()
+        stops = await _supabase_get("stops?is_active=eq.true&select=id")
 
         # Driver counts
-        drivers_result = db.table("users").select("id, is_active").eq("role", "driver").execute()
+        drivers = await _supabase_get("users?role=eq.driver&select=id,is_active")
 
-        active_drivers = len([d for d in drivers_result.data if d["is_active"]]) if drivers_result.data else 0
+        active_drivers = len([d for d in drivers if d.get("is_active")]) if drivers else 0
 
         # Average occupancy
-        positions_result = db.table("vehicle_positions_latest").select("occupancy_pct").execute()
+        positions = await _supabase_get("vehicle_positions_latest?select=occupancy_pct")
 
-        occupancy_values = [p["occupancy_pct"] for p in positions_result.data if p.get("occupancy_pct") is not None]
+        occupancy_values = [p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None]
         avg_occupancy = sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
 
         return {
-            "total_vehicles": vehicles_result.count or 0,
+            "total_vehicles": len(vehicles),
             "active_vehicles": active_count,
             "idle_vehicles": idle_count,
             "maintenance_vehicles": maintenance_count,
-            "total_routes": routes_result.count or 0,
-            "total_stops": stops_result.count or 0,
-            "total_drivers": drivers_result.count or 0,
+            "total_routes": len(routes),
+            "total_stops": len(stops),
+            "total_drivers": len(drivers),
             "active_drivers": active_drivers,
             "avg_occupancy_pct": round(avg_occupancy, 1) if avg_occupancy else None,
             "timestamp": datetime.utcnow().isoformat(),
@@ -928,10 +940,8 @@ async def get_route_schedule(route_id: str):
     Returns:
         Schedule entries for each day
     """
-    db = get_db()
-
     try:
-        result = db.table("schedules").select("*").eq("route_id", route_id).execute()
+        schedules = await _supabase_get(f"schedules?route_id=eq.{route_id}&select=*")
 
         return [
             ScheduleResponse(
@@ -942,7 +952,7 @@ async def get_route_schedule(route_id: str):
                 last_departure=s["last_departure"],
                 frequency_min=s["frequency_min"],
             )
-            for s in result.data
+            for s in schedules
         ]
 
     except Exception as e:
@@ -957,10 +967,8 @@ async def get_active_alerts():
     Returns:
         List of active alerts
     """
-    db = get_db()
-
     try:
-        result = db.table("alerts").select("*").eq("is_resolved", False).order("created_at", desc=True).execute()
+        alerts = await _supabase_get("alerts?is_resolved=eq.false&select=*&order=created_at.desc")
 
         return [
             AlertResponse(
@@ -974,7 +982,7 @@ async def get_active_alerts():
                 is_resolved=a["is_resolved"],
                 created_at=a["created_at"],
             )
-            for a in result.data
+            for a in alerts
         ]
 
     except Exception as e:
@@ -1001,19 +1009,17 @@ async def report_driver_position(
     Returns:
         Success confirmation
     """
-    db = get_db()
-
     try:
         # Get driver's assigned vehicle
-        driver_result = db.table("vehicles").select("id, vehicle_id").eq("assigned_driver_id", current_user.user_id).execute()
+        vehicles = await _supabase_get(f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id,vehicle_id")
 
-        if not driver_result.data:
+        if not vehicles:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned")
 
-        vehicle = driver_result.data[0]
+        vehicle = vehicles[0]
 
         # Call RPC to upsert position
-        result = db.rpc(
+        await _supabase_rpc(
             "upsert_vehicle_position",
             {
                 "p_vehicle_id": vehicle["id"],
@@ -1025,7 +1031,7 @@ async def report_driver_position(
                 "p_route_id": None,
                 "p_occupancy": None,
             },
-        ).execute()
+        )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
@@ -1050,16 +1056,14 @@ async def start_trip(
     Returns:
         Trip ID and confirmation
     """
-    db = get_db()
-
     try:
         # Get driver's vehicle and verify route assignment
-        vehicle_result = db.table("vehicles").select("id").eq("assigned_driver_id", current_user.user_id).execute()
+        vehicles = await _supabase_get(f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id")
 
-        if not vehicle_result.data:
+        if not vehicles:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned")
 
-        vehicle_id = vehicle_result.data[0]["id"]
+        vehicle_id = vehicles[0]["id"]
 
         # Create trip
         trip_data = {
@@ -1071,12 +1075,12 @@ async def start_trip(
             "actual_start": datetime.utcnow().isoformat(),
         }
 
-        result = db.table("trips").insert([trip_data]).execute()
+        result = await _supabase_post("trips", trip_data)
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create trip")
 
-        return {"status": "success", "trip_id": result.data[0]["id"], "timestamp": datetime.utcnow().isoformat()}
+        return {"status": "success", "trip_id": result.get("id"), "timestamp": datetime.utcnow().isoformat()}
 
     except HTTPException:
         raise
@@ -1099,16 +1103,14 @@ async def end_trip(
     Returns:
         Success confirmation
     """
-    db = get_db()
-
     try:
         # Get current trip
-        trip_result = db.table("trips").select("id").eq("driver_id", current_user.user_id).eq("status", "in_progress").execute()
+        trips = await _supabase_get(f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id")
 
-        if not trip_result.data:
+        if not trips:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active trip")
 
-        trip_id = trip_result.data[0]["id"]
+        trip_id = trips[0]["id"]
 
         # Update trip
         update_data = {
@@ -1117,7 +1119,7 @@ async def end_trip(
             "passenger_count": trip_data.passenger_count,
         }
 
-        db.table("trips").update(update_data).eq("id", trip_id).execute()
+        await _supabase_patch(f"trips?id=eq.{trip_id}", update_data)
 
         return {"status": "success", "trip_id": trip_id, "timestamp": datetime.utcnow().isoformat()}
 
@@ -1142,19 +1144,17 @@ async def update_passenger_count(
     Returns:
         Success confirmation
     """
-    db = get_db()
-
     try:
         # Get current trip
-        trip_result = db.table("trips").select("id").eq("driver_id", current_user.user_id).eq("status", "in_progress").execute()
+        trips = await _supabase_get(f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id")
 
-        if not trip_result.data:
+        if not trips:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active trip")
 
-        trip_id = trip_result.data[0]["id"]
+        trip_id = trips[0]["id"]
 
         # Update passenger count
-        db.table("trips").update({"passenger_count": data.passenger_count}).eq("id", trip_id).execute()
+        await _supabase_patch(f"trips?id=eq.{trip_id}", {"passenger_count": data.passenger_count})
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
@@ -1182,10 +1182,8 @@ async def list_users(
     Returns:
         List of users
     """
-    db = get_db()
-
     try:
-        result = db.table("users").select("*").execute()
+        users = await _supabase_get("users?select=*")
 
         return [
             UserResponse(
@@ -1198,7 +1196,7 @@ async def list_users(
                 is_active=u["is_active"],
                 created_at=u.get("created_at"),
             )
-            for u in result.data
+            for u in users
         ]
 
     except Exception as e:
@@ -1220,13 +1218,11 @@ async def create_user(
     Returns:
         Created user
     """
-    db = get_db()
-
     try:
         # Check if email exists
-        existing = db.table("users").select("id").eq("email", user_data.email).execute()
+        existing = await _supabase_get(f"users?email=eq.{user_data.email}&select=id")
 
-        if existing.data:
+        if existing:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
 
         # Create user
@@ -1242,21 +1238,21 @@ async def create_user(
             "is_active": True,
         }
 
-        result = db.table("users").insert([new_user]).execute()
+        result = await _supabase_post("users", new_user)
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
 
-        created_user = result.data[0]
+        created_user = result if isinstance(result, dict) else result[0] if result else {}
 
         return UserResponse(
-            id=created_user["id"],
-            email=created_user["email"],
-            full_name=created_user["full_name"],
+            id=created_user.get("id"),
+            email=created_user.get("email"),
+            full_name=created_user.get("full_name"),
             full_name_ar=created_user.get("full_name_ar"),
-            role=created_user["role"],
+            role=created_user.get("role"),
             phone=created_user.get("phone"),
-            is_active=created_user["is_active"],
+            is_active=created_user.get("is_active"),
         )
 
     except HTTPException:
@@ -1282,8 +1278,6 @@ async def update_user(
     Returns:
         Updated user
     """
-    db = get_db()
-
     try:
         # Build update dict
         update_dict = {}
@@ -1299,21 +1293,21 @@ async def update_user(
         if not update_dict:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
 
-        result = db.table("users").update(update_dict).eq("id", user_id).execute()
+        result = await _supabase_patch(f"users?id=eq.{user_id}", update_dict)
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        updated_user = result.data[0]
+        updated_user = result[0] if result else {}
 
         return UserResponse(
-            id=updated_user["id"],
-            email=updated_user["email"],
-            full_name=updated_user["full_name"],
+            id=updated_user.get("id"),
+            email=updated_user.get("email"),
+            full_name=updated_user.get("full_name"),
             full_name_ar=updated_user.get("full_name_ar"),
-            role=updated_user["role"],
+            role=updated_user.get("role"),
             phone=updated_user.get("phone"),
-            is_active=updated_user["is_active"],
+            is_active=updated_user.get("is_active"),
         )
 
     except HTTPException:
@@ -1335,12 +1329,10 @@ async def list_all_vehicles(
     Returns:
         All vehicles
     """
-    db = get_db()
-
     try:
-        result = db.table("vehicle_positions_latest").select("*, vehicles(*)").execute()
+        positions = await _supabase_get("vehicle_positions_latest?select=*,vehicles(*)")
 
-        vehicles_data = result.data or []
+        vehicles_data = positions or []
 
         return [
             VehicleResponse(
@@ -1381,8 +1373,6 @@ async def create_vehicle(
     Returns:
         Created vehicle
     """
-    db = get_db()
-
     try:
         new_vehicle = {
             "vehicle_id": vehicle_data.vehicle_id,
@@ -1396,21 +1386,21 @@ async def create_vehicle(
             "is_active": True,
         }
 
-        result = db.table("vehicles").insert([new_vehicle]).execute()
+        result = await _supabase_post("vehicles", new_vehicle)
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create vehicle")
 
-        created = result.data[0]
+        created = result if isinstance(result, dict) else result[0] if result else {}
 
         return VehicleResponse(
-            id=created["id"],
-            vehicle_id=created["vehicle_id"],
-            name=created["name"],
-            name_ar=created["name_ar"],
-            vehicle_type=created["vehicle_type"],
-            capacity=created["capacity"],
-            status=created["status"],
+            id=created.get("id"),
+            vehicle_id=created.get("vehicle_id"),
+            name=created.get("name"),
+            name_ar=created.get("name_ar"),
+            vehicle_type=created.get("vehicle_type"),
+            capacity=created.get("capacity"),
+            status=created.get("status"),
         )
 
     except HTTPException:
@@ -1436,8 +1426,6 @@ async def update_vehicle(
     Returns:
         Updated vehicle
     """
-    db = get_db()
-
     try:
         update_dict = {}
         if vehicle_data.name is not None:
@@ -1452,21 +1440,21 @@ async def update_vehicle(
         if not update_dict:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
 
-        result = db.table("vehicles").update(update_dict).eq("id", vehicle_id).execute()
+        result = await _supabase_patch(f"vehicles?id=eq.{vehicle_id}", update_dict)
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
-        updated = result.data[0]
+        updated = result[0] if result else {}
 
         return VehicleResponse(
-            id=updated["id"],
-            vehicle_id=updated["vehicle_id"],
-            name=updated["name"],
-            name_ar=updated["name_ar"],
-            vehicle_type=updated["vehicle_type"],
-            capacity=updated["capacity"],
-            status=updated["status"],
+            id=updated.get("id"),
+            vehicle_id=updated.get("vehicle_id"),
+            name=updated.get("name"),
+            name_ar=updated.get("name_ar"),
+            vehicle_type=updated.get("vehicle_type"),
+            capacity=updated.get("capacity"),
+            status=updated.get("status"),
         )
 
     except HTTPException:
@@ -1492,17 +1480,15 @@ async def assign_vehicle(
     Returns:
         Success confirmation
     """
-    db = get_db()
-
     try:
         update_data = {
             "assigned_route_id": assignment.route_id,
             "assigned_driver_id": assignment.driver_id,
         }
 
-        result = db.table("vehicles").update(update_data).eq("id", vehicle_id).execute()
+        result = await _supabase_patch(f"vehicles?id=eq.{vehicle_id}", update_data)
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
         # Log to audit
@@ -1511,7 +1497,7 @@ async def assign_vehicle(
             "action": "vehicle_assigned",
             "details": f"Vehicle {vehicle_id} assigned to route {assignment.route_id}, driver {assignment.driver_id}",
         }
-        db.table("audit_log").insert([audit_entry]).execute()
+        await _supabase_post("audit_log", audit_entry)
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
@@ -1534,10 +1520,8 @@ async def list_all_alerts(
     Returns:
         All alerts
     """
-    db = get_db()
-
     try:
-        result = db.table("alerts").select("*").order("created_at", desc=True).execute()
+        alerts = await _supabase_get("alerts?select=*&order=created_at.desc")
 
         return [
             AlertResponse(
@@ -1551,7 +1535,7 @@ async def list_all_alerts(
                 is_resolved=a["is_resolved"],
                 created_at=a["created_at"],
             )
-            for a in result.data
+            for a in alerts
         ]
 
     except Exception as e:
@@ -1575,14 +1559,12 @@ async def resolve_alert(
     Returns:
         Success confirmation
     """
-    db = get_db()
-
     try:
         update_data = {"is_resolved": alert_data.resolved, "resolved_at": datetime.utcnow().isoformat() if alert_data.resolved else None}
 
-        result = db.table("alerts").update(update_data).eq("id", alert_id).execute()
+        result = await _supabase_patch(f"alerts?id=eq.{alert_id}", update_data)
 
-        if not result.data:
+        if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
@@ -1612,21 +1594,23 @@ async def list_trips(
     Returns:
         List of trips
     """
-    db = get_db()
-
     try:
-        query = db.table("trips").select("*")
-
+        # Build query params
+        params = []
         if vehicle_id:
-            query = query.eq("vehicle_id", vehicle_id)
+            params.append(f"vehicle_id=eq.{vehicle_id}")
         if driver_id:
-            query = query.eq("driver_id", driver_id)
+            params.append(f"driver_id=eq.{driver_id}")
         if status_filter:
-            query = query.eq("status", status_filter)
+            params.append(f"status=eq.{status_filter}")
 
-        result = query.order("created_at", desc=True).execute()
+        query = f"trips?select=*&order=created_at.desc"
+        if params:
+            query = f"trips?{'&'.join(params)}&select=*&order=created_at.desc"
 
-        return result.data or []
+        result = await _supabase_get(query)
+
+        return result or []
 
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -1645,45 +1629,40 @@ async def get_analytics_overview(
     Returns:
         Fleet analytics
     """
-    db = get_db()
-
     try:
         # Vehicle counts
-        vehicles_result = db.table("vehicles").select("status", count="exact").execute()
+        vehicles = await _supabase_get("vehicles?select=status")
 
-        vehicles = vehicles_result.data or []
         active_vehicles = len([v for v in vehicles if v.get("status") == "active"])
         idle_vehicles = len([v for v in vehicles if v.get("status") == "idle"])
         maintenance_vehicles = len([v for v in vehicles if v.get("status") == "maintenance"])
 
         # Routes
-        routes_result = db.table("routes").select("id", count="exact").eq("is_active", True).execute()
+        routes = await _supabase_get("routes?is_active=eq.true&select=id")
 
         # Stops
-        stops_result = db.table("stops").select("id", count="exact").eq("is_active", True).execute()
+        stops = await _supabase_get("stops?is_active=eq.true&select=id")
 
         # Drivers
-        drivers_result = db.table("users").select("is_active").eq("role", "driver").execute()
+        drivers = await _supabase_get("users?role=eq.driver&select=is_active")
 
-        drivers = drivers_result.data or []
-        active_drivers = len([d for d in drivers if d.get("is_active")])
+        active_drivers = len([d for d in drivers if d.get("is_active")]) if drivers else 0
 
         # Average occupancy
-        positions_result = db.table("vehicle_positions_latest").select("occupancy_pct").execute()
+        positions = await _supabase_get("vehicle_positions_latest?select=occupancy_pct")
 
-        positions = positions_result.data or []
         occupancy_values = [p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None]
         avg_occupancy = sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
 
         return AnalyticsOverview(
-            total_vehicles=vehicles_result.count or 0,
+            total_vehicles=len(vehicles),
             active_vehicles=active_vehicles,
             idle_vehicles=idle_vehicles,
             maintenance_vehicles=maintenance_vehicles,
-            total_routes=routes_result.count or 0,
-            active_routes=routes_result.count or 0,
-            total_stops=stops_result.count or 0,
-            total_drivers=drivers_result.count or 0,
+            total_routes=len(routes),
+            active_routes=len(routes),
+            total_stops=len(stops),
+            total_drivers=len(drivers),
             active_drivers=active_drivers,
             avg_occupancy_pct=round(avg_occupancy, 1) if avg_occupancy else None,
         )
@@ -1733,20 +1712,18 @@ async def traccar_position_webhook(
         if not verify_traccar_signature(position.json(), x_traccar_signature):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
 
-    db = get_db()
-
     try:
         # Find vehicle by Traccar device ID
-        device_result = db.table("vehicles").select("id, vehicle_id").eq("gps_device_id", str(position.deviceId)).execute()
+        devices = await _supabase_get(f"vehicles?gps_device_id=eq.{position.deviceId}&select=id,vehicle_id")
 
-        if not device_result.data:
+        if not devices:
             # Device not found - log and ignore gracefully
             return {"status": "ignored", "reason": "device_not_found"}
 
-        vehicle = device_result.data[0]
+        vehicle = devices[0]
 
         # Upsert position via RPC
-        db.rpc(
+        await _supabase_rpc(
             "upsert_vehicle_position",
             {
                 "p_vehicle_id": vehicle["id"],
@@ -1758,7 +1735,7 @@ async def traccar_position_webhook(
                 "p_route_id": None,
                 "p_occupancy": None,
             },
-        ).execute()
+        )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
@@ -1789,16 +1766,14 @@ async def traccar_event_webhook(
         if not verify_traccar_signature(event.json(), x_traccar_signature):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
 
-    db = get_db()
-
     try:
         # Find vehicle by Traccar device ID
-        device_result = db.table("vehicles").select("id").eq("gps_device_id", str(event.deviceId)).execute()
+        devices = await _supabase_get(f"vehicles?gps_device_id=eq.{event.deviceId}&select=id")
 
-        if not device_result.data:
+        if not devices:
             return {"status": "ignored", "reason": "device_not_found"}
 
-        vehicle_id = device_result.data[0]["id"]
+        vehicle_id = devices[0]["id"]
 
         # Map Traccar event types to alert types
         event_type_map = {
@@ -1826,7 +1801,7 @@ async def traccar_event_webhook(
                 "is_resolved": False,
             }
 
-            db.table("alerts").insert([alert_data]).execute()
+            await _supabase_post("alerts", alert_data)
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
