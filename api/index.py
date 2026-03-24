@@ -21,7 +21,8 @@ from decimal import Decimal
 
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, Query, Response
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
+from fastapi.security.http import HTTPAuthorizationCredentials as HTTPAuthCredentials
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, validator
 from dotenv import load_dotenv
