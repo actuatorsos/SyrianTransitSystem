@@ -8,7 +8,26 @@
 -- Replace CHANGE_ME_HASH with the generated hash. Never commit real passwords or hashes of known passwords.
 INSERT INTO users (email, password_hash, full_name, full_name_ar, role, phone) VALUES
 ('admin@damascustransit.sy', 'CHANGE_ME_HASH', 'System Admin', 'مدير النظام', 'admin', '+963000000001'),
-('dispatcher@damascustransit.sy', 'CHANGE_ME_HASH', 'Operations Center', 'مركز العمليات', 'dispatcher', '+963000000002');
+('dispatcher@damascustransit.sy', 'CHANGE_ME_HASH', 'Operations Center', 'مركز العمليات', 'dispatcher', '+963000000002'),
+-- Drivers (one per active vehicle — assign via UPDATE below)
+('driver01@damascustransit.sy', 'CHANGE_ME_HASH', 'Ahmad Khalil', 'أحمد خليل', 'driver', '+963110000001'),
+('driver02@damascustransit.sy', 'CHANGE_ME_HASH', 'Omar Sayed', 'عمر سيد', 'driver', '+963110000002'),
+('driver03@damascustransit.sy', 'CHANGE_ME_HASH', 'Hassan Nouri', 'حسن نوري', 'driver', '+963110000003'),
+('driver04@damascustransit.sy', 'CHANGE_ME_HASH', 'Sami Darwish', 'سامي درويش', 'driver', '+963110000004'),
+('driver05@damascustransit.sy', 'CHANGE_ME_HASH', 'Fadi Haddad', 'فادي حداد', 'driver', '+963110000005'),
+('driver06@damascustransit.sy', 'CHANGE_ME_HASH', 'Khaled Mansour', 'خالد منصور', 'driver', '+963110000006'),
+('driver07@damascustransit.sy', 'CHANGE_ME_HASH', 'Youssef Amin', 'يوسف أمين', 'driver', '+963110000007'),
+('driver08@damascustransit.sy', 'CHANGE_ME_HASH', 'Rami Jabr', 'رامي جبر', 'driver', '+963110000008'),
+('driver09@damascustransit.sy', 'CHANGE_ME_HASH', 'Nizar Shami', 'نزار شامي', 'driver', '+963110000009'),
+('driver10@damascustransit.sy', 'CHANGE_ME_HASH', 'Tariq Bazzi', 'طارق بزي', 'driver', '+963110000010'),
+('driver11@damascustransit.sy', 'CHANGE_ME_HASH', 'Bilal Hamdi', 'بلال حمدي', 'driver', '+963110000011'),
+('driver12@damascustransit.sy', 'CHANGE_ME_HASH', 'Wael Khoury', 'وائل خوري', 'driver', '+963110000012'),
+('driver13@damascustransit.sy', 'CHANGE_ME_HASH', 'Mazen Rida', 'مازن رضا', 'driver', '+963110000013'),
+('driver14@damascustransit.sy', 'CHANGE_ME_HASH', 'Adel Fayad', 'عادل فياض', 'driver', '+963110000014'),
+('driver15@damascustransit.sy', 'CHANGE_ME_HASH', 'Samir Qasim', 'سمير قاسم', 'driver', '+963110000015'),
+('driver16@damascustransit.sy', 'CHANGE_ME_HASH', 'Jamil Sabbagh', 'جميل صباغ', 'driver', '+963110000016'),
+('driver17@damascustransit.sy', 'CHANGE_ME_HASH', 'Hani Tlass', 'هاني طلاس', 'driver', '+963110000017'),
+('driver18@damascustransit.sy', 'CHANGE_ME_HASH', 'Ziad Farah', 'زياد فرح', 'driver', '+963110000018');
 
 -- ============================================================
 -- STOPS (42 real Damascus locations)
@@ -229,3 +248,26 @@ INSERT INTO geofences (name, name_ar, geometry, geofence_type, speed_limit_kmh) 
 ('Old City Zone', 'منطقة المدينة القديمة',
     ST_SetSRID(ST_GeomFromText('POLYGON((36.305 33.508, 36.322 33.508, 36.322 33.516, 36.305 33.516, 36.305 33.508))'), 4326),
     'zone', 20);
+
+-- ============================================================
+-- DRIVER → VEHICLE ASSIGNMENTS (18 active vehicles)
+-- ============================================================
+
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver01@damascustransit.sy') WHERE vehicle_id='BUS-001';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver02@damascustransit.sy') WHERE vehicle_id='BUS-002';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver03@damascustransit.sy') WHERE vehicle_id='BUS-003';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver04@damascustransit.sy') WHERE vehicle_id='BUS-004';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver05@damascustransit.sy') WHERE vehicle_id='BUS-005';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver06@damascustransit.sy') WHERE vehicle_id='BUS-006';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver07@damascustransit.sy') WHERE vehicle_id='BUS-007';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver08@damascustransit.sy') WHERE vehicle_id='BUS-008';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver09@damascustransit.sy') WHERE vehicle_id='BUS-009';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver10@damascustransit.sy') WHERE vehicle_id='MIC-001';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver11@damascustransit.sy') WHERE vehicle_id='MIC-002';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver12@damascustransit.sy') WHERE vehicle_id='MIC-003';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver13@damascustransit.sy') WHERE vehicle_id='MIC-004';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver14@damascustransit.sy') WHERE vehicle_id='MIC-005';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver15@damascustransit.sy') WHERE vehicle_id='MIC-006';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver16@damascustransit.sy') WHERE vehicle_id='TAX-001';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver17@damascustransit.sy') WHERE vehicle_id='TAX-002';
+UPDATE vehicles SET assigned_driver_id = (SELECT id FROM users WHERE email='driver18@damascustransit.sy') WHERE vehicle_id='TAX-003';
