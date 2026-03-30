@@ -2944,129 +2944,127 @@ def _interpolate_position(
     return (round(lat, 6), round(lon, 6), round(heading, 1))
 
 
+CRON_SECRET = os.getenv("CRON_SECRET", "")
+
+
+async def _run_simulation() -> dict:
+    """Core simulation logic — generates positions for all active vehicles."""
+    # Fetch active vehicles with assigned routes
+    vehicles = await _supabase_get(
+        "vehicles?status=eq.active&assigned_route_id=not.is.null"
+        "&select=id,vehicle_id,assigned_route_id,vehicle_type"
+    )
+
+    if not vehicles:
+        return {"status": "no_vehicles", "updated": 0}
+
+    # Collect unique route IDs
+    route_ids = list({v["assigned_route_id"] for v in vehicles})
+
+    # Fetch route stops with coordinates for each route
+    route_stops_map: dict[str, list[dict]] = {}
+    for rid in route_ids:
+        rows = await _supabase_get(
+            f"route_stops?route_id=eq.{rid}"
+            f"&select=stop_sequence,stops(stop_id,location)"
+            f"&order=stop_sequence.asc"
+        )
+        stops = []
+        for row in rows:
+            stop_data = row.get("stops")
+            if not stop_data:
+                continue
+            loc = stop_data.get("location")
+            if not loc:
+                continue
+            lat, lon = None, None
+            if isinstance(loc, dict):
+                coords = loc.get("coordinates", [])
+                if len(coords) >= 2:
+                    lon, lat = coords[0], coords[1]
+            elif isinstance(loc, str) and "POINT" in loc:
+                inner = loc.replace("POINT(", "").replace(")", "").strip()
+                parts = inner.split()
+                if len(parts) == 2:
+                    lon, lat = float(parts[0]), float(parts[1])
+            if lat is not None and lon is not None:
+                stops.append({"lat": lat, "lon": lon})
+        route_stops_map[rid] = stops
+
+    # Simulate positions based on current time
+    now = time.time()
+    cycle_seconds = 1800  # 30-minute round-trip cycle
+    updated = []
+
+    for i, vehicle in enumerate(vehicles):
+        rid = vehicle["assigned_route_id"]
+        stops = route_stops_map.get(rid, [])
+        if len(stops) < 2:
+            continue
+
+        # Each vehicle has a phase offset so they're distributed along the route
+        phase = (i * 137) % cycle_seconds
+        progress = ((now + phase) % cycle_seconds) / (cycle_seconds / 2)
+        progress = progress % 2.0  # 0→2 for round trip
+
+        lat, lon, heading = _interpolate_position(stops, progress)
+
+        base_speed = {"bus": 30, "microbus": 25, "taxi": 40}.get(
+            vehicle.get("vehicle_type", "bus"), 30
+        )
+        speed = round(base_speed + random.uniform(-5, 5), 1)
+        occupancy = random.randint(15, 85)
+
+        await _supabase_rpc(
+            "upsert_vehicle_position",
+            {
+                "p_vehicle_id": vehicle["id"],
+                "p_lat": lat,
+                "p_lon": lon,
+                "p_speed": speed,
+                "p_heading": heading,
+                "p_source": "simulator",
+                "p_route_id": rid,
+                "p_occupancy": occupancy,
+            },
+        )
+
+        updated.append(
+            {
+                "vehicle_id": vehicle["vehicle_id"],
+                "lat": lat,
+                "lon": lon,
+                "speed_kmh": speed,
+                "heading": heading,
+            }
+        )
+
+    return {
+        "status": "success",
+        "updated": len(updated),
+        "vehicles": updated,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
 @app.post("/api/admin/simulate", tags=["admin"])
 async def simulate_vehicle_positions(
     current_user: CurrentUser = Depends(require_role("admin", "super_admin")),
 ):
+    """Generate simulated GPS positions (admin JWT auth)."""
+    return await _run_simulation()
+
+
+@app.get("/api/cron/simulate", tags=["cron"])
+async def cron_simulate_positions(request: Request):
+    """Vercel Cron endpoint — generates simulated GPS positions on schedule.
+
+    Secured by CRON_SECRET env var. Add to vercel.json crons config.
     """
-    Generate simulated GPS positions for all active vehicles on assigned routes.
-
-    Each vehicle is placed along its route based on the current time, creating
-    a realistic fleet distribution. Positions cycle every ~30 minutes (round trip).
-
-    Admin-only. Intended for demos and development.
-
-    Returns:
-        Count of vehicles updated and their simulated positions.
-    """
-    try:
-        # Fetch active vehicles with assigned routes
-        vehicles = await _supabase_get(
-            "vehicles?status=eq.active&assigned_route_id=not.is.null"
-            "&select=id,vehicle_id,assigned_route_id,vehicle_type"
-        )
-
-        if not vehicles:
-            return {"status": "no_vehicles", "updated": 0}
-
-        # Collect unique route IDs
-        route_ids = list({v["assigned_route_id"] for v in vehicles})
-
-        # Fetch route stops with coordinates for each route
-        route_stops_map: dict[str, list[dict]] = {}
-        for rid in route_ids:
-            rows = await _supabase_get(
-                f"route_stops?route_id=eq.{rid}"
-                f"&select=stop_sequence,stops(stop_id,location)"
-                f"&order=stop_sequence.asc"
-            )
-            stops = []
-            for row in rows:
-                stop_data = row.get("stops")
-                if not stop_data:
-                    continue
-                loc = stop_data.get("location")
-                if not loc:
-                    continue
-                # Parse PostGIS location (GeoJSON or WKT)
-                lat, lon = None, None
-                if isinstance(loc, dict):
-                    coords = loc.get("coordinates", [])
-                    if len(coords) >= 2:
-                        lon, lat = coords[0], coords[1]
-                elif isinstance(loc, str) and "POINT" in loc:
-                    inner = loc.replace("POINT(", "").replace(")", "").strip()
-                    parts = inner.split()
-                    if len(parts) == 2:
-                        lon, lat = float(parts[0]), float(parts[1])
-                if lat is not None and lon is not None:
-                    stops.append({"lat": lat, "lon": lon})
-            route_stops_map[rid] = stops
-
-        # Simulate positions based on current time
-        now = time.time()
-        cycle_seconds = 1800  # 30-minute round-trip cycle
-        updated = []
-
-        for i, vehicle in enumerate(vehicles):
-            rid = vehicle["assigned_route_id"]
-            stops = route_stops_map.get(rid, [])
-            if len(stops) < 2:
-                continue
-
-            # Each vehicle has a phase offset so they're distributed along the route
-            phase = (i * 137) % cycle_seconds  # Golden-ratio-ish spacing
-            progress = ((now + phase) % cycle_seconds) / (cycle_seconds / 2)
-            progress = progress % 2.0  # 0→2 for round trip
-
-            lat, lon, heading = _interpolate_position(stops, progress)
-
-            # Simulate speed: buses ~25-35 km/h, microbuses ~20-30, taxis ~30-50
-            base_speed = {"bus": 30, "microbus": 25, "taxi": 40}.get(
-                vehicle.get("vehicle_type", "bus"), 30
-            )
-            speed = round(base_speed + random.uniform(-5, 5), 1)
-
-            # Simulate occupancy
-            occupancy = random.randint(15, 85)
-
-            await _supabase_rpc(
-                "upsert_vehicle_position",
-                {
-                    "p_vehicle_id": vehicle["id"],
-                    "p_lat": lat,
-                    "p_lon": lon,
-                    "p_speed": speed,
-                    "p_heading": heading,
-                    "p_source": "simulator",
-                    "p_route_id": rid,
-                    "p_occupancy": occupancy,
-                },
-            )
-
-            updated.append(
-                {
-                    "vehicle_id": vehicle["vehicle_id"],
-                    "lat": lat,
-                    "lon": lon,
-                    "speed_kmh": speed,
-                    "heading": heading,
-                }
-            )
-
-        return {
-            "status": "success",
-            "updated": len(updated),
-            "vehicles": updated,
-            "timestamp": datetime.utcnow().isoformat(),
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+    auth = request.headers.get("authorization", "")
+    if not CRON_SECRET or auth != f"Bearer {CRON_SECRET}":
+        raise HTTPException(status_code=401, detail="Invalid cron secret")
+    return await _run_simulation()
 
 
 # ============================================================================

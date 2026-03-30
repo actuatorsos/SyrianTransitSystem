@@ -19,5 +19,11 @@
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ],
-  "headers": []
+  "headers": [],
+  "crons": [
+    {
+      "path": "/api/cron/simulate",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }
