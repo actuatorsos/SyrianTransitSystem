@@ -191,10 +191,35 @@ async def _rate_limit_check(identifier: str, max_requests: int, window_seconds: 
 # FastAPI App Initialization
 # ============================================================================
 
+_OPENAPI_TAGS = [
+    {"name": "health",    "description": "Service health and status checks. No authentication required."},
+    {"name": "auth",      "description": "User authentication. Returns a JWT bearer token."},
+    {"name": "routes",    "description": "Transit route data. Public read access; no authentication required."},
+    {"name": "stops",     "description": "Bus stop locations and nearest-stop lookup. Public read access."},
+    {"name": "vehicles",  "description": "Real-time vehicle positions and fleet list. Public read access."},
+    {"name": "stream",    "description": "Server-Sent Events (SSE) stream for live vehicle updates. Public."},
+    {"name": "stats",     "description": "Aggregate fleet statistics. Public read access."},
+    {"name": "schedules", "description": "Route schedules and timetables. Public read access."},
+    {"name": "alerts",    "description": "Passenger-facing service alerts. Public read access."},
+    {"name": "driver",    "description": "Driver-only endpoints. Requires `driver` role JWT."},
+    {"name": "admin",     "description": "Admin and dispatcher endpoints. Requires `admin` or `dispatcher` role JWT."},
+    {"name": "traccar",   "description": "Traccar GPS device webhooks. Secured by HMAC signature header."},
+    {"name": "gtfs",      "description": "GTFS static and realtime feeds for Google Maps / transit apps."},
+]
+
 app = FastAPI(
     title="DamascusTransit API",
-    description="Real-time transit tracking and fleet management",
+    description=(
+        "Real-time transit tracking and fleet management for Damascus, Syria.\n\n"
+        "## Authentication\n\n"
+        "Most read endpoints are public. Write and admin endpoints require a JWT bearer token.\n\n"
+        "1. **POST /api/auth/login** — exchange email/password for a token\n"
+        "2. Include the token as `Authorization: Bearer <token>` on protected endpoints\n\n"
+        "Roles: `admin` (full access) · `dispatcher` (fleet ops) · `driver` (own vehicle) · `viewer` (read-only)\n\n"
+        "Tokens expire after 24 hours."
+    ),
     version="1.0.0",
+    openapi_tags=_OPENAPI_TAGS,
 )
 
 # CORS: restrict to configured allowed origins; never allow wildcard in production
@@ -896,7 +921,7 @@ class TraccarEvent(BaseModel):
 # ============================================================================
 
 
-@app.get("/api/health", response_model=HealthResponse)
+@app.get("/api/health", response_model=HealthResponse, tags=["health"])
 async def health_check():
     """
     Health check endpoint.
@@ -924,7 +949,7 @@ async def health_check():
     )
 
 
-@app.post("/api/auth/login", response_model=TokenResponse)
+@app.post("/api/auth/login", response_model=TokenResponse, tags=["auth"])
 async def login(request: LoginRequest, raw_request: Request):
     """
     Authenticate user and return JWT token.
@@ -995,7 +1020,7 @@ async def login(request: LoginRequest, raw_request: Request):
         )
 
 
-@app.get("/api/routes", response_model=List[RouteResponse])
+@app.get("/api/routes", response_model=List[RouteResponse], tags=["routes"])
 async def list_routes():
     """
     List all active routes with stop counts.
@@ -1046,7 +1071,7 @@ async def list_routes():
         )
 
 
-@app.get("/api/routes/{route_id}", response_model=RouteResponse)
+@app.get("/api/routes/{route_id}", response_model=RouteResponse, tags=["routes"])
 async def get_route(route_id: str):
     """
     Get single route details with stops.
@@ -1103,7 +1128,7 @@ async def get_route(route_id: str):
         )
 
 
-@app.get("/api/stops", response_model=List[StopResponse])
+@app.get("/api/stops", response_model=List[StopResponse], tags=["stops"])
 async def list_stops():
     """
     List all active stops.
@@ -1145,7 +1170,7 @@ async def list_stops():
         )
 
 
-@app.get("/api/stops/nearest", response_model=List[NearestStop])
+@app.get("/api/stops/nearest", response_model=List[NearestStop], tags=["stops"])
 async def find_nearest_stops(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
@@ -1193,7 +1218,7 @@ async def find_nearest_stops(
         )
 
 
-@app.get("/api/vehicles", response_model=List[VehicleResponse])
+@app.get("/api/vehicles", response_model=List[VehicleResponse], tags=["vehicles"])
 async def list_vehicles():
     """
     List all active vehicles with latest positions.
@@ -1246,7 +1271,7 @@ async def list_vehicles():
         )
 
 
-@app.get("/api/vehicles/positions", response_model=List[dict])
+@app.get("/api/vehicles/positions", response_model=List[dict], tags=["vehicles"])
 async def get_vehicle_positions():
     """
     Get latest vehicle positions only (lightweight endpoint).
@@ -1273,7 +1298,7 @@ async def get_vehicle_positions():
         )
 
 
-@app.get("/api/stream")
+@app.get("/api/stream", tags=["stream"])
 async def stream_positions():
     """
     Server-sent events (SSE) stream of vehicle position updates.
@@ -1321,7 +1346,7 @@ async def stream_positions():
     return StreamingResponse(generate(), media_type="text/event-stream")
 
 
-@app.get("/api/stats", response_model=dict)
+@app.get("/api/stats", response_model=dict, tags=["stats"])
 async def get_fleet_stats():
     """
     Get fleet statistics and real-time metrics.
@@ -1394,7 +1419,7 @@ async def get_fleet_stats():
         )
 
 
-@app.get("/api/schedules/{route_id}", response_model=List[ScheduleResponse])
+@app.get("/api/schedules/{route_id}", response_model=List[ScheduleResponse], tags=["schedules"])
 async def get_route_schedule(route_id: str):
     """
     Get schedule for a route by day of week.
@@ -1426,7 +1451,7 @@ async def get_route_schedule(route_id: str):
         )
 
 
-@app.get("/api/alerts/active", response_model=List[AlertResponse])
+@app.get("/api/alerts/active", response_model=List[AlertResponse], tags=["alerts"])
 async def get_active_alerts():
     """
     Get all unresolved alerts.
@@ -1465,7 +1490,7 @@ async def get_active_alerts():
 # ============================================================================
 
 
-@app.post("/api/driver/position")
+@app.post("/api/driver/position", tags=["driver"])
 async def report_driver_position(
     position: PositionUpdate,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -1550,7 +1575,7 @@ async def report_driver_position(
         )
 
 
-@app.post("/api/driver/trip/start")
+@app.post("/api/driver/trip/start", tags=["driver"])
 async def start_trip(
     trip: TripStart,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -1610,7 +1635,7 @@ async def start_trip(
         )
 
 
-@app.post("/api/driver/trip/end")
+@app.post("/api/driver/trip/end", tags=["driver"])
 async def end_trip(
     trip_data: TripEnd,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -1661,7 +1686,7 @@ async def end_trip(
         )
 
 
-@app.post("/api/driver/trip/passenger-count")
+@app.post("/api/driver/trip/passenger-count", tags=["driver"])
 async def update_passenger_count(
     data: PassengerCountUpdate,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -1709,7 +1734,7 @@ async def update_passenger_count(
 # ============================================================================
 
 
-@app.get("/api/admin/users", response_model=List[UserResponse])
+@app.get("/api/admin/users", response_model=List[UserResponse], tags=["admin"])
 async def list_users(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -1745,7 +1770,7 @@ async def list_users(
         )
 
 
-@app.post("/api/admin/users", response_model=UserResponse)
+@app.post("/api/admin/users", response_model=UserResponse, tags=["admin"])
 async def create_user(
     user_data: UserCreate,
     current_user: CurrentUser = Depends(require_role("admin")),
@@ -1814,7 +1839,7 @@ async def create_user(
         )
 
 
-@app.put("/api/admin/users/{user_id}", response_model=UserResponse)
+@app.put("/api/admin/users/{user_id}", response_model=UserResponse, tags=["admin"])
 async def update_user(
     user_id: str,
     user_data: UserUpdate,
@@ -1875,7 +1900,7 @@ async def update_user(
         )
 
 
-@app.get("/api/admin/vehicles", response_model=List[VehicleResponse])
+@app.get("/api/admin/vehicles", response_model=List[VehicleResponse], tags=["admin"])
 async def list_all_vehicles(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -1919,7 +1944,7 @@ async def list_all_vehicles(
         )
 
 
-@app.post("/api/admin/vehicles", response_model=VehicleResponse)
+@app.post("/api/admin/vehicles", response_model=VehicleResponse, tags=["admin"])
 async def create_vehicle(
     vehicle_data: VehicleCreate,
     current_user: CurrentUser = Depends(require_role("admin")),
@@ -1975,7 +2000,7 @@ async def create_vehicle(
         )
 
 
-@app.put("/api/admin/vehicles/{vehicle_id}", response_model=VehicleResponse)
+@app.put("/api/admin/vehicles/{vehicle_id}", response_model=VehicleResponse, tags=["admin"])
 async def update_vehicle(
     vehicle_id: str,
     vehicle_data: VehicleUpdate,
@@ -2035,7 +2060,7 @@ async def update_vehicle(
         )
 
 
-@app.post("/api/admin/vehicles/{vehicle_id}/assign")
+@app.post("/api/admin/vehicles/{vehicle_id}/assign", tags=["admin"])
 async def assign_vehicle(
     vehicle_id: str,
     assignment: VehicleAssign,
@@ -2083,7 +2108,7 @@ async def assign_vehicle(
         )
 
 
-@app.get("/api/admin/alerts", response_model=List[AlertResponse])
+@app.get("/api/admin/alerts", response_model=List[AlertResponse], tags=["admin"])
 async def list_all_alerts(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -2120,7 +2145,7 @@ async def list_all_alerts(
         )
 
 
-@app.put("/api/admin/alerts/{alert_id}/resolve")
+@app.put("/api/admin/alerts/{alert_id}/resolve", tags=["admin"])
 async def resolve_alert(
     alert_id: str,
     alert_data: AlertResolve,
@@ -2162,7 +2187,7 @@ async def resolve_alert(
         )
 
 
-@app.get("/api/admin/trips", response_model=List[dict])
+@app.get("/api/admin/trips", response_model=List[dict], tags=["admin"])
 async def list_trips(
     vehicle_id: Optional[str] = None,
     driver_id: Optional[str] = None,
@@ -2205,7 +2230,7 @@ async def list_trips(
         )
 
 
-@app.get("/api/admin/analytics/overview", response_model=AnalyticsOverview)
+@app.get("/api/admin/analytics/overview", response_model=AnalyticsOverview, tags=["admin"])
 async def get_analytics_overview(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -2270,7 +2295,7 @@ async def get_analytics_overview(
         )
 
 
-@app.get("/api/admin/analytics/fleet-utilization")
+@app.get("/api/admin/analytics/fleet-utilization", tags=["admin"])
 async def get_fleet_utilization(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -2334,7 +2359,7 @@ async def get_fleet_utilization(
         )
 
 
-@app.get("/api/admin/analytics/route-performance")
+@app.get("/api/admin/analytics/route-performance", tags=["admin"])
 async def get_route_performance(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -2414,7 +2439,7 @@ async def get_route_performance(
         )
 
 
-@app.get("/api/admin/analytics/driver-scoreboard")
+@app.get("/api/admin/analytics/driver-scoreboard", tags=["admin"])
 async def get_driver_scoreboard(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -2477,7 +2502,7 @@ async def get_driver_scoreboard(
         )
 
 
-@app.get("/api/admin/analytics/gps-heatmap")
+@app.get("/api/admin/analytics/gps-heatmap", tags=["admin"])
 async def get_gps_heatmap(
     current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
 ):
@@ -2612,7 +2637,7 @@ def verify_traccar_signature(request_body: str, signature: str) -> bool:
     return hmac.compare_digest(computed, signature)
 
 
-@app.post("/api/traccar/position")
+@app.post("/api/traccar/position", tags=["traccar"])
 async def traccar_position_webhook(
     position: TraccarPosition,
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
@@ -2675,7 +2700,7 @@ async def traccar_position_webhook(
         return {"status": "error", "detail": str(e)}
 
 
-@app.post("/api/traccar/event")
+@app.post("/api/traccar/event", tags=["traccar"])
 async def traccar_event_webhook(
     event: TraccarEvent,
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
@@ -2756,7 +2781,7 @@ async def traccar_event_webhook(
 GTFS_DIR = os.path.join(os.path.dirname(__file__), "..", "db", "gtfs")
 
 
-@app.get("/api/gtfs/static/{filename}")
+@app.get("/api/gtfs/static/{filename}", tags=["gtfs"])
 async def get_gtfs_static_file(filename: str):
     """
     Serve individual GTFS static feed files.
@@ -2785,7 +2810,7 @@ async def get_gtfs_static_file(filename: str):
 # ============================================================================
 
 
-@app.get("/api/gtfs/realtime")
+@app.get("/api/gtfs/realtime", tags=["gtfs"])
 async def get_gtfs_realtime():
     """
     GTFS-Realtime VehiclePositions feed.
@@ -2884,6 +2909,73 @@ async def get_gtfs_realtime():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
+
+# ============================================================================
+# Push Notifications
+# ============================================================================
+
+# In-memory push subscription store (keyed by endpoint URL).
+# For production, migrate to Redis or Supabase push_subscriptions table.
+_push_subscriptions: dict = {}
+
+
+class PushSubscriptionKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSubscription(BaseModel):
+    endpoint: str
+    keys: PushSubscriptionKeys
+
+
+class PushSubscribeRequest(BaseModel):
+    subscription: PushSubscription
+    stopIds: List[str] = []
+
+
+@app.get("/api/push/vapid-public-key", tags=["push"])
+async def get_vapid_public_key():
+    """Return the VAPID public key for Web Push subscription setup."""
+    key = os.environ.get("VAPID_PUBLIC_KEY", "")
+    return {"publicKey": key, "enabled": bool(key)}
+
+
+@app.post("/api/push/subscribe", tags=["push"])
+async def subscribe_push(req: PushSubscribeRequest):
+    """Store a Web Push subscription and associate it with watched stop IDs."""
+    endpoint = req.subscription.endpoint
+    _push_subscriptions[endpoint] = {
+        "subscription": req.subscription.model_dump(),
+        "stopIds": req.stopIds,
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    redis = _get_redis_client()
+    if redis:
+        try:
+            await _cache_set(
+                f"push_sub:{endpoint}",
+                _push_subscriptions[endpoint],
+                ttl=60 * 60 * 24 * 30,
+            )
+        except Exception:
+            pass
+    return {"status": "subscribed", "endpoint": endpoint}
+
+
+@app.delete("/api/push/subscribe", tags=["push"])
+async def unsubscribe_push(req: dict):
+    """Remove a Web Push subscription by endpoint URL."""
+    endpoint = req.get("endpoint", "")
+    _push_subscriptions.pop(endpoint, None)
+    redis = _get_redis_client()
+    if redis:
+        try:
+            await _cache_delete(f"push_sub:{endpoint}")
+        except Exception:
+            pass
+    return {"status": "unsubscribed"}
 
 
 # ============================================================================

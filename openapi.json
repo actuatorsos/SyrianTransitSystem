@@ -1,0 +1,2670 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DamascusTransit API",
+    "description": "Real-time transit tracking and fleet management for Damascus, Syria.\n\n## Authentication\n\nMost read endpoints are public. Write and admin endpoints require a JWT bearer token.\n\n1. **POST /api/auth/login** — exchange email/password for a token\n2. Include the token as `Authorization: Bearer <token>` on protected endpoints\n\nRoles: `admin` (full access) · `dispatcher` (fleet ops) · `driver` (own vehicle) · `viewer` (read-only)\n\nTokens expire after 24 hours.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check",
+        "description": "Health check endpoint.\n\nReturns:\n    Health status including database connectivity, Redis status,\n    last position update timestamp, and active vehicle count.",
+        "operationId": "health_check_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Authenticate user and return JWT token.\n\nArgs:\n    request: Email and password credentials\n\nReturns:\n    JWT access token and user info\n\nRaises:\n    HTTPException: Invalid credentials or rate limited",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes": {
+      "get": {
+        "tags": [
+          "routes"
+        ],
+        "summary": "List Routes",
+        "description": "List all active routes with stop counts.\n\nReturns:\n    List of active routes",
+        "operationId": "list_routes_api_routes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RouteResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Routes Api Routes Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/routes/{route_id}": {
+      "get": {
+        "tags": [
+          "routes"
+        ],
+        "summary": "Get Route",
+        "description": "Get single route details with stops.\n\nArgs:\n    route_id: Route UUID\n\nReturns:\n    Route details with associated stops\n\nRaises:\n    HTTPException: Route not found",
+        "operationId": "get_route_api_routes__route_id__get",
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Route Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stops": {
+      "get": {
+        "tags": [
+          "stops"
+        ],
+        "summary": "List Stops",
+        "description": "List all active stops.\n\nReturns:\n    List of active stops",
+        "operationId": "list_stops_api_stops_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StopResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Stops Api Stops Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stops/nearest": {
+      "get": {
+        "tags": [
+          "stops"
+        ],
+        "summary": "Find Nearest Stops",
+        "description": "Find nearest stops using PostGIS RPC.\n\nArgs:\n    lat: Latitude\n    lon: Longitude\n    radius: Search radius in meters (default 1000)\n    limit: Maximum results (default 10)\n\nReturns:\n    Nearest stops sorted by distance",
+        "operationId": "find_nearest_stops_api_stops_nearest_get",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 90,
+              "minimum": -90,
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 180,
+              "minimum": -180,
+              "title": "Lon"
+            }
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5000,
+              "minimum": 100,
+              "default": 1000,
+              "title": "Radius"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NearestStop"
+                  },
+                  "title": "Response Find Nearest Stops Api Stops Nearest Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vehicles": {
+      "get": {
+        "tags": [
+          "vehicles"
+        ],
+        "summary": "List Vehicles",
+        "description": "List all active vehicles with latest positions.\n\nReturns:\n    List of active vehicles with real-time position data",
+        "operationId": "list_vehicles_api_vehicles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VehicleResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Vehicles Api Vehicles Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vehicles/positions": {
+      "get": {
+        "tags": [
+          "vehicles"
+        ],
+        "summary": "Get Vehicle Positions",
+        "description": "Get latest vehicle positions only (lightweight endpoint).\n\nReturns:\n    Vehicle ID, location, and basic tracking data",
+        "operationId": "get_vehicle_positions_api_vehicles_positions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Get Vehicle Positions Api Vehicles Positions Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stream": {
+      "get": {
+        "tags": [
+          "stream"
+        ],
+        "summary": "Stream Positions",
+        "description": "Server-sent events (SSE) stream of vehicle position updates.\nPolls vehicle_positions_latest every 2 seconds for up to 25 seconds (Vercel limit).\n\nReturns:\n    Streaming response with position updates",
+        "operationId": "stream_positions_api_stream_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "tags": [
+          "stats"
+        ],
+        "summary": "Get Fleet Stats",
+        "description": "Get fleet statistics and real-time metrics.\n\nReturns:\n    Fleet overview stats",
+        "operationId": "get_fleet_stats_api_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Fleet Stats Api Stats Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/schedules/{route_id}": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Get Route Schedule",
+        "description": "Get schedule for a route by day of week.\n\nArgs:\n    route_id: Route UUID\n\nReturns:\n    Schedule entries for each day",
+        "operationId": "get_route_schedule_api_schedules__route_id__get",
+        "parameters": [
+          {
+            "name": "route_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Route Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleResponse"
+                  },
+                  "title": "Response Get Route Schedule Api Schedules  Route Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/alerts/active": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Get Active Alerts",
+        "description": "Get all unresolved alerts.\n\nReturns:\n    List of active alerts",
+        "operationId": "get_active_alerts_api_alerts_active_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertResponse"
+                  },
+                  "type": "array",
+                  "title": "Response Get Active Alerts Api Alerts Active Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/driver/position": {
+      "post": {
+        "tags": [
+          "driver"
+        ],
+        "summary": "Report Driver Position",
+        "description": "Report driver's current position.\n\nArgs:\n    position: GPS coordinates, speed, heading\n    current_user: Authenticated driver\n\nReturns:\n    Success confirmation",
+        "operationId": "report_driver_position_api_driver_position_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PositionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/driver/trip/start": {
+      "post": {
+        "tags": [
+          "driver"
+        ],
+        "summary": "Start Trip",
+        "description": "Start a new trip for the driver.\n\nArgs:\n    trip: Route and optional scheduled start time\n    current_user: Authenticated driver\n\nReturns:\n    Trip ID and confirmation",
+        "operationId": "start_trip_api_driver_trip_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/driver/trip/end": {
+      "post": {
+        "tags": [
+          "driver"
+        ],
+        "summary": "End Trip",
+        "description": "End the driver's current trip.\n\nArgs:\n    trip_data: Final passenger count\n    current_user: Authenticated driver\n\nReturns:\n    Success confirmation",
+        "operationId": "end_trip_api_driver_trip_end_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripEnd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/driver/trip/passenger-count": {
+      "post": {
+        "tags": [
+          "driver"
+        ],
+        "summary": "Update Passenger Count",
+        "description": "Update passenger count for current trip.\n\nArgs:\n    data: New passenger count\n    current_user: Authenticated driver\n\nReturns:\n    Success confirmation",
+        "operationId": "update_passenger_count_api_driver_trip_passenger_count_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PassengerCountUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Users",
+        "description": "List all users.\n\nArgs:\n    current_user: Authenticated admin/dispatcher\n\nReturns:\n    List of users",
+        "operationId": "list_users_api_admin_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Users Api Admin Users Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Create User",
+        "description": "Create a new user (admin only).\n\nArgs:\n    user_data: User details\n    current_user: Authenticated admin\n\nReturns:\n    Created user",
+        "operationId": "create_user_api_admin_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{user_id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update User",
+        "description": "Update user details.\n\nArgs:\n    user_id: User UUID\n    user_data: Fields to update\n    current_user: Authenticated admin\n\nReturns:\n    Updated user",
+        "operationId": "update_user_api_admin_users__user_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/vehicles": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List All Vehicles",
+        "description": "List all vehicles including inactive ones.\n\nArgs:\n    current_user: Authenticated admin/dispatcher\n\nReturns:\n    All vehicles",
+        "operationId": "list_all_vehicles_api_admin_vehicles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VehicleResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List All Vehicles Api Admin Vehicles Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Create Vehicle",
+        "description": "Create a new vehicle.\n\nArgs:\n    vehicle_data: Vehicle details\n    current_user: Authenticated admin\n\nReturns:\n    Created vehicle",
+        "operationId": "create_vehicle_api_admin_vehicles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/vehicles/{vehicle_id}": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update Vehicle",
+        "description": "Update vehicle details.\n\nArgs:\n    vehicle_id: Vehicle UUID\n    vehicle_data: Fields to update\n    current_user: Authenticated admin\n\nReturns:\n    Updated vehicle",
+        "operationId": "update_vehicle_api_admin_vehicles__vehicle_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vehicle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Vehicle Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/vehicles/{vehicle_id}/assign": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Assign Vehicle",
+        "description": "Assign vehicle to route and driver.\n\nArgs:\n    vehicle_id: Vehicle UUID\n    assignment: Route and driver IDs\n    current_user: Authenticated admin/dispatcher\n\nReturns:\n    Success confirmation",
+        "operationId": "assign_vehicle_api_admin_vehicles__vehicle_id__assign_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vehicle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Vehicle Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleAssign"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/alerts": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List All Alerts",
+        "description": "Get all alerts (resolved and unresolved).\n\nArgs:\n    current_user: Authenticated admin/dispatcher\n\nReturns:\n    All alerts",
+        "operationId": "list_all_alerts_api_admin_alerts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlertResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List All Alerts Api Admin Alerts Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/alerts/{alert_id}/resolve": {
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Resolve Alert",
+        "description": "Resolve or unresolve an alert.\n\nArgs:\n    alert_id: Alert UUID\n    alert_data: Resolved status\n    current_user: Authenticated admin/dispatcher\n\nReturns:\n    Success confirmation",
+        "operationId": "resolve_alert_api_admin_alerts__alert_id__resolve_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alert_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Alert Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertResolve"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/trips": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "List Trips",
+        "description": "List trips with optional filtering.\n\nArgs:\n    vehicle_id: Filter by vehicle\n    driver_id: Filter by driver\n    status_filter: Filter by trip status\n    current_user: Authenticated admin/dispatcher\n\nReturns:\n    List of trips",
+        "operationId": "list_trips_api_admin_trips_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vehicle_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vehicle Id"
+            }
+          },
+          {
+            "name": "driver_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Driver Id"
+            }
+          },
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Trips Api Admin Trips Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/overview": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Analytics Overview",
+        "description": "Get fleet analytics overview for dashboard.\n\nArgs:\n    current_user: Authenticated admin/dispatcher\n\nReturns:\n    Fleet analytics",
+        "operationId": "get_analytics_overview_api_admin_analytics_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsOverview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/analytics/fleet-utilization": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Fleet Utilization",
+        "description": "Get fleet utilization over the last 24 hours, bucketed by hour.\n\nUses completed trips to infer active vehicle counts per hour.\nReturns hourly active vs idle vehicle counts.",
+        "operationId": "get_fleet_utilization_api_admin_analytics_fleet_utilization_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/analytics/route-performance": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Route Performance",
+        "description": "Get per-route performance: on-time %, average delay, and trip count\nbased on completed trips in the last 7 days.",
+        "operationId": "get_route_performance_api_admin_analytics_route_performance_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/analytics/driver-scoreboard": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Driver Scoreboard",
+        "description": "Get driver scoreboard: trips completed and avg route adherence (on_time_pct)\nbased on completed trips in the last 30 days.",
+        "operationId": "get_driver_scoreboard_api_admin_analytics_driver_scoreboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/analytics/gps-heatmap": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Gps Heatmap",
+        "description": "Get GPS position data for heatmap visualization.\n\nReturns recent vehicle positions (last 24h) as GeoJSON FeatureCollection\nsuitable for MapLibre heatmap layer.",
+        "operationId": "get_gps_heatmap_api_admin_analytics_gps_heatmap_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/traccar/position": {
+      "post": {
+        "tags": [
+          "traccar"
+        ],
+        "summary": "Traccar Position Webhook",
+        "description": "Webhook for Traccar GPS position updates.\nSecured by mandatory X-Traccar-Signature HMAC header.\n\nArgs:\n    position: Position data from Traccar\n    x_traccar_signature: HMAC-SHA256 signature (required)\n\nReturns:\n    Success confirmation",
+        "operationId": "traccar_position_webhook_api_traccar_position_post",
+        "parameters": [
+          {
+            "name": "x-traccar-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "HMAC-SHA256 signature",
+              "title": "X-Traccar-Signature"
+            },
+            "description": "HMAC-SHA256 signature"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraccarPosition"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traccar/event": {
+      "post": {
+        "tags": [
+          "traccar"
+        ],
+        "summary": "Traccar Event Webhook",
+        "description": "Webhook for Traccar events (engine on/off, speeding, etc).\nSecured by mandatory X-Traccar-Signature HMAC header.\n\nArgs:\n    event: Event data from Traccar\n    x_traccar_signature: HMAC-SHA256 signature (required)\n\nReturns:\n    Success confirmation",
+        "operationId": "traccar_event_webhook_api_traccar_event_post",
+        "parameters": [
+          {
+            "name": "x-traccar-signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "HMAC-SHA256 signature",
+              "title": "X-Traccar-Signature"
+            },
+            "description": "HMAC-SHA256 signature"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraccarEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gtfs/static/{filename}": {
+      "get": {
+        "tags": [
+          "gtfs"
+        ],
+        "summary": "Get Gtfs Static File",
+        "description": "Serve individual GTFS static feed files.\n\nReturns the raw CSV content of agency.txt, stops.txt, routes.txt,\ntrips.txt, stop_times.txt, calendar.txt, or feed_info.txt.",
+        "operationId": "get_gtfs_static_file_api_gtfs_static__filename__get",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gtfs/realtime": {
+      "get": {
+        "tags": [
+          "gtfs"
+        ],
+        "summary": "Get Gtfs Realtime",
+        "description": "GTFS-Realtime VehiclePositions feed.\n\nReturns a binary protobuf FeedMessage (GTFS-RT 2.0) with live vehicle\npositions fetched from vehicle_positions_latest.  Consumers should set\nAccept: application/x-protobuf or application/octet-stream.\n\nFalls back to a minimal empty feed when the gtfs-realtime-bindings\npackage is not installed, returning JSON instead so the endpoint remains\nuseful in dev environments without the optional dependency.",
+        "operationId": "get_gtfs_realtime_api_gtfs_realtime_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "Root endpoint - API documentation redirect.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AlertResolve": {
+        "properties": {
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "AlertResolve",
+        "description": "Resolve alert request."
+      },
+      "AlertResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "title": "Vehicle Id"
+          },
+          "alert_type": {
+            "type": "string",
+            "title": "Alert Type"
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "title_ar": {
+            "type": "string",
+            "title": "Title Ar"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "is_resolved": {
+            "type": "boolean",
+            "title": "Is Resolved"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vehicle_id",
+          "alert_type",
+          "severity",
+          "title",
+          "title_ar",
+          "is_resolved",
+          "created_at"
+        ],
+        "title": "AlertResponse",
+        "description": "Alert response model."
+      },
+      "AnalyticsOverview": {
+        "properties": {
+          "total_vehicles": {
+            "type": "integer",
+            "title": "Total Vehicles"
+          },
+          "active_vehicles": {
+            "type": "integer",
+            "title": "Active Vehicles"
+          },
+          "idle_vehicles": {
+            "type": "integer",
+            "title": "Idle Vehicles"
+          },
+          "maintenance_vehicles": {
+            "type": "integer",
+            "title": "Maintenance Vehicles"
+          },
+          "total_routes": {
+            "type": "integer",
+            "title": "Total Routes"
+          },
+          "active_routes": {
+            "type": "integer",
+            "title": "Active Routes"
+          },
+          "total_stops": {
+            "type": "integer",
+            "title": "Total Stops"
+          },
+          "total_drivers": {
+            "type": "integer",
+            "title": "Total Drivers"
+          },
+          "active_drivers": {
+            "type": "integer",
+            "title": "Active Drivers"
+          },
+          "avg_occupancy_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Occupancy Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_vehicles",
+          "active_vehicles",
+          "idle_vehicles",
+          "maintenance_vehicles",
+          "total_routes",
+          "active_routes",
+          "total_stops",
+          "total_drivers",
+          "active_drivers"
+        ],
+        "title": "AnalyticsOverview",
+        "description": "Fleet analytics overview."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "database": {
+            "type": "boolean",
+            "title": "Database"
+          },
+          "redis": {
+            "type": "boolean",
+            "title": "Redis"
+          },
+          "last_position_update": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Position Update"
+          },
+          "active_vehicles": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Vehicles"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "database",
+          "redis"
+        ],
+        "title": "HealthResponse",
+        "description": "Health check response."
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "Login request with credentials."
+      },
+      "NearestStop": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stop_id": {
+            "type": "string",
+            "title": "Stop Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_ar": {
+            "type": "string",
+            "title": "Name Ar"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "has_shelter": {
+            "type": "boolean",
+            "title": "Has Shelter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "stop_id",
+          "name",
+          "name_ar",
+          "latitude",
+          "longitude",
+          "has_shelter"
+        ],
+        "title": "NearestStop",
+        "description": "Nearest stop result."
+      },
+      "PassengerCountUpdate": {
+        "properties": {
+          "passenger_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Passenger Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "passenger_count"
+        ],
+        "title": "PassengerCountUpdate",
+        "description": "Update passenger count in trip."
+      },
+      "PositionUpdate": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "speed_kmh": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed Kmh"
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 360.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "PositionUpdate",
+        "description": "Driver position update."
+      },
+      "RouteResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_ar": {
+            "type": "string",
+            "title": "Name Ar"
+          },
+          "route_type": {
+            "type": "string",
+            "title": "Route Type"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance Km"
+          },
+          "avg_duration_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Duration Min"
+          },
+          "fare_syp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fare Syp"
+          },
+          "stop_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "route_id",
+          "name",
+          "name_ar",
+          "route_type"
+        ],
+        "title": "RouteResponse",
+        "description": "Route response with basic info."
+      },
+      "ScheduleResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "day_of_week": {
+            "type": "integer",
+            "title": "Day Of Week"
+          },
+          "first_departure": {
+            "type": "string",
+            "title": "First Departure"
+          },
+          "last_departure": {
+            "type": "string",
+            "title": "Last Departure"
+          },
+          "frequency_min": {
+            "type": "integer",
+            "title": "Frequency Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "route_id",
+          "day_of_week",
+          "first_departure",
+          "last_departure",
+          "frequency_min"
+        ],
+        "title": "ScheduleResponse",
+        "description": "Route schedule response."
+      },
+      "StopResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "stop_id": {
+            "type": "string",
+            "title": "Stop Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_ar": {
+            "type": "string",
+            "title": "Name Ar"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "has_shelter": {
+            "type": "boolean",
+            "title": "Has Shelter"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "stop_id",
+          "name",
+          "name_ar",
+          "has_shelter",
+          "is_active"
+        ],
+        "title": "StopResponse",
+        "description": "Stop response model."
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "user_id",
+          "role"
+        ],
+        "title": "TokenResponse",
+        "description": "JWT token response."
+      },
+      "TraccarEvent": {
+        "properties": {
+          "eventId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eventid"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "serverTime": {
+            "type": "integer",
+            "title": "Servertime"
+          },
+          "deviceId": {
+            "type": "integer",
+            "title": "Deviceid"
+          },
+          "deviceName": {
+            "type": "string",
+            "title": "Devicename"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "serverTime",
+          "deviceId",
+          "deviceName",
+          "data"
+        ],
+        "title": "TraccarEvent",
+        "description": "Traccar event webhook payload."
+      },
+      "TraccarPosition": {
+        "properties": {
+          "deviceId": {
+            "type": "integer",
+            "title": "Deviceid"
+          },
+          "latitude": {
+            "type": "number",
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "title": "Longitude"
+          },
+          "altitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "heading": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "accuracy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accuracy"
+          },
+          "timestamp": {
+            "type": "integer",
+            "title": "Timestamp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deviceId",
+          "latitude",
+          "longitude",
+          "timestamp"
+        ],
+        "title": "TraccarPosition",
+        "description": "Traccar position webhook payload."
+      },
+      "TripEnd": {
+        "properties": {
+          "passenger_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passenger Count"
+          }
+        },
+        "type": "object",
+        "title": "TripEnd",
+        "description": "End trip request."
+      },
+      "TripStart": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "scheduled_departure": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled Departure"
+          }
+        },
+        "type": "object",
+        "required": [
+          "route_id"
+        ],
+        "title": "TripStart",
+        "description": "Start trip request."
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "full_name_ar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name Ar"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "dispatcher",
+              "driver",
+              "viewer"
+            ],
+            "title": "Role",
+            "default": "viewer"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "full_name"
+        ],
+        "title": "UserCreate",
+        "description": "Create user request (admin only)."
+      },
+      "UserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "full_name_ar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name Ar"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "role",
+          "is_active"
+        ],
+        "title": "UserResponse",
+        "description": "User response model."
+      },
+      "UserUpdate": {
+        "properties": {
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "full_name_ar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name Ar"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate",
+        "description": "Update user request."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VehicleAssign": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "driver_id": {
+            "type": "string",
+            "title": "Driver Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "route_id",
+          "driver_id"
+        ],
+        "title": "VehicleAssign",
+        "description": "Assign vehicle to route and driver."
+      },
+      "VehicleCreate": {
+        "properties": {
+          "vehicle_id": {
+            "type": "string",
+            "title": "Vehicle Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_ar": {
+            "type": "string",
+            "title": "Name Ar"
+          },
+          "vehicle_type": {
+            "type": "string",
+            "enum": [
+              "bus",
+              "microbus",
+              "taxi"
+            ],
+            "title": "Vehicle Type"
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Capacity"
+          },
+          "gps_device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gps Device Id"
+          },
+          "is_real_gps": {
+            "type": "boolean",
+            "title": "Is Real Gps",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "vehicle_id",
+          "name",
+          "name_ar",
+          "vehicle_type",
+          "capacity"
+        ],
+        "title": "VehicleCreate",
+        "description": "Create vehicle request."
+      },
+      "VehicleResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "vehicle_id": {
+            "type": "string",
+            "title": "Vehicle Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "name_ar": {
+            "type": "string",
+            "title": "Name Ar"
+          },
+          "vehicle_type": {
+            "type": "string",
+            "title": "Vehicle Type"
+          },
+          "capacity": {
+            "type": "integer",
+            "title": "Capacity"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "assigned_route_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Route Id"
+          },
+          "assigned_driver_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Driver Id"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "speed_kmh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed Kmh"
+          },
+          "occupancy_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occupancy Pct"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vehicle_id",
+          "name",
+          "name_ar",
+          "vehicle_type",
+          "capacity",
+          "status"
+        ],
+        "title": "VehicleResponse",
+        "description": "Vehicle response with latest position."
+      },
+      "VehicleUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "name_ar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Ar"
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "idle",
+                  "maintenance",
+                  "decommissioned"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "VehicleUpdate",
+        "description": "Update vehicle request."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Service health and status checks. No authentication required."
+    },
+    {
+      "name": "auth",
+      "description": "User authentication. Returns a JWT bearer token."
+    },
+    {
+      "name": "routes",
+      "description": "Transit route data. Public read access; no authentication required."
+    },
+    {
+      "name": "stops",
+      "description": "Bus stop locations and nearest-stop lookup. Public read access."
+    },
+    {
+      "name": "vehicles",
+      "description": "Real-time vehicle positions and fleet list. Public read access."
+    },
+    {
+      "name": "stream",
+      "description": "Server-Sent Events (SSE) stream for live vehicle updates. Public."
+    },
+    {
+      "name": "stats",
+      "description": "Aggregate fleet statistics. Public read access."
+    },
+    {
+      "name": "schedules",
+      "description": "Route schedules and timetables. Public read access."
+    },
+    {
+      "name": "alerts",
+      "description": "Passenger-facing service alerts. Public read access."
+    },
+    {
+      "name": "driver",
+      "description": "Driver-only endpoints. Requires `driver` role JWT."
+    },
+    {
+      "name": "admin",
+      "description": "Admin and dispatcher endpoints. Requires `admin` or `dispatcher` role JWT."
+    },
+    {
+      "name": "traccar",
+      "description": "Traccar GPS device webhooks. Secured by HMAC signature header."
+    },
+    {
+      "name": "gtfs",
+      "description": "GTFS static and realtime feeds for Google Maps / transit apps."
+    }
+  ]
+}
