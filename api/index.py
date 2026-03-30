@@ -10,6 +10,8 @@ All auth and database code inlined for Vercel Python serverless compatibility.
 import os
 import json
 import time
+import uuid
+import logging
 import asyncio
 import hashlib
 import hmac
@@ -29,6 +31,71 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ============================================================================
+# Structured Logging (JSON format for Vercel / cloud log aggregators)
+# ============================================================================
+
+class _JsonFormatter(logging.Formatter):
+    """Emit log records as single-line JSON for structured log ingestion."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        # Merge any extra fields attached to the record
+        for key, val in record.__dict__.items():
+            if key not in {
+                "name", "msg", "args", "levelname", "levelno", "pathname",
+                "filename", "module", "exc_info", "exc_text", "stack_info",
+                "lineno", "funcName", "created", "msecs", "relativeCreated",
+                "thread", "threadName", "processName", "process", "message",
+            }:
+                payload[key] = val
+        return json.dumps(payload, default=str, ensure_ascii=False)
+
+
+def _setup_logging() -> None:
+    handler = logging.StreamHandler()
+    handler.setFormatter(_JsonFormatter())
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+    # Quieten noisy third-party loggers
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+
+_setup_logging()
+logger = logging.getLogger("transit.api")
+
+# ============================================================================
+# Sentry Error Tracking (optional — graceful degradation when DSN not set)
+# ============================================================================
+
+_SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if _SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.httpx import HttpxIntegration
+
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        integrations=[FastApiIntegration(), HttpxIntegration()],
+        traces_sample_rate=0.1,   # 10 % of requests for performance tracing
+        profiles_sample_rate=0.0,
+        environment=os.getenv("VERCEL_ENV", "development"),
+        send_default_pii=False,
+    )
+    logger.info("Sentry error tracking initialised")
+else:
+    logger.info("SENTRY_DSN not set — error tracking disabled")
 
 # ============================================================================
 # Redis Cache (Upstash — serverless-compatible, graceful degradation)
@@ -156,6 +223,29 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+
+@app.middleware("http")
+async def _request_logging_middleware(request: Request, call_next):
+    """Attach a request ID to every request and emit a structured access log."""
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = round((time.perf_counter() - start) * 1000, 1)
+    logger.info(
+        "request",
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "duration_ms": duration_ms,
+        },
+    )
+    response.headers["X-Request-Id"] = request_id
+    return response
+
 
 # ============================================================================
 # JWT Authentication (using PyJWT)
@@ -488,6 +578,40 @@ async def _health_check() -> bool:
         return False
 
 
+async def _redis_health_check() -> bool:
+    """Check Redis connectivity (returns True when Redis is not configured)."""
+    client = _get_redis_client()
+    if client is None:
+        return True  # graceful — no Redis configured
+    try:
+        await client.ping()
+        return True
+    except Exception:
+        return False
+
+
+async def _last_position_update() -> Optional[str]:
+    """Return the most recent recorded_at timestamp from vehicle_positions_latest."""
+    try:
+        rows = await _supabase_get(
+            "vehicle_positions_latest?select=recorded_at&order=recorded_at.desc&limit=1"
+        )
+        if rows:
+            return rows[0].get("recorded_at")
+        return None
+    except Exception:
+        return None
+
+
+async def _active_vehicle_count() -> Optional[int]:
+    """Return the number of vehicles with status = 'active'."""
+    try:
+        rows = await _supabase_get("vehicles?is_active=eq.true&status=eq.active&select=id")
+        return len(rows) if rows is not None else None
+    except Exception:
+        return None
+
+
 # ============================================================================
 # Security Configuration
 # ============================================================================
@@ -514,6 +638,9 @@ class HealthResponse(BaseModel):
     status: str
     timestamp: str
     database: bool
+    redis: bool
+    last_position_update: Optional[str] = None
+    active_vehicles: Optional[int] = None
 
 
 class LoginRequest(BaseModel):
@@ -775,14 +902,25 @@ async def health_check():
     Health check endpoint.
 
     Returns:
-        Health status including database connectivity
+        Health status including database connectivity, Redis status,
+        last position update timestamp, and active vehicle count.
     """
-    db_healthy = await _health_check()
+    db_healthy, redis_healthy, last_pos, active_count = await asyncio.gather(
+        _health_check(),
+        _redis_health_check(),
+        _last_position_update(),
+        _active_vehicle_count(),
+    )
+
+    overall = "healthy" if (db_healthy and redis_healthy) else "degraded"
 
     return HealthResponse(
-        status="healthy" if db_healthy else "degraded",
+        status=overall,
         timestamp=datetime.utcnow().isoformat(),
         database=db_healthy,
+        redis=redis_healthy,
+        last_position_update=last_pos,
+        active_vehicles=active_count,
     )
 
 
@@ -2533,7 +2671,7 @@ async def traccar_position_webhook(
 
     except Exception as e:
         # Log but don't fail the webhook
-        print(f"Traccar position webhook error: {e}")
+        logger.error("Traccar position webhook error", extra={"error": str(e)})
         return {"status": "error", "detail": str(e)}
 
 
@@ -2607,7 +2745,7 @@ async def traccar_event_webhook(
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
     except Exception as e:
-        print(f"Traccar event webhook error: {e}")
+        logger.error("Traccar event webhook error", extra={"error": str(e)})
         return {"status": "error", "detail": str(e)}
 
 
