@@ -1,0 +1,39 @@
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt uvicorn[standard] gunicorn
+
+# ---- Runtime ----
+FROM python:3.11-slim
+
+RUN addgroup --system transit && adduser --system --ingroup transit transit
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY api/ ./api/
+COPY lib/ ./lib/
+COPY public/ ./public/
+
+ENV PYTHONPATH=/app \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Drop to non-root
+USER transit
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
+
+CMD ["gunicorn", "api.index:app", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--workers", "4", \
+     "--bind", "0.0.0.0:8000", \
+     "--timeout", "120", \
+     "--keep-alive", "5", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-"]
