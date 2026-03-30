@@ -24,7 +24,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query, Header, Requ
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials as HTTPAuthCredentials
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -1369,20 +1369,35 @@ async def report_driver_position(
             db_vehicle_id = vehicles[0]["id"]
             route_id = vehicles[0].get("assigned_route_id")
 
-        # Call RPC to upsert position
-        await _supabase_rpc(
-            "upsert_vehicle_position",
-            {
-                "p_vehicle_id": db_vehicle_id,
-                "p_lat": position.latitude,
-                "p_lon": position.longitude,
-                "p_speed": position.speed_kmh or 0,
-                "p_heading": position.heading or 0,
-                "p_source": "driver_app",
-                "p_route_id": route_id,
-                "p_occupancy": None,
-            },
-        )
+        # Call RPC to upsert position.
+        # If the JWT vehicle_id is stale (vehicle deleted after login), the
+        # upsert will fail with a PostgreSQL FK violation (error code 23503).
+        # Detect that and return 401 so the driver re-authenticates and gets a
+        # fresh token with the correct vehicle assignment.
+        try:
+            await _supabase_rpc(
+                "upsert_vehicle_position",
+                {
+                    "p_vehicle_id": db_vehicle_id,
+                    "p_lat": position.latitude,
+                    "p_lon": position.longitude,
+                    "p_speed": position.speed_kmh or 0,
+                    "p_heading": position.heading or 0,
+                    "p_source": "driver_app",
+                    "p_route_id": route_id,
+                    "p_occupancy": None,
+                },
+            )
+        except HTTPException as rpc_err:
+            detail = str(rpc_err.detail)
+            if current_user.vehicle_id and (
+                "23503" in detail or "foreign key" in detail.lower()
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Vehicle assignment has changed. Please log in again to refresh your session.",
+                )
+            raise
 
         # Invalidate vehicle position caches so the next read reflects the new position
         await _cache_delete(CACHE_KEY_VEHICLES_LIST, CACHE_KEY_VEHICLES_POSITIONS)
@@ -2594,6 +2609,143 @@ async def traccar_event_webhook(
     except Exception as e:
         print(f"Traccar event webhook error: {e}")
         return {"status": "error", "detail": str(e)}
+
+
+# ============================================================================
+# GTFS Static Feed
+# ============================================================================
+
+GTFS_DIR = os.path.join(os.path.dirname(__file__), "..", "db", "gtfs")
+
+
+@app.get("/api/gtfs/static/{filename}")
+async def get_gtfs_static_file(filename: str):
+    """
+    Serve individual GTFS static feed files.
+
+    Returns the raw CSV content of agency.txt, stops.txt, routes.txt,
+    trips.txt, stop_times.txt, calendar.txt, or feed_info.txt.
+    """
+    allowed = {
+        "agency.txt", "stops.txt", "routes.txt", "trips.txt",
+        "stop_times.txt", "calendar.txt", "feed_info.txt",
+    }
+    if filename not in allowed:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    filepath = os.path.join(GTFS_DIR, filename)
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+        return Response(content=content, media_type="text/plain; charset=utf-8")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"{filename} not found")
+
+
+# ============================================================================
+# GTFS Realtime Feed
+# ============================================================================
+
+
+@app.get("/api/gtfs/realtime")
+async def get_gtfs_realtime():
+    """
+    GTFS-Realtime VehiclePositions feed.
+
+    Returns a binary protobuf FeedMessage (GTFS-RT 2.0) with live vehicle
+    positions fetched from vehicle_positions_latest.  Consumers should set
+    Accept: application/x-protobuf or application/octet-stream.
+
+    Falls back to a minimal empty feed when the gtfs-realtime-bindings
+    package is not installed, returning JSON instead so the endpoint remains
+    useful in dev environments without the optional dependency.
+    """
+    try:
+        # Build position records from Supabase
+        positions = await _supabase_get(
+            "vehicle_positions_latest"
+            "?select=vehicle_id,latitude,longitude,speed_kmh,recorded_at"
+            ",vehicles(vehicle_id,assigned_route_id)"
+        )
+        positions = positions or []
+
+        # Try protobuf serialisation (requires gtfs-realtime-bindings + protobuf)
+        try:
+            from google.transit import gtfs_realtime_pb2  # type: ignore
+
+            feed = gtfs_realtime_pb2.FeedMessage()
+            feed.header.gtfs_realtime_version = "2.0"
+            feed.header.incrementality = (
+                gtfs_realtime_pb2.FeedHeader.FULL_DATASET
+            )
+            feed.header.timestamp = int(time.time())
+
+            for pos in positions:
+                lat = pos.get("latitude")
+                lon = pos.get("longitude")
+                if lat is None or lon is None:
+                    continue
+
+                vid = str(pos.get("vehicle_id", "unknown"))
+                speed_kmh = pos.get("speed_kmh") or 0.0
+
+                entity = feed.entity.add()
+                entity.id = vid
+                entity.vehicle.vehicle.id = vid
+
+                veh_info = pos.get("vehicles") or {}
+                route_id = veh_info.get("assigned_route_id")
+                if route_id:
+                    entity.vehicle.trip.route_id = str(route_id)
+
+                entity.vehicle.position.latitude = float(lat)
+                entity.vehicle.position.longitude = float(lon)
+                # GTFS-RT speed is in m/s
+                entity.vehicle.position.speed = float(speed_kmh) / 3.6
+                entity.vehicle.timestamp = int(time.time())
+
+            return Response(
+                content=feed.SerializeToString(),
+                media_type="application/x-protobuf",
+                headers={"Content-Disposition": "inline; filename=vehiclepositions.pb"},
+            )
+
+        except ImportError:
+            # gtfs-realtime-bindings not available — return JSON fallback
+            feed_json = {
+                "header": {
+                    "gtfs_realtime_version": "2.0",
+                    "incrementality": "FULL_DATASET",
+                    "timestamp": int(time.time()),
+                },
+                "entity": [
+                    {
+                        "id": str(p.get("vehicle_id", "unknown")),
+                        "vehicle": {
+                            "vehicle": {"id": str(p.get("vehicle_id", "unknown"))},
+                            "trip": {
+                                "route_id": str(
+                                    (p.get("vehicles") or {}).get("assigned_route_id", "")
+                                )
+                            },
+                            "position": {
+                                "latitude": p.get("latitude"),
+                                "longitude": p.get("longitude"),
+                                "speed": (p.get("speed_kmh") or 0.0) / 3.6,
+                            },
+                            "timestamp": int(time.time()),
+                        },
+                    }
+                    for p in positions
+                    if p.get("latitude") is not None and p.get("longitude") is not None
+                ],
+            }
+            return JSONResponse(content=feed_json)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ============================================================================
