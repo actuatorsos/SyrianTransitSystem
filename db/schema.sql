@@ -283,6 +283,13 @@ ALTER TABLE vehicle_positions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+-- CRIT-4 fix: enable RLS on tables previously missing it
+ALTER TABLE routes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE route_stops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE geofences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vehicle_positions_latest ENABLE ROW LEVEL SECURITY;
 
 -- Admins can do everything
 CREATE POLICY admin_all ON users FOR ALL
@@ -291,14 +298,31 @@ CREATE POLICY admin_all ON users FOR ALL
 CREATE POLICY admin_vehicles ON vehicles FOR ALL
     USING (auth.jwt() ->> 'role' IN ('admin', 'dispatcher'));
 
--- Viewers can read routes, stops, positions
+-- Viewers can read routes, stops, positions (public read-only)
 CREATE POLICY public_read_routes ON routes FOR SELECT USING (true);
-CREATE POLICY public_read_stops ON stops FOR SELECT USING (true);
-CREATE POLICY public_read_route_stops ON route_stops FOR SELECT USING (true);
-CREATE POLICY public_read_schedules ON schedules FOR SELECT USING (true);
+CREATE POLICY admin_write_routes ON routes FOR ALL
+    USING (auth.jwt() ->> 'role' = 'admin');
 
--- Positions: anyone can read latest, only service can write
+CREATE POLICY public_read_stops ON stops FOR SELECT USING (true);
+CREATE POLICY admin_write_stops ON stops FOR ALL
+    USING (auth.jwt() ->> 'role' = 'admin');
+
+CREATE POLICY public_read_route_stops ON route_stops FOR SELECT USING (true);
+CREATE POLICY admin_write_route_stops ON route_stops FOR ALL
+    USING (auth.jwt() ->> 'role' = 'admin');
+
+CREATE POLICY public_read_schedules ON schedules FOR SELECT USING (true);
+CREATE POLICY admin_write_schedules ON schedules FOR ALL
+    USING (auth.jwt() ->> 'role' = 'admin');
+
+-- Geofences: admin-only read and write
+CREATE POLICY admin_geofences ON geofences FOR ALL
+    USING (auth.jwt() ->> 'role' = 'admin');
+
+-- Positions: anyone can read latest, writes are admin/service only
 CREATE POLICY public_read_positions ON vehicle_positions_latest FOR SELECT USING (true);
+CREATE POLICY admin_write_positions ON vehicle_positions_latest FOR ALL
+    USING (auth.jwt() ->> 'role' IN ('admin', 'dispatcher'));
 
 -- ============================================================
 -- 14. FUNCTIONS

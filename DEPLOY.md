@@ -123,10 +123,10 @@ Visit your Vercel URL (e.g., `damascus-transit-xxxx.vercel.app`):
 ```bash
 curl -X POST https://YOUR-URL.vercel.app/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "admin@damascustransit.sy", "password": "damascus2025"}'
+  -d '{"email": "admin@damascustransit.sy", "password": "YOUR_ADMIN_PASSWORD"}'
 ```
 
-Should return a JWT token. **Change the default password immediately** by updating the `users` table in Supabase.
+Should return a JWT token. The seed data uses placeholder hashes — set real bcrypt hashes before running it (see `db/seed.sql` comments).
 
 ---
 

@@ -8,7 +8,9 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("SUPABASE_URL", "http://mock-supabase.local")
 os.environ.setdefault("SUPABASE_KEY", "mock-key")
 os.environ.setdefault("SUPABASE_SERVICE_KEY", "mock-service-key")
-os.environ.setdefault("JWT_SECRET", "test-secret-for-ci-only")
+os.environ.setdefault("SUPABASE_ANON_KEY", "mock-anon-key")
+os.environ.setdefault("JWT_SECRET", "test-secret-for-ci-only-xxxxxxxxxxxxxxxxx")
+os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000")
 
 
 @pytest.fixture(scope="session")
