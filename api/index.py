@@ -223,17 +223,19 @@ _OPENAPI_TAGS = [
     {"name": "admin",     "description": "Admin and dispatcher endpoints. Requires `admin` or `dispatcher` role JWT."},
     {"name": "traccar",   "description": "Traccar GPS device webhooks. Secured by HMAC signature header."},
     {"name": "gtfs",      "description": "GTFS static and realtime feeds for Google Maps / transit apps."},
+    {"name": "operators", "description": "Fleet operator (tenant) management. super_admin role required for most operations."},
 ]
 
 app = FastAPI(
     title="DamascusTransit API",
     description=(
-        "Real-time transit tracking and fleet management for Damascus, Syria.\n\n"
+        "Real-time transit tracking and fleet management — multi-tenant SaaS edition.\n\n"
         "## Authentication\n\n"
-        "Most read endpoints are public. Write and admin endpoints require a JWT bearer token.\n\n"
-        "1. **POST /api/auth/login** — exchange email/password for a token\n"
+        "Most read endpoints are public but require an `?operator=<slug>` query parameter to scope data to a tenant.\n"
+        "Authenticated users are automatically scoped to their operator.\n\n"
+        "1. **POST /api/auth/login** — exchange email/password for a JWT token\n"
         "2. Include the token as `Authorization: Bearer <token>` on protected endpoints\n\n"
-        "Roles: `admin` (full access) · `dispatcher` (fleet ops) · `driver` (own vehicle) · `viewer` (read-only)\n\n"
+        "Roles: `super_admin` (platform-wide) · `admin` (tenant admin) · `dispatcher` (fleet ops) · `driver` (own vehicle) · `viewer` (read-only)\n\n"
         "Tokens expire after 24 hours."
     ),
     version="1.0.0",
@@ -1067,7 +1069,7 @@ async def login(request: LoginRequest, raw_request: Request):
         )
     try:
         users = await _supabase_get(
-            f"users?email=eq.{urllib.parse.quote(request.email, safe='')}&select=id,email,password_hash,role"
+            f"users?email=eq.{urllib.parse.quote(request.email, safe='')}&select=id,email,password_hash,role,operator_id"
         )
 
         if not users:
@@ -1083,6 +1085,8 @@ async def login(request: LoginRequest, raw_request: Request):
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
             )
 
+        operator_id: Optional[str] = user.get("operator_id")
+
         # For drivers, cache vehicle assignment in the token to avoid a DB
         # lookup on every position update (eliminates the SELECT per POST /api/driver/position)
         vehicle_id = None
@@ -1095,11 +1099,12 @@ async def login(request: LoginRequest, raw_request: Request):
                 vehicle_id = driver_vehicles[0]["id"]
                 vehicle_route_id = driver_vehicles[0].get("assigned_route_id")
 
-        # Generate token
+        # Generate token (operator_id baked in — avoids a DB lookup on every request)
         token = create_access_token(
             user_id=user["id"],
             email=user["email"],
             role=user["role"],
+            operator_id=operator_id,
             vehicle_id=vehicle_id,
             vehicle_route_id=vehicle_route_id,
         )
@@ -1115,19 +1120,37 @@ async def login(request: LoginRequest, raw_request: Request):
 
 
 @app.get("/api/routes", response_model=List[RouteResponse], tags=["routes"])
-async def list_routes():
+async def list_routes(
+    operator: Optional[str] = Query(None, description="Operator slug (e.g. 'damascus')"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     List all active routes with stop counts.
+
+    Pass `?operator=<slug>` when calling without authentication.
+    Authenticated users are automatically scoped to their operator.
 
     Returns:
         List of active routes
     """
     try:
-        cached = await _cache_get(CACHE_KEY_ROUTES_LIST)
+        if current_user and current_user.role == "super_admin":
+            # super_admin can request any operator or get all
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        cache_key = _tenant_cache_key(CACHE_KEY_ROUTES_LIST, op_id or "all")
+        cached = await _cache_get(cache_key)
         if cached is not None:
             return cached
 
-        routes = await _supabase_get("routes?is_active=eq.true&select=*")
+        query = "routes?is_active=eq.true&select=*"
+        if op_id:
+            query += f"&{_op_filter(op_id)}"
+        routes = await _supabase_get(query)
 
         # Get stop counts for each route
         enriched_routes = []
@@ -1153,12 +1176,14 @@ async def list_routes():
             )
 
         await _cache_set(
-            CACHE_KEY_ROUTES_LIST,
+            cache_key,
             [r.model_dump() for r in enriched_routes],
             CACHE_TTL_ROUTES_STOPS,
         )
         return enriched_routes
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -1166,7 +1191,11 @@ async def list_routes():
 
 
 @app.get("/api/routes/{route_id}", response_model=RouteResponse, tags=["routes"])
-async def get_route(route_id: str):
+async def get_route(
+    route_id: str,
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     Get single route details with stops.
 
@@ -1180,12 +1209,22 @@ async def get_route(route_id: str):
         HTTPException: Route not found
     """
     try:
-        cache_key = f"transit:routes:{route_id}"
+        if current_user and current_user.role == "super_admin":
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        cache_key = f"transit:routes:{route_id}:{op_id or 'all'}"
         cached = await _cache_get(cache_key)
         if cached is not None:
             return cached
 
-        routes = await _supabase_get(f"routes?id=eq.{route_id}&select=*")
+        query = f"routes?id=eq.{route_id}&select=*"
+        if op_id:
+            query += f"&{_op_filter(op_id)}"
+        routes = await _supabase_get(query)
 
         if not routes:
             raise HTTPException(
@@ -1223,7 +1262,10 @@ async def get_route(route_id: str):
 
 
 @app.get("/api/stops", response_model=List[StopResponse], tags=["stops"])
-async def list_stops():
+async def list_stops(
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     List all active stops.
 
@@ -1231,11 +1273,22 @@ async def list_stops():
         List of active stops
     """
     try:
-        cached = await _cache_get(CACHE_KEY_STOPS_LIST)
+        if current_user and current_user.role == "super_admin":
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        cache_key = _tenant_cache_key(CACHE_KEY_STOPS_LIST, op_id or "all")
+        cached = await _cache_get(cache_key)
         if cached is not None:
             return cached
 
-        stops = await _supabase_get("stops?is_active=eq.true&select=*")
+        query = "stops?is_active=eq.true&select=*"
+        if op_id:
+            query += f"&{_op_filter(op_id)}"
+        stops = await _supabase_get(query)
 
         result = [
             StopResponse(
@@ -1252,12 +1305,14 @@ async def list_stops():
         ]
 
         await _cache_set(
-            CACHE_KEY_STOPS_LIST,
+            cache_key,
             [r.model_dump() for r in result],
             CACHE_TTL_ROUTES_STOPS,
         )
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -1313,7 +1368,10 @@ async def find_nearest_stops(
 
 
 @app.get("/api/vehicles", response_model=List[VehicleResponse], tags=["vehicles"])
-async def list_vehicles():
+async def list_vehicles(
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     List all active vehicles with latest positions.
 
@@ -1321,14 +1379,22 @@ async def list_vehicles():
         List of active vehicles with real-time position data
     """
     try:
-        cached = await _cache_get(CACHE_KEY_VEHICLES_LIST)
+        if current_user and current_user.role == "super_admin":
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        cache_key = _tenant_cache_key(CACHE_KEY_VEHICLES_LIST, op_id or "all")
+        cached = await _cache_get(cache_key)
         if cached is not None:
             return cached
 
-        # Get vehicles with latest positions (join with vehicle_positions_latest)
-        positions = await _supabase_get(
-            "vehicle_positions_latest?select=*,vehicles(id,vehicle_id,name,name_ar,vehicle_type,capacity,status,assigned_route_id)"
-        )
+        query = "vehicle_positions_latest?select=*,vehicles(id,vehicle_id,name,name_ar,vehicle_type,capacity,status,assigned_route_id)"
+        if op_id:
+            query += f"&{_op_filter(op_id)}"
+        positions = await _supabase_get(query)
 
         vehicles_data = positions or []
 
@@ -1353,12 +1419,14 @@ async def list_vehicles():
         ]
 
         await _cache_set(
-            CACHE_KEY_VEHICLES_LIST,
+            cache_key,
             [r.model_dump() for r in result],
             CACHE_TTL_VEHICLES,
         )
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -1366,7 +1434,10 @@ async def list_vehicles():
 
 
 @app.get("/api/vehicles/positions", response_model=List[dict], tags=["vehicles"])
-async def get_vehicle_positions():
+async def get_vehicle_positions(
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     Get latest vehicle positions only (lightweight endpoint).
 
@@ -1374,18 +1445,29 @@ async def get_vehicle_positions():
         Vehicle ID, location, and basic tracking data
     """
     try:
-        cached = await _cache_get(CACHE_KEY_VEHICLES_POSITIONS)
+        if current_user and current_user.role == "super_admin":
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        cache_key = _tenant_cache_key(CACHE_KEY_VEHICLES_POSITIONS, op_id or "all")
+        cached = await _cache_get(cache_key)
         if cached is not None:
             return cached
 
-        result = await _supabase_get(
-            "vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at"
-        )
+        query = "vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at"
+        if op_id:
+            query += f"&{_op_filter(op_id)}"
+        result = await _supabase_get(query)
 
         result = result or []
-        await _cache_set(CACHE_KEY_VEHICLES_POSITIONS, result, CACHE_TTL_VEHICLES)
+        await _cache_set(cache_key, result, CACHE_TTL_VEHICLES)
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -1393,7 +1475,10 @@ async def get_vehicle_positions():
 
 
 @app.get("/api/stream", tags=["stream"])
-async def stream_positions():
+async def stream_positions(
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     Server-sent events (SSE) stream of vehicle position updates.
     Polls vehicle_positions_latest every 2 seconds for up to 25 seconds (Vercel limit).
@@ -1401,6 +1486,13 @@ async def stream_positions():
     Returns:
         Streaming response with position updates
     """
+    # Resolve operator before streaming (no async inside generator)
+    if current_user and current_user.role == "super_admin":
+        op_id = await _resolve_operator_id(operator) if operator else None
+    elif current_user and current_user.operator_id:
+        op_id = current_user.operator_id
+    else:
+        op_id = await _resolve_operator_id(operator)
 
     async def generate():
         start_time = time.time()
@@ -1408,10 +1500,10 @@ async def stream_positions():
 
         while time.time() - start_time < max_duration:
             try:
-                # Get positions updated since last poll
-                positions = await _supabase_get(
-                    "vehicle_positions_latest?select=*,vehicles(name,name_ar)"
-                )
+                query = "vehicle_positions_latest?select=*,vehicles(name,name_ar)"
+                if op_id:
+                    query += f"&{_op_filter(op_id)}"
+                positions = await _supabase_get(query)
 
                 positions = positions or []
 
@@ -1430,7 +1522,6 @@ async def stream_positions():
 
                     yield f"data: {data.json()}\n\n"
 
-                # Wait 2 seconds before next poll
                 await asyncio.sleep(2)
 
             except Exception as e:
@@ -1441,7 +1532,10 @@ async def stream_positions():
 
 
 @app.get("/api/stats", response_model=dict, tags=["stats"])
-async def get_fleet_stats():
+async def get_fleet_stats(
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     Get fleet statistics and real-time metrics.
 
@@ -1449,12 +1543,22 @@ async def get_fleet_stats():
         Fleet overview stats
     """
     try:
-        cached = await _cache_get(CACHE_KEY_STATS)
+        if current_user and current_user.role == "super_admin":
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        cache_key = _tenant_cache_key(CACHE_KEY_STATS, op_id or "all")
+        cached = await _cache_get(cache_key)
         if cached is not None:
             return cached
 
+        op_suffix = f"&{_op_filter(op_id)}" if op_id else ""
+
         # Vehicle counts
-        vehicles = await _supabase_get("vehicles?is_active=eq.true&select=id,status")
+        vehicles = await _supabase_get(f"vehicles?is_active=eq.true&select=id,status{op_suffix}")
 
         active_count = (
             len([v for v in vehicles if v.get("status") == "active"]) if vehicles else 0
@@ -1469,20 +1573,20 @@ async def get_fleet_stats():
         )
 
         # Route counts
-        routes = await _supabase_get("routes?is_active=eq.true&select=id")
+        routes = await _supabase_get(f"routes?is_active=eq.true&select=id{op_suffix}")
 
         # Stops count
-        stops = await _supabase_get("stops?is_active=eq.true&select=id")
+        stops = await _supabase_get(f"stops?is_active=eq.true&select=id{op_suffix}")
 
         # Driver counts
-        drivers = await _supabase_get("users?role=eq.driver&select=id,is_active")
+        drivers = await _supabase_get(f"users?role=eq.driver&select=id,is_active{op_suffix}")
 
         active_drivers = (
             len([d for d in drivers if d.get("is_active")]) if drivers else 0
         )
 
         # Average occupancy
-        positions = await _supabase_get("vehicle_positions_latest?select=occupancy_pct")
+        positions = await _supabase_get(f"vehicle_positions_latest?select=occupancy_pct{op_suffix}")
 
         occupancy_values = [
             p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
@@ -1504,9 +1608,11 @@ async def get_fleet_stats():
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-        await _cache_set(CACHE_KEY_STATS, result, CACHE_TTL_STATS)
+        await _cache_set(cache_key, result, CACHE_TTL_STATS)
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -1514,7 +1620,11 @@ async def get_fleet_stats():
 
 
 @app.get("/api/schedules/{route_id}", response_model=List[ScheduleResponse], tags=["schedules"])
-async def get_route_schedule(route_id: str):
+async def get_route_schedule(
+    route_id: str,
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     Get schedule for a route by day of week.
 
@@ -1525,7 +1635,17 @@ async def get_route_schedule(route_id: str):
         Schedule entries for each day
     """
     try:
-        schedules = await _supabase_get(f"schedules?route_id=eq.{route_id}&select=*")
+        if current_user and current_user.role == "super_admin":
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        query = f"schedules?route_id=eq.{route_id}&select=*"
+        if op_id:
+            query += f"&{_op_filter(op_id)}"
+        schedules = await _supabase_get(query)
 
         return [
             ScheduleResponse(
@@ -1539,6 +1659,8 @@ async def get_route_schedule(route_id: str):
             for s in schedules
         ]
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -1546,7 +1668,10 @@ async def get_route_schedule(route_id: str):
 
 
 @app.get("/api/alerts/active", response_model=List[AlertResponse], tags=["alerts"])
-async def get_active_alerts():
+async def get_active_alerts(
+    operator: Optional[str] = Query(None, description="Operator slug"),
+    current_user: Optional[CurrentUser] = Depends(optional_auth),
+):
     """
     Get all unresolved alerts.
 
@@ -1554,9 +1679,17 @@ async def get_active_alerts():
         List of active alerts
     """
     try:
-        alerts = await _supabase_get(
-            "alerts?is_resolved=eq.false&select=*&order=created_at.desc"
-        )
+        if current_user and current_user.role == "super_admin":
+            op_id = await _resolve_operator_id(operator) if operator else None
+        elif current_user and current_user.operator_id:
+            op_id = current_user.operator_id
+        else:
+            op_id = await _resolve_operator_id(operator)
+
+        query = "alerts?is_resolved=eq.false&select=*&order=created_at.desc"
+        if op_id:
+            query += f"&{_op_filter(op_id)}"
+        alerts = await _supabase_get(query)
 
         return [
             AlertResponse(
@@ -1573,6 +1706,8 @@ async def get_active_alerts():
             for a in alerts
         ]
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -1656,8 +1791,14 @@ async def report_driver_position(
                 )
             raise
 
-        # Invalidate vehicle position caches so the next read reflects the new position
-        await _cache_delete(CACHE_KEY_VEHICLES_LIST, CACHE_KEY_VEHICLES_POSITIONS)
+        # Invalidate tenant-scoped vehicle position caches
+        if current_user.operator_id:
+            await _cache_delete(
+                _tenant_cache_key(CACHE_KEY_VEHICLES_LIST, current_user.operator_id),
+                _tenant_cache_key(CACHE_KEY_VEHICLES_POSITIONS, current_user.operator_id),
+            )
+        else:
+            await _cache_delete(CACHE_KEY_VEHICLES_LIST, CACHE_KEY_VEHICLES_POSITIONS)
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
@@ -1705,6 +1846,7 @@ async def start_trip(
             "status": "in_progress",
             "scheduled_start": trip.scheduled_departure,
             "actual_start": datetime.utcnow().isoformat(),
+            "operator_id": current_user.operator_id,
         }
 
         result = await _supabase_post("trips", trip_data)
@@ -1830,10 +1972,10 @@ async def update_passenger_count(
 
 @app.get("/api/admin/users", response_model=List[UserResponse], tags=["admin"])
 async def list_users(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
-    List all users.
+    List all users scoped to the current operator.
 
     Args:
         current_user: Authenticated admin/dispatcher
@@ -1842,7 +1984,10 @@ async def list_users(
         List of users
     """
     try:
-        users = await _supabase_get("users?select=*")
+        query = "users?select=*"
+        if current_user.role != "super_admin" and current_user.operator_id:
+            query += f"&{_op_filter(current_user.operator_id)}"
+        users = await _supabase_get(query)
 
         return [
             UserResponse(
@@ -1901,6 +2046,7 @@ async def create_user(
             "role": user_data.role,
             "phone": user_data.phone,
             "is_active": True,
+            "operator_id": current_user.operator_id,
         }
 
         result = await _supabase_post("users", new_user)
@@ -1996,10 +2142,10 @@ async def update_user(
 
 @app.get("/api/admin/vehicles", response_model=List[VehicleResponse], tags=["admin"])
 async def list_all_vehicles(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
-    List all vehicles including inactive ones.
+    List all vehicles including inactive ones, scoped to current operator.
 
     Args:
         current_user: Authenticated admin/dispatcher
@@ -2008,7 +2154,10 @@ async def list_all_vehicles(
         All vehicles
     """
     try:
-        positions = await _supabase_get("vehicle_positions_latest?select=*,vehicles(*)")
+        query = "vehicle_positions_latest?select=*,vehicles(*)"
+        if current_user.role != "super_admin" and current_user.operator_id:
+            query += f"&{_op_filter(current_user.operator_id)}"
+        positions = await _supabase_get(query)
 
         vehicles_data = positions or []
 
@@ -2064,6 +2213,7 @@ async def create_vehicle(
             "gps_device_id": vehicle_data.gps_device_id,
             "is_real_gps": vehicle_data.is_real_gps,
             "is_active": True,
+            "operator_id": current_user.operator_id,
         }
 
         result = await _supabase_post("vehicles", new_vehicle)
@@ -2204,10 +2354,10 @@ async def assign_vehicle(
 
 @app.get("/api/admin/alerts", response_model=List[AlertResponse], tags=["admin"])
 async def list_all_alerts(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
-    Get all alerts (resolved and unresolved).
+    Get all alerts (resolved and unresolved), scoped to current operator.
 
     Args:
         current_user: Authenticated admin/dispatcher
@@ -2216,7 +2366,10 @@ async def list_all_alerts(
         All alerts
     """
     try:
-        alerts = await _supabase_get("alerts?select=*&order=created_at.desc")
+        query = "alerts?select=*&order=created_at.desc"
+        if current_user.role != "super_admin" and current_user.operator_id:
+            query += f"&{_op_filter(current_user.operator_id)}"
+        alerts = await _supabase_get(query)
 
         return [
             AlertResponse(
@@ -2286,10 +2439,10 @@ async def list_trips(
     vehicle_id: Optional[str] = None,
     driver_id: Optional[str] = None,
     status_filter: Optional[str] = None,
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
-    List trips with optional filtering.
+    List trips with optional filtering, scoped to current operator.
 
     Args:
         vehicle_id: Filter by vehicle
@@ -2309,6 +2462,8 @@ async def list_trips(
             params.append(f"driver_id=eq.{driver_id}")
         if status_filter:
             params.append(f"status=eq.{status_filter}")
+        if current_user.role != "super_admin" and current_user.operator_id:
+            params.append(_op_filter(current_user.operator_id))
 
         query = "trips?select=*&order=created_at.desc"
         if params:
@@ -2326,10 +2481,10 @@ async def list_trips(
 
 @app.get("/api/admin/analytics/overview", response_model=AnalyticsOverview, tags=["admin"])
 async def get_analytics_overview(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
-    Get fleet analytics overview for dashboard.
+    Get fleet analytics overview for dashboard, scoped to current operator.
 
     Args:
         current_user: Authenticated admin/dispatcher
@@ -2338,8 +2493,14 @@ async def get_analytics_overview(
         Fleet analytics
     """
     try:
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+
         # Vehicle counts
-        vehicles = await _supabase_get("vehicles?select=status")
+        vehicles = await _supabase_get(f"vehicles?select=status{op_suffix}")
 
         active_vehicles = len([v for v in vehicles if v.get("status") == "active"])
         idle_vehicles = len([v for v in vehicles if v.get("status") == "idle"])
@@ -2348,20 +2509,20 @@ async def get_analytics_overview(
         )
 
         # Routes
-        routes = await _supabase_get("routes?is_active=eq.true&select=id")
+        routes = await _supabase_get(f"routes?is_active=eq.true&select=id{op_suffix}")
 
         # Stops
-        stops = await _supabase_get("stops?is_active=eq.true&select=id")
+        stops = await _supabase_get(f"stops?is_active=eq.true&select=id{op_suffix}")
 
         # Drivers
-        drivers = await _supabase_get("users?role=eq.driver&select=is_active")
+        drivers = await _supabase_get(f"users?role=eq.driver&select=is_active{op_suffix}")
 
         active_drivers = (
             len([d for d in drivers if d.get("is_active")]) if drivers else 0
         )
 
         # Average occupancy
-        positions = await _supabase_get("vehicle_positions_latest?select=occupancy_pct")
+        positions = await _supabase_get(f"vehicle_positions_latest?select=occupancy_pct{op_suffix}")
 
         occupancy_values = [
             p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
@@ -2391,7 +2552,7 @@ async def get_analytics_overview(
 
 @app.get("/api/admin/analytics/fleet-utilization", tags=["admin"])
 async def get_fleet_utilization(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
     Get fleet utilization over the last 24 hours, bucketed by hour.
@@ -2405,13 +2566,19 @@ async def get_fleet_utilization(
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(hours=24)
 
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+
         # Get all vehicles for total count
-        vehicles = await _supabase_get("vehicles?select=id,status")
+        vehicles = await _supabase_get(f"vehicles?select=id,status{op_suffix}")
         total_vehicles = len(vehicles)
 
         # Get trips in last 24h to compute per-hour active counts
         trips = await _supabase_get(
-            f"trips?actual_start=gte.{cutoff.isoformat()}&select=actual_start,actual_end,vehicle_id"
+            f"trips?actual_start=gte.{cutoff.isoformat()}&select=actual_start,actual_end,vehicle_id{op_suffix}"
         )
 
         # Build hourly buckets
@@ -2455,7 +2622,7 @@ async def get_fleet_utilization(
 
 @app.get("/api/admin/analytics/route-performance", tags=["admin"])
 async def get_route_performance(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
     Get per-route performance: on-time %, average delay, and trip count
@@ -2466,12 +2633,18 @@ async def get_route_performance(
 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+
         routes = await _supabase_get(
-            "routes?is_active=eq.true&select=id,name,name_ar,distance_km"
+            f"routes?is_active=eq.true&select=id,name,name_ar,distance_km{op_suffix}"
         )
         trips = await _supabase_get(
             f"trips?status=eq.completed&actual_start=gte.{cutoff}"
-            "&select=route_id,on_time_pct,scheduled_start,actual_start"
+            f"&select=route_id,on_time_pct,scheduled_start,actual_start{op_suffix}"
         )
 
         # Group trips by route
@@ -2535,7 +2708,7 @@ async def get_route_performance(
 
 @app.get("/api/admin/analytics/driver-scoreboard", tags=["admin"])
 async def get_driver_scoreboard(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
     Get driver scoreboard: trips completed and avg route adherence (on_time_pct)
@@ -2547,12 +2720,18 @@ async def get_driver_scoreboard(
 
         cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
 
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+
         drivers = await _supabase_get(
-            "users?role=eq.driver&select=id,full_name,full_name_ar,is_active"
+            f"users?role=eq.driver&select=id,full_name,full_name_ar,is_active{op_suffix}"
         )
         trips = await _supabase_get(
             f"trips?status=eq.completed&actual_start=gte.{cutoff}"
-            "&select=driver_id,on_time_pct,distance_km"
+            f"&select=driver_id,on_time_pct,distance_km{op_suffix}"
         )
 
         driver_trips: dict = defaultdict(list)
@@ -2598,7 +2777,7 @@ async def get_driver_scoreboard(
 
 @app.get("/api/admin/analytics/gps-heatmap", tags=["admin"])
 async def get_gps_heatmap(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
 ):
     """
     Get GPS position data for heatmap visualization.
@@ -2611,10 +2790,16 @@ async def get_gps_heatmap(
 
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+
         # Use ST_AsGeoJSON to get coordinates
         positions = await _supabase_get(
             f"vehicle_positions?recorded_at=gte.{cutoff}"
-            "&select=location,speed_kmh&order=recorded_at.desc&limit=2000"
+            f"&select=location,speed_kmh&order=recorded_at.desc&limit=2000{op_suffix}"
         )
 
         features = []
@@ -2659,7 +2844,7 @@ async def get_gps_heatmap(
 
         # Also include current positions from latest table
         latest = await _supabase_get(
-            "vehicle_positions_latest?select=location,speed_kmh"
+            f"vehicle_positions_latest?select=location,speed_kmh{op_suffix}"
         )
         for p in latest:
             loc = p.get("location")
@@ -3078,6 +3263,224 @@ async def unsubscribe_push(req: dict):
         except Exception:
             pass
     return {"status": "unsubscribed"}
+
+
+# ============================================================================
+# Operator Management Endpoints (multi-tenancy)
+# ============================================================================
+
+
+class OperatorCreate(BaseModel):
+    """Create operator (fleet tenant) request — super_admin only."""
+
+    slug: str = Field(..., min_length=2, max_length=64, pattern=r"^[a-z0-9-]+$")
+    name: str
+    name_ar: Optional[str] = None
+    plan: Literal["free", "pro", "enterprise"] = "free"
+    settings: Optional[dict] = None
+
+
+class OperatorUpdate(BaseModel):
+    """Update operator request."""
+
+    name: Optional[str] = None
+    name_ar: Optional[str] = None
+    plan: Optional[Literal["free", "pro", "enterprise"]] = None
+    is_active: Optional[bool] = None
+    settings: Optional[dict] = None
+
+
+class OperatorResponse(BaseModel):
+    """Operator response model."""
+
+    id: str
+    slug: str
+    name: str
+    name_ar: Optional[str] = None
+    plan: str
+    is_active: bool
+    settings: Optional[dict] = None
+    created_at: Optional[str] = None
+
+
+@app.get("/api/operators", response_model=List[OperatorResponse], tags=["operators"])
+async def list_operators(
+    current_user: CurrentUser = Depends(require_role("super_admin")),
+):
+    """
+    List all fleet operators (super_admin only).
+
+    Returns:
+        All registered operators
+    """
+    try:
+        operators = await _supabase_get("operators?select=*&order=created_at.asc")
+        return [
+            OperatorResponse(
+                id=o["id"],
+                slug=o["slug"],
+                name=o["name"],
+                name_ar=o.get("name_ar"),
+                plan=o["plan"],
+                is_active=o["is_active"],
+                settings=o.get("settings"),
+                created_at=o.get("created_at"),
+            )
+            for o in operators
+        ]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@app.get("/api/operators/me", response_model=OperatorResponse, tags=["operators"])
+async def get_my_operator(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Get the current user's operator profile.
+
+    Returns:
+        Operator details for the authenticated user's tenant
+    """
+    try:
+        if not current_user.operator_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No operator associated with this account",
+            )
+        operators = await _supabase_get(
+            f"operators?id=eq.{current_user.operator_id}&select=*"
+        )
+        if not operators:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Operator not found"
+            )
+        o = operators[0]
+        return OperatorResponse(
+            id=o["id"],
+            slug=o["slug"],
+            name=o["name"],
+            name_ar=o.get("name_ar"),
+            plan=o["plan"],
+            is_active=o["is_active"],
+            settings=o.get("settings"),
+            created_at=o.get("created_at"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@app.post("/api/operators", response_model=OperatorResponse, tags=["operators"])
+async def create_operator(
+    data: OperatorCreate,
+    current_user: CurrentUser = Depends(require_role("super_admin")),
+):
+    """
+    Register a new fleet operator (super_admin only).
+
+    Returns:
+        Created operator
+    """
+    try:
+        existing = await _supabase_get(
+            f"operators?slug=eq.{urllib.parse.quote(data.slug, safe='')}&select=id"
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Operator slug '{data.slug}' already exists",
+            )
+
+        payload: dict = {
+            "slug": data.slug,
+            "name": data.name,
+            "name_ar": data.name_ar,
+            "plan": data.plan,
+            "is_active": True,
+        }
+        if data.settings is not None:
+            payload["settings"] = data.settings
+
+        result = await _supabase_post("operators", payload)
+        created = result if isinstance(result, dict) else result[0] if result else {}
+
+        return OperatorResponse(
+            id=created["id"],
+            slug=created["slug"],
+            name=created["name"],
+            name_ar=created.get("name_ar"),
+            plan=created["plan"],
+            is_active=created["is_active"],
+            settings=created.get("settings"),
+            created_at=created.get("created_at"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@app.put("/api/operators/{operator_id}", response_model=OperatorResponse, tags=["operators"])
+async def update_operator(
+    operator_id: str,
+    data: OperatorUpdate,
+    current_user: CurrentUser = Depends(require_role("super_admin")),
+):
+    """
+    Update an operator's details (super_admin only).
+
+    Returns:
+        Updated operator
+    """
+    try:
+        update_dict: dict = {}
+        if data.name is not None:
+            update_dict["name"] = data.name
+        if data.name_ar is not None:
+            update_dict["name_ar"] = data.name_ar
+        if data.plan is not None:
+            update_dict["plan"] = data.plan
+        if data.is_active is not None:
+            update_dict["is_active"] = data.is_active
+        if data.settings is not None:
+            update_dict["settings"] = data.settings
+
+        if not update_dict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update"
+            )
+
+        result = await _supabase_patch(f"operators?id=eq.{operator_id}", update_dict)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Operator not found"
+            )
+
+        o = result[0]
+        return OperatorResponse(
+            id=o["id"],
+            slug=o["slug"],
+            name=o["name"],
+            name_ar=o.get("name_ar"),
+            plan=o["plan"],
+            is_active=o["is_active"],
+            settings=o.get("settings"),
+            created_at=o.get("created_at"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ============================================================================
