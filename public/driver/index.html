@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#002623">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
-<title>DamascusTransit Driver</title>
+<title>سائق نقل دمشق</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
@@ -22,6 +22,38 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--green-dark);overflow:hidden;height:100vh;height:100dvh;}
 
+/* ── Login Screen ── */
+#loginScreen {
+  position:fixed;inset:0;z-index:999;background:var(--green-dark);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+#loginScreen.hidden{display:none;}
+.login-card {
+  background:var(--white);border-radius:20px;padding:32px 24px;width:100%;max-width:360px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.4);
+}
+.login-logo { font-size:28px;font-weight:700;color:var(--green-mid);text-align:center;margin-bottom:4px; }
+.login-sub  { font-size:13px;color:#888;text-align:center;margin-bottom:24px; }
+.login-error{
+  background:#fef2f2;color:#991b1b;border-radius:8px;padding:10px 14px;
+  font-size:13px;margin-bottom:12px;display:none;
+}
+.login-error.show{display:block;}
+.login-input {
+  width:100%;padding:14px;border:1.5px solid #e5e7eb;border-radius:10px;
+  font-family:inherit;font-size:15px;margin-bottom:12px;outline:none;
+  direction:ltr;text-align:left;
+}
+.login-input:focus{border-color:var(--green-mid);}
+.login-btn {
+  width:100%;padding:15px;background:var(--green-mid);color:var(--white);
+  border:none;border-radius:10px;font-family:inherit;font-size:16px;font-weight:700;
+  cursor:pointer;transition:opacity 0.2s;
+}
+.login-btn:disabled{opacity:0.6;cursor:not-allowed;}
+
+/* ── Main App ── */
+#appScreen{position:absolute;inset:0;}
 #map{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;}
 
 /* Driver top bar */
@@ -37,26 +69,47 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
   font-size:12px;font-weight:700;
 }
 .driver-bar .status-pill{
-  margin-left:auto;display:flex;align-items:center;gap:6px;
-  background:rgba(16,185,129,0.2);padding:4px 12px;border-radius:10px;
+  margin-right:auto;display:flex;align-items:center;gap:6px;
+  padding:4px 12px;border-radius:10px;transition:background 0.3s;
 }
-.driver-bar .status-pill .dot{width:8px;height:8px;background:#10B981;border-radius:50%;animation:pulse 2s infinite;}
-.driver-bar .status-pill span{font-size:12px;color:#10B981;font-weight:600;}
+.status-pill.on-duty  {background:rgba(16,185,129,0.2);}
+.status-pill.on-duty  .dot{background:#10B981;}
+.status-pill.on-duty  span{color:#10B981;}
+.status-pill.off-duty {background:rgba(185,167,121,0.2);}
+.status-pill.off-duty .dot{background:var(--gold);}
+.status-pill.off-duty span{color:var(--gold);}
+.status-pill .dot{width:8px;height:8px;border-radius:50%;animation:pulse 2s infinite;}
+.status-pill span{font-size:12px;font-weight:600;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 
 /* Speed HUD */
 .speed-hud {
-  position:absolute;top:calc(var(--safe-top)+70px);left:16px;z-index:100;
+  position:absolute;top:calc(var(--safe-top)+70px);right:16px;z-index:100;
   background:var(--white);border-radius:16px;padding:16px;width:100px;
   text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.2);
+  transition:background 0.3s,border 0.3s;border:3px solid transparent;
 }
+.speed-hud.warning{background:#fef2f2;border-color:#ef4444;}
 .speed-hud .number{font-size:42px;font-weight:700;color:var(--green-mid);line-height:1;}
+.speed-hud.warning .number{color:#ef4444;}
 .speed-hud .unit{font-size:12px;color:#888;margin-top:2px;}
 .speed-hud .label{font-size:10px;color:var(--charcoal);margin-top:6px;padding-top:6px;border-top:1px solid #eee;}
 
+/* Route adherence badge */
+.adherence-badge {
+  position:absolute;top:calc(var(--safe-top)+70px);left:16px;z-index:100;
+  border-radius:12px;padding:10px 14px;min-width:110px;text-align:center;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:background 0.4s;
+}
+.adherence-badge.on-route  {background:#dcfce7;color:#166534;}
+.adherence-badge.off-route {background:#fef2f2;color:#991b1b;}
+.adherence-badge .icon{font-size:20px;}
+.adherence-badge .txt{font-size:12px;font-weight:700;margin-top:2px;}
+.adherence-badge .txt-en{font-size:10px;opacity:0.7;margin-top:1px;}
+
 /* Trip stats bar */
 .trip-stats {
-  position:absolute;top:calc(var(--safe-top)+70px);right:16px;z-index:100;
+  position:absolute;top:calc(var(--safe-top)+190px);right:16px;z-index:100;
   display:flex;flex-direction:column;gap:8px;
 }
 .stat-card {
@@ -65,6 +118,26 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 }
 .stat-card .val{font-size:18px;font-weight:700;color:var(--green-mid);}
 .stat-card .lbl{font-size:10px;color:#888;margin-top:2px;}
+
+/* Alert banner */
+.alert-banner{
+  position:absolute;top:calc(var(--safe-top)+60px);left:16px;right:16px;z-index:300;
+  border-radius:12px;padding:12px 16px;
+  font-size:13px;font-weight:600;text-align:center;
+  display:none;animation:slideDown 0.3s ease;
+}
+.alert-banner.danger{background:var(--umber);color:var(--white);}
+.alert-banner.warn  {background:#f59e0b;color:#1c1917;}
+.alert-banner.info  {background:var(--green-mid);color:var(--white);}
+@keyframes slideDown{from{transform:translateY(-10px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Speed warning overlay */
+.speed-warning-overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;z-index:250;pointer-events:none;
+  border:5px solid #ef4444;border-radius:0;display:none;
+  animation:flashBorder 0.5s infinite alternate;
+}
+@keyframes flashBorder{from{opacity:1}to{opacity:0.2}}
 
 /* Bottom Panel */
 .bottom-panel {
@@ -81,15 +154,15 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
   border-radius:14px;padding:16px;color:var(--white);margin-bottom:12px;
 }
 .next-stop .label{font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;}
-.next-stop .name{font-size:20px;font-weight:700;margin:4px 0;}
-.next-stop .name-ar{font-size:14px;opacity:0.8;margin-bottom:8px;}
+.next-stop .name-ar{font-size:20px;font-weight:700;margin:4px 0;}
+.next-stop .name-en{font-size:13px;opacity:0.75;margin-bottom:8px;}
 .next-stop .eta-row{display:flex;align-items:center;gap:12px;}
 .next-stop .eta-big{font-size:32px;font-weight:700;}
 .next-stop .eta-big small{font-size:14px;font-weight:400;}
 .next-stop .eta-detail{font-size:12px;opacity:0.8;}
 
 /* Stop progress */
-.stops-progress{display:flex;align-items:center;gap:0;margin-bottom:12px;}
+.stops-progress{display:flex;align-items:center;margin-bottom:12px;}
 .stop-dot{
   width:12px;height:12px;border-radius:50%;border:2px solid var(--green-mid);
   background:var(--white);position:relative;flex-shrink:0;z-index:2;
@@ -99,18 +172,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 .stop-line{flex:1;height:3px;background:#ddd;margin:0 -1px;}
 .stop-line.completed{background:var(--green-mid);}
 
-/* Action buttons */
-.actions{display:flex;gap:10px;}
-.action-btn{
-  flex:1;padding:14px;border-radius:12px;border:none;font-family:inherit;
-  font-size:14px;font-weight:700;cursor:pointer;transition:transform 0.15s;
-}
-.action-btn:active{transform:scale(0.96);}
-.btn-primary{background:var(--green-mid);color:var(--white);}
-.btn-secondary{background:var(--gold-light);color:var(--green-mid);}
-.btn-danger{background:var(--umber);color:var(--white);}
-
-/* Passenger count */
+/* Passenger counter */
 .passenger-counter{
   display:flex;align-items:center;justify-content:center;gap:16px;
   background:var(--gold-light);border-radius:14px;padding:12px;margin-bottom:12px;
@@ -125,79 +187,177 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 .counter-val .num{font-size:36px;font-weight:700;color:var(--green-mid);}
 .counter-val .lbl{font-size:11px;color:#888;}
 
-/* Alert banner */
-.alert-banner{
-  position:absolute;bottom:260px;left:16px;right:16px;z-index:150;
-  background:var(--umber);color:var(--white);border-radius:12px;padding:12px 16px;
-  font-size:13px;font-weight:600;text-align:center;
-  display:none;animation:slideUp 0.3s ease;
+/* Action buttons */
+.actions{display:flex;gap:10px;flex-wrap:wrap;}
+.action-btn{
+  flex:1;min-width:120px;padding:14px;border-radius:12px;border:none;font-family:inherit;
+  font-size:14px;font-weight:700;cursor:pointer;transition:transform 0.15s,opacity 0.2s;
 }
-@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.action-btn:active{transform:scale(0.96);}
+.action-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-start   {background:#10B981;color:var(--white);}
+.btn-end     {background:var(--umber);color:var(--white);}
+.btn-arrive  {background:var(--green-mid);color:var(--white);}
+.btn-report  {background:var(--gold-light);color:var(--green-mid);}
+
+/* Trip idle notice */
+.trip-idle-notice {
+  text-align:center;padding:12px;background:var(--gold-light);border-radius:12px;
+  margin-bottom:12px;font-size:13px;color:var(--charcoal);
+}
+
+/* Confirm modal */
+.modal-overlay {
+  position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.6);
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.modal-overlay.hidden{display:none;}
+.modal-card {
+  background:var(--white);border-radius:20px 20px 0 0;padding:24px;width:100%;
+  max-width:480px;padding-bottom:max(24px,env(safe-area-inset-bottom));
+}
+.modal-title{font-size:18px;font-weight:700;color:var(--green-dark);margin-bottom:8px;}
+.modal-body {font-size:14px;color:#555;margin-bottom:20px;line-height:1.6;}
+.modal-actions{display:flex;gap:10px;}
+.modal-btn{
+  flex:1;padding:14px;border-radius:12px;border:none;font-family:inherit;
+  font-size:15px;font-weight:700;cursor:pointer;
+}
+.modal-btn.confirm{background:var(--umber);color:var(--white);}
+.modal-btn.cancel {background:var(--gold-light);color:var(--green-mid);}
+
+/* Route select */
+.route-select{
+  width:100%;padding:12px;border:1.5px solid #e5e7eb;border-radius:10px;
+  font-family:inherit;font-size:14px;margin-bottom:12px;background:var(--white);
+}
 </style>
 </head>
 <body>
 
-<div id="map"></div>
-
-<!-- Top bar -->
-<div class="driver-bar">
-  <div class="logo">🚌 Driver</div>
-  <div class="route-badge" id="routeBadge">Marjeh → Western</div>
-  <div class="status-pill"><div class="dot"></div><span>ON DUTY</span></div>
+<!-- ── Login Screen ── -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🚌 نقل دمشق</div>
+    <div class="login-sub">Damascus Transit — Driver App</div>
+    <div class="login-error" id="loginError"></div>
+    <input type="email" id="loginEmail" class="login-input" placeholder="البريد الإلكتروني / Email" autocomplete="email">
+    <input type="password" id="loginPassword" class="login-input" placeholder="كلمة المرور / Password" autocomplete="current-password">
+    <button class="login-btn" id="loginBtn" onclick="handleLogin()">دخول — Sign In</button>
+  </div>
 </div>
 
-<!-- Speed HUD -->
-<div class="speed-hud">
-  <div class="number" id="speedVal">0</div>
-  <div class="unit">km/h</div>
-  <div class="label" id="statusLabel">Stopped</div>
-</div>
+<!-- ── Main App ── -->
+<div id="appScreen">
+  <div id="map"></div>
 
-<!-- Trip stats -->
-<div class="trip-stats">
-  <div class="stat-card"><div class="val" id="tripTime">0:00</div><div class="lbl">Trip Time</div></div>
-  <div class="stat-card"><div class="val" id="tripDist">0.0</div><div class="lbl">km driven</div></div>
-  <div class="stat-card"><div class="val" id="onTimeRate">98%</div><div class="lbl">On-Time</div></div>
-</div>
+  <!-- Speed warning flash border -->
+  <div class="speed-warning-overlay" id="speedWarningOverlay"></div>
 
-<!-- Alert banner -->
-<div class="alert-banner" id="alertBanner"></div>
+  <!-- Top bar -->
+  <div class="driver-bar">
+    <div class="logo">🚌 سائق</div>
+    <div class="route-badge" id="routeBadge">المرجة ← الغربية</div>
+    <div class="status-pill off-duty" id="statusPill">
+      <div class="dot"></div>
+      <span id="statusLabel">لا رحلة</span>
+    </div>
+  </div>
 
-<!-- Bottom panel -->
-<div class="bottom-panel">
-  <div class="panel-handle"></div>
+  <!-- Route adherence badge -->
+  <div class="adherence-badge on-route" id="adherenceBadge">
+    <div class="icon">✅</div>
+    <div class="txt">على المسار</div>
+    <div class="txt-en">On Route</div>
+  </div>
 
-  <!-- Next stop -->
-  <div class="next-stop">
-    <div class="label">Next Stop</div>
-    <div class="name" id="nextStopName">Hijaz Station</div>
-    <div class="name-ar" id="nextStopAr">محطة الحجاز</div>
-    <div class="eta-row">
-      <div class="eta-big" id="nextStopETA">3<small> min</small></div>
-      <div>
-        <div class="eta-detail" id="nextStopDist">1.2 km ahead</div>
-        <div class="eta-detail" id="waitingPassengers">~8 passengers waiting</div>
+  <!-- Speed HUD -->
+  <div class="speed-hud" id="speedHud">
+    <div class="number" id="speedVal">0</div>
+    <div class="unit">كم/س</div>
+    <div class="label" id="speedLabel">متوقف</div>
+  </div>
+
+  <!-- Trip stats -->
+  <div class="trip-stats">
+    <div class="stat-card"><div class="val" id="tripTime">0:00</div><div class="lbl">وقت الرحلة</div></div>
+    <div class="stat-card"><div class="val" id="tripDist">0.0</div><div class="lbl">كم مقطوع</div></div>
+    <div class="stat-card"><div class="val" id="onTimeRate">—</div><div class="lbl">الالتزام</div></div>
+  </div>
+
+  <!-- Alert banner -->
+  <div class="alert-banner info" id="alertBanner"></div>
+
+  <!-- Bottom panel -->
+  <div class="bottom-panel">
+    <div class="panel-handle"></div>
+
+    <!-- Trip idle notice (shown when no active trip) -->
+    <div class="trip-idle-notice" id="tripIdleNotice">
+      ابدأ رحلة جديدة للبدء بتتبع التوقفات<br>
+      <small style="color:#888;">Start a trip to begin tracking stops</small>
+    </div>
+
+    <!-- Next stop (hidden until trip started) -->
+    <div class="next-stop" id="nextStopCard" style="display:none;">
+      <div class="label">المحطة التالية · Next Stop</div>
+      <div class="name-ar" id="nextStopAr">محطة الحجاز</div>
+      <div class="name-en" id="nextStopName">Hijaz Station</div>
+      <div class="eta-row">
+        <div class="eta-big" id="nextStopETA">—<small> د</small></div>
+        <div>
+          <div class="eta-detail" id="nextStopDist">—</div>
+          <div class="eta-detail" id="waitingPassengers">—</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Stop progress -->
-  <div class="stops-progress" id="stopsProgress"></div>
+    <!-- Stop progress (hidden until trip started) -->
+    <div class="stops-progress" id="stopsProgress" style="display:none;"></div>
 
-  <!-- Passenger counter -->
-  <div class="passenger-counter">
-    <button class="counter-btn" onclick="adjustPassengers(-1)">−</button>
-    <div class="counter-val">
-      <div class="num" id="passengerCount">0</div>
-      <div class="lbl">Passengers</div>
+    <!-- Passenger counter -->
+    <div class="passenger-counter">
+      <button class="counter-btn" onclick="adjustPassengers(-1)">−</button>
+      <div class="counter-val">
+        <div class="num" id="passengerCount">0</div>
+        <div class="lbl">ركاب · Passengers</div>
+      </div>
+      <button class="counter-btn" onclick="adjustPassengers(1)">+</button>
     </div>
-    <button class="counter-btn" onclick="adjustPassengers(1)">+</button>
-  </div>
 
-  <!-- Actions -->
-  <div class="actions">
-    <button class="action-btn btn-primary" id="arriveBtn" onclick="arriveAtStop()">📍 Arrive at Stop</button>
-    <button class="action-btn btn-secondary" onclick="reportIssue()">⚠️ Report</button>
+    <!-- Actions -->
+    <div class="actions" id="actionsRow">
+      <!-- Rendered by renderActions() -->
+    </div>
+  </div>
+</div>
+
+<!-- ── Start Trip Modal ── -->
+<div class="modal-overlay hidden" id="startModal">
+  <div class="modal-card">
+    <div class="modal-title">بدء رحلة جديدة · Start New Trip</div>
+    <div class="modal-body">اختر الخط قبل بدء الرحلة · Select route before starting</div>
+    <select class="route-select" id="routeSelect">
+      <option value="line-a">خط أ — Line A (المرجة ← الغربية)</option>
+      <option value="line-b">خط ب — Line B (القابون ← المزة)</option>
+      <option value="line-c">خط ج — Line C (الميدان ← ركن الدين)</option>
+    </select>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('startModal')">إلغاء · Cancel</button>
+      <button class="modal-btn confirm" style="background:var(--green-mid);" onclick="confirmStartTrip()">بدء · Start</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── End Trip Modal ── -->
+<div class="modal-overlay hidden" id="endModal">
+  <div class="modal-card">
+    <div class="modal-title">إنهاء الرحلة · End Trip</div>
+    <div class="modal-body" id="endModalBody">هل تريد إنهاء الرحلة الحالية؟ · End the current trip?</div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal('endModal')">رجوع · Back</button>
+      <button class="modal-btn confirm" onclick="confirmEndTrip()">إنهاء · End</button>
+    </div>
   </div>
 </div>
 
@@ -205,24 +365,92 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? `http://${window.location.hostname}:8080` : window.location.origin;
 
+const SPEED_LIMIT_KMH = 60; // Urban route limit
+const OFF_ROUTE_THRESHOLD_KM = 0.3; // 300m
+
 const ROUTE_STOPS = [
-  { name:"Al-Marjeh Square", nameAr:"ساحة المرجة", lat:33.5117, lon:36.2963 },
-  { name:"Hijaz Station", nameAr:"محطة الحجاز", lat:33.5133, lon:36.2936 },
-  { name:"Baramkeh", nameAr:"البرامكة", lat:33.5096, lon:36.2913 },
-  { name:"Shaalan", nameAr:"الشعلان", lat:33.5125, lon:36.2810 },
-  { name:"Jisr Al-Abyad", nameAr:"جسر الأبيض", lat:33.5115, lon:36.2750 },
-  { name:"Mazzeh Jabal", nameAr:"مزة جبل", lat:33.5090, lon:36.2650 },
-  { name:"Western Bus Station", nameAr:"المحطة الغربية", lat:33.5098, lon:36.2587 },
+  { name:"Al-Marjeh Square",    nameAr:"ساحة المرجة",     lat:33.5117, lon:36.2963 },
+  { name:"Hijaz Station",       nameAr:"محطة الحجاز",     lat:33.5133, lon:36.2936 },
+  { name:"Baramkeh",            nameAr:"البرامكة",        lat:33.5096, lon:36.2913 },
+  { name:"Shaalan",             nameAr:"الشعلان",         lat:33.5125, lon:36.2810 },
+  { name:"Jisr Al-Abyad",       nameAr:"جسر الأبيض",     lat:33.5115, lon:36.2750 },
+  { name:"Mazzeh Jabal",        nameAr:"مزة جبل",         lat:33.5090, lon:36.2650 },
+  { name:"Western Bus Station", nameAr:"المحطة الغربية",  lat:33.5098, lon:36.2587 },
 ];
 
-let map, driverMarker, userPos = null;
+// ── App state ──
+let authToken = sessionStorage.getItem('authToken') || null;
+let currentUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+let map, driverMarker;
+let userPos = null, lastPos = null;
 let currentStopIndex = 0;
 let passengers = 0;
-let tripStartTime = Date.now();
+let tripStartTime = null;
+let tripTimerInterval = null;
 let tripDistance = 0;
-let lastPos = null;
+let activeTrip = null; // { tripId, routeId }
+let isOnRoute = true;
+let simInterval = null;
 
-// ─── Map ───
+// ── Auth ──
+function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginError');
+
+  if (!email || !password) { showLoginError('يرجى ملء جميع الحقول'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'جاري الدخول...';
+
+  fetch(`${API_BASE}/api/auth/login`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email, password })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.token && data.user) {
+      authToken = data.token;
+      currentUser = data.user;
+      sessionStorage.setItem('authToken', data.token);
+      sessionStorage.setItem('user', JSON.stringify(data.user));
+      document.getElementById('loginScreen').classList.add('hidden');
+      initMap();
+    } else {
+      showLoginError(data.error || 'فشل تسجيل الدخول');
+    }
+  })
+  .catch(() => showLoginError('خطأ في الاتصال'))
+  .finally(() => { btn.disabled = false; btn.textContent = 'دخول — Sign In'; });
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+function apiCall(endpoint, method='GET', body=null) {
+  const opts = {
+    method,
+    headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(`${API_BASE}${endpoint}`, opts).then(r => r.json());
+}
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded', () => {
+  if (authToken) {
+    document.getElementById('loginScreen').classList.add('hidden');
+    initMap();
+  }
+});
+
+// ── Map ──
 function initMap() {
   map = new maplibregl.Map({
     container:'map',
@@ -232,174 +460,308 @@ function initMap() {
   });
 
   map.on('load', () => {
-    // Draw route line
     const coords = ROUTE_STOPS.map(s => [s.lon, s.lat]);
     map.addSource('route', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:coords } } });
     map.addLayer({ id:'route-line', type:'line', source:'route', paint:{ 'line-color':'#b9a779', 'line-width':4, 'line-dasharray':[2,1] } });
 
-    // Stop markers
     ROUTE_STOPS.forEach((stop, i) => {
       const el = document.createElement('div');
-      const isCurrent = i === currentStopIndex;
-      const isCompleted = i < currentStopIndex;
-      el.style.cssText = `width:${isCurrent?20:14}px;height:${isCurrent?20:14}px;border-radius:50%;background:${isCompleted?'#054239':isCurrent?'#b9a779':'#fff'};border:2px solid ${isCompleted?'#054239':'#b9a779'};box-shadow:0 2px 6px rgba(0,0,0,0.3);`;
+      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #b9a779;box-shadow:0 2px 6px rgba(0,0,0,0.3);`;
       new maplibregl.Marker({ element:el }).setLngLat([stop.lon,stop.lat]).addTo(map);
     });
 
-    // Driver position via geolocation
     startTracking();
-    renderStopProgress();
-    updateNextStop();
-    startTripTimer();
+    renderActions();
   });
 }
 
-// ─── GPS Tracking ───
+// ── GPS Tracking ──
 function startTracking() {
-  if (!navigator.geolocation) { showAlert("GPS not available on this device"); return; }
+  if (!navigator.geolocation) { simulateDriver(); return; }
 
   navigator.geolocation.watchPosition(pos => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
-
-    userPos = { lat, lon, speed };
-
-    // Update speed HUD
-    document.getElementById('speedVal').textContent = speed;
-    document.getElementById('statusLabel').textContent = speed > 2 ? 'Moving' : 'Stopped';
-
-    // Track distance
-    if (lastPos) {
-      tripDistance += haversine(lastPos.lat, lastPos.lon, lat, lon);
-      document.getElementById('tripDist').textContent = tripDistance.toFixed(1);
-    }
-    lastPos = { lat, lon };
-
-    // Update driver marker
-    if (!driverMarker) {
-      const el = document.createElement('div');
-      el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#054239;border:3px solid #b9a779;box-shadow:0 0 16px rgba(185,167,121,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;';
-      el.textContent = '🚌';
-      driverMarker = new maplibregl.Marker({ element:el }).setLngLat([lon,lat]).addTo(map);
-      map.flyTo({ center:[lon,lat], zoom:15 });
-    } else {
-      driverMarker.setLngLat([lon,lat]);
-    }
-
-    // Auto-detect stop arrival
-    const nextStop = ROUTE_STOPS[currentStopIndex];
-    if (nextStop) {
-      const dist = haversine(lat, lon, nextStop.lat, nextStop.lon);
-      document.getElementById('nextStopDist').textContent = `${(dist).toFixed(1)} km ahead`;
-      const eta = speed > 0 ? Math.ceil(dist / speed * 60) : '--';
-      document.getElementById('nextStopETA').innerHTML = `${eta}<small> min</small>`;
-
-      if (dist < 0.1) { // within 100m
-        showAlert(`Approaching ${nextStop.name}`);
-        document.getElementById('arriveBtn').style.background = '#b9a779';
-        document.getElementById('arriveBtn').style.color = '#002623';
-      }
-    }
-  }, err => {
-    console.log('GPS error:', err);
-    // Demo mode: simulate position
+    handlePosition(lat, lon, speed);
+  }, () => {
     simulateDriver();
   }, { enableHighAccuracy:true, maximumAge:3000, timeout:10000 });
 }
 
-// ─── Demo: simulate driver if no GPS ───
-let simStep = 0;
-function simulateDriver() {
-  const interval = setInterval(() => {
-    if (simStep >= ROUTE_STOPS.length) { simStep = 0; currentStopIndex = 0; }
-    const from = ROUTE_STOPS[simStep];
-    const to = ROUTE_STOPS[Math.min(simStep+1, ROUTE_STOPS.length-1)];
-    const progress = (Date.now() % 10000) / 10000;
-    const lat = from.lat + (to.lat - from.lat) * progress;
-    const lon = from.lon + (to.lon - from.lon) * progress;
-    const speed = 20 + Math.floor(Math.random() * 25);
+function handlePosition(lat, lon, speed) {
+  userPos = { lat, lon, speed };
 
-    document.getElementById('speedVal').textContent = speed;
-    document.getElementById('statusLabel').textContent = 'Moving';
+  // Speed HUD
+  document.getElementById('speedVal').textContent = speed;
+  document.getElementById('speedLabel').textContent = speed > 2 ? 'متحرك · Moving' : 'متوقف · Stopped';
 
-    if (!driverMarker) {
-      const el = document.createElement('div');
-      el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#054239;border:3px solid #b9a779;box-shadow:0 0 16px rgba(185,167,121,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;';
-      el.textContent = '🚌';
-      driverMarker = new maplibregl.Marker({ element:el }).setLngLat([lon,lat]).addTo(map);
-      map.flyTo({ center:[lon,lat], zoom:15 });
-    } else {
-      driverMarker.setLngLat([lon,lat]);
-    }
+  // Speed warning
+  const overSpeed = speed > SPEED_LIMIT_KMH;
+  const hud = document.getElementById('speedHud');
+  const overlay = document.getElementById('speedWarningOverlay');
+  hud.classList.toggle('warning', overSpeed);
+  overlay.style.display = overSpeed ? 'block' : 'none';
+  if (overSpeed) showAlert(`⚠️ تجاوز الحد المسموح! ${speed} كم/س — Speed limit exceeded!`, 'warn');
 
-    if (lastPos) {
-      tripDistance += haversine(lastPos.lat, lastPos.lon, lat, lon);
-      document.getElementById('tripDist').textContent = tripDistance.toFixed(1);
-    }
-    lastPos = { lat, lon };
+  // Distance
+  if (lastPos && activeTrip) {
+    tripDistance += haversine(lastPos.lat, lastPos.lon, lat, lon);
+    document.getElementById('tripDist').textContent = tripDistance.toFixed(1);
+  }
+  lastPos = { lat, lon };
 
-    // ETA to next stop
+  // Map marker
+  if (!driverMarker) {
+    const el = document.createElement('div');
+    el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#054239;border:3px solid #b9a779;box-shadow:0 0 16px rgba(185,167,121,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;';
+    el.textContent = '🚌';
+    driverMarker = new maplibregl.Marker({ element:el }).setLngLat([lon,lat]).addTo(map);
+    map.flyTo({ center:[lon,lat], zoom:15 });
+  } else {
+    driverMarker.setLngLat([lon,lat]);
+  }
+
+  // Route adherence
+  checkRouteAdherence(lat, lon);
+
+  // ETA to next stop
+  if (activeTrip) {
     const nextStop = ROUTE_STOPS[currentStopIndex];
     if (nextStop) {
       const dist = haversine(lat, lon, nextStop.lat, nextStop.lon);
-      document.getElementById('nextStopDist').textContent = `${dist.toFixed(1)} km ahead`;
-      const eta = Math.ceil(dist / speed * 60);
-      document.getElementById('nextStopETA').innerHTML = `${Math.max(1,eta)}<small> min</small>`;
+      document.getElementById('nextStopDist').textContent = `${dist.toFixed(2)} كم · km ahead`;
+      const eta = speed > 0 ? Math.ceil(dist / speed * 60) : '—';
+      document.getElementById('nextStopETA').innerHTML = `${eta}<small> د</small>`;
+      if (dist < 0.1) {
+        showAlert(`🚏 اقتراب من ${nextStop.nameAr} — Approaching ${nextStop.name}`, 'info');
+        document.getElementById('arriveBtn') && (document.getElementById('arriveBtn').style.background = '#b9a779');
+      }
     }
+  }
+}
+
+// ── Route Adherence ──
+function checkRouteAdherence(lat, lon) {
+  let minDist = Infinity;
+  for (let i = 0; i < ROUTE_STOPS.length - 1; i++) {
+    const d = pointToSegmentDist(lat, lon, ROUTE_STOPS[i], ROUTE_STOPS[i+1]);
+    if (d < minDist) minDist = d;
+  }
+  const onRoute = minDist < OFF_ROUTE_THRESHOLD_KM;
+
+  if (onRoute !== isOnRoute) {
+    isOnRoute = onRoute;
+    const badge = document.getElementById('adherenceBadge');
+    if (onRoute) {
+      badge.className = 'adherence-badge on-route';
+      badge.innerHTML = '<div class="icon">✅</div><div class="txt">على المسار</div><div class="txt-en">On Route</div>';
+    } else {
+      badge.className = 'adherence-badge off-route';
+      badge.innerHTML = '<div class="icon">❌</div><div class="txt">خارج المسار!</div><div class="txt-en">Off Route!</div>';
+      showAlert('⚠️ خارج المسار المحدد! — You are off the designated route!', 'danger');
+    }
+  }
+}
+
+// Perpendicular distance from point to line segment (km)
+function pointToSegmentDist(lat, lon, a, b) {
+  const ax = a.lon, ay = a.lat, bx = b.lon, by = b.lat;
+  const px = lon, py = lat;
+  const dx = bx - ax, dy = by - ay;
+  if (dx === 0 && dy === 0) return haversine(lat, lon, a.lat, a.lon);
+  const t = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / (dx*dx + dy*dy)));
+  return haversine(lat, lon, ay + t*dy, ax + t*dx);
+}
+
+// ── Demo simulation ──
+let simStep = 0, simProgress = 0;
+function simulateDriver() {
+  if (simInterval) return;
+  simInterval = setInterval(() => {
+    simProgress += 0.02;
+    if (simProgress >= 1) { simProgress = 0; simStep = (simStep + 1) % (ROUTE_STOPS.length - 1); }
+    const from = ROUTE_STOPS[simStep];
+    const to   = ROUTE_STOPS[simStep + 1] || ROUTE_STOPS[simStep];
+    const lat  = from.lat + (to.lat - from.lat) * simProgress;
+    const lon  = from.lon + (to.lon - from.lon) * simProgress;
+    const speed = 18 + Math.floor(Math.random() * 20);
+    handlePosition(lat, lon, speed);
   }, 1000);
 }
 
-// ─── Stop Progress ───
+// ── Trip Controls ──
+function openStartModal() {
+  document.getElementById('startModal').classList.remove('hidden');
+}
+
+function confirmStartTrip() {
+  const routeId = document.getElementById('routeSelect').value;
+  closeModal('startModal');
+
+  apiCall('/api/driver/trip/start', 'POST', { route_id: routeId })
+    .then(data => {
+      if (data.trip_id || data.status === 'success') {
+        activeTrip = { tripId: data.trip_id, routeId };
+        tripStartTime = Date.now();
+        tripDistance = 0;
+        currentStopIndex = 0;
+        passengers = 0;
+        document.getElementById('passengerCount').textContent = '0';
+        startTripTimer();
+        updateStatusPill(true);
+        showNextStopCard();
+        renderActions();
+        showAlert('✅ تم بدء الرحلة بنجاح — Trip started successfully', 'info');
+      } else {
+        // Demo fallback if API unavailable
+        activeTrip = { tripId: 'demo-' + Date.now(), routeId };
+        tripStartTime = Date.now();
+        tripDistance = 0;
+        currentStopIndex = 0;
+        passengers = 0;
+        document.getElementById('passengerCount').textContent = '0';
+        startTripTimer();
+        updateStatusPill(true);
+        showNextStopCard();
+        renderActions();
+        showAlert('🚌 رحلة تجريبية — Demo trip started', 'info');
+      }
+    })
+    .catch(() => {
+      // Demo fallback
+      activeTrip = { tripId: 'demo-' + Date.now(), routeId };
+      tripStartTime = Date.now();
+      tripDistance = 0;
+      currentStopIndex = 0;
+      passengers = 0;
+      startTripTimer();
+      updateStatusPill(true);
+      showNextStopCard();
+      renderActions();
+      showAlert('🚌 رحلة تجريبية (لا اتصال) — Demo mode', 'info');
+    });
+}
+
+function openEndModal() {
+  const elapsed = tripStartTime ? Math.floor((Date.now() - tripStartTime) / 60000) : 0;
+  document.getElementById('endModalBody').innerHTML =
+    `هل تريد إنهاء الرحلة؟ مدة الرحلة: <strong>${elapsed} دقيقة</strong>، الركاب: <strong>${passengers}</strong><br>
+     <small style="color:#888;">End trip? Duration: ${elapsed} min, Passengers: ${passengers}</small>`;
+  document.getElementById('endModal').classList.remove('hidden');
+}
+
+function confirmEndTrip() {
+  closeModal('endModal');
+
+  apiCall('/api/driver/trip/end', 'POST', { passenger_count: passengers })
+    .then(() => {
+      finishTrip();
+      showAlert('✅ تم إنهاء الرحلة — Trip ended successfully', 'info');
+    })
+    .catch(() => {
+      finishTrip();
+      showAlert('🏁 انتهت الرحلة — Trip ended (demo)', 'info');
+    });
+}
+
+function finishTrip() {
+  activeTrip = null;
+  if (tripTimerInterval) { clearInterval(tripTimerInterval); tripTimerInterval = null; }
+  tripStartTime = null;
+  currentStopIndex = 0;
+  updateStatusPill(false);
+  hideNextStopCard();
+  renderActions();
+  document.getElementById('tripTime').textContent = '0:00';
+  document.getElementById('tripDist').textContent = '0.0';
+  document.getElementById('onTimeRate').textContent = '—';
+}
+
+function arriveAtStop() {
+  if (!activeTrip || currentStopIndex >= ROUTE_STOPS.length) return;
+  const arrived = ROUTE_STOPS[currentStopIndex];
+  showAlert(`✅ وصلت إلى ${arrived.nameAr} — Arrived at ${arrived.name}`, 'info');
+  currentStopIndex++;
+  renderStopProgress();
+  updateNextStop();
+
+  if (currentStopIndex >= ROUTE_STOPS.length) {
+    document.getElementById('onTimeRate').textContent = '✓';
+    showAlert('🎉 اكتملت الرحلة! — Route complete! Great job.', 'info');
+  }
+}
+
+// ── UI helpers ──
+function updateStatusPill(active) {
+  const pill = document.getElementById('statusPill');
+  const label = document.getElementById('statusLabel');
+  pill.className = 'status-pill ' + (active ? 'on-duty' : 'off-duty');
+  label.textContent = active ? 'في الخدمة' : 'لا رحلة';
+}
+
+function showNextStopCard() {
+  document.getElementById('tripIdleNotice').style.display = 'none';
+  document.getElementById('nextStopCard').style.display = 'block';
+  document.getElementById('stopsProgress').style.display = 'flex';
+  renderStopProgress();
+  updateNextStop();
+}
+
+function hideNextStopCard() {
+  document.getElementById('tripIdleNotice').style.display = 'block';
+  document.getElementById('nextStopCard').style.display = 'none';
+  document.getElementById('stopsProgress').style.display = 'none';
+}
+
+function renderActions() {
+  const row = document.getElementById('actionsRow');
+  if (!activeTrip) {
+    row.innerHTML = `
+      <button class="action-btn btn-start" onclick="openStartModal()">▶ بدء رحلة · Start Trip</button>
+      <button class="action-btn btn-report" onclick="reportIssue()">⚠️ إبلاغ · Report</button>
+    `;
+  } else {
+    row.innerHTML = `
+      <button class="action-btn btn-arrive" id="arriveBtn" onclick="arriveAtStop()">📍 وصلت للمحطة · Arrive</button>
+      <button class="action-btn btn-end" onclick="openEndModal()">■ إنهاء الرحلة · End</button>
+    `;
+  }
+}
+
 function renderStopProgress() {
   const el = document.getElementById('stopsProgress');
   el.innerHTML = ROUTE_STOPS.map((s, i) => {
     const cls = i < currentStopIndex ? 'completed' : i === currentStopIndex ? 'current' : '';
-    const line = i < ROUTE_STOPS.length-1 ? `<div class="stop-line ${i < currentStopIndex ? 'completed' : ''}"></div>` : '';
-    return `<div class="stop-dot ${cls}" title="${s.name}"></div>${line}`;
+    const line = i < ROUTE_STOPS.length-1
+      ? `<div class="stop-line ${i < currentStopIndex ? 'completed' : ''}"></div>` : '';
+    return `<div class="stop-dot ${cls}" title="${s.nameAr}"></div>${line}`;
   }).join('');
 }
 
 function updateNextStop() {
   const stop = ROUTE_STOPS[currentStopIndex];
   if (stop) {
-    document.getElementById('nextStopName').textContent = stop.name;
     document.getElementById('nextStopAr').textContent = stop.nameAr;
-    document.getElementById('waitingPassengers').textContent = `~${Math.floor(Math.random()*15)+3} passengers waiting`;
+    document.getElementById('nextStopName').textContent = stop.name;
+    document.getElementById('waitingPassengers').textContent = `~${Math.floor(Math.random()*15)+3} ركاب بانتظار`;
+  } else {
+    document.getElementById('nextStopAr').textContent = '—';
+    document.getElementById('nextStopName').textContent = 'Route complete';
   }
 }
 
-function arriveAtStop() {
-  if (currentStopIndex < ROUTE_STOPS.length - 1) {
-    showAlert(`Arrived at ${ROUTE_STOPS[currentStopIndex].name} ✓`);
-    currentStopIndex++;
-    renderStopProgress();
-    updateNextStop();
-    document.getElementById('arriveBtn').style.background = '';
-    document.getElementById('arriveBtn').style.color = '';
-
-    if (currentStopIndex >= ROUTE_STOPS.length) {
-      showAlert("🎉 Route complete! Great job.");
-      document.getElementById('arriveBtn').textContent = '🔄 Start New Trip';
-      document.getElementById('arriveBtn').onclick = () => {
-        currentStopIndex = 0; tripDistance = 0; tripStartTime = Date.now();
-        renderStopProgress(); updateNextStop();
-        document.getElementById('arriveBtn').textContent = '📍 Arrive at Stop';
-        document.getElementById('arriveBtn').onclick = arriveAtStop;
-      };
-    }
-  }
-}
-
-// ─── Passengers ───
+// ── Passengers ──
 function adjustPassengers(delta) {
   passengers = Math.max(0, passengers + delta);
   document.getElementById('passengerCount').textContent = passengers;
 }
 
-// ─── Trip Timer ───
+// ── Trip Timer ──
 function startTripTimer() {
-  setInterval(() => {
+  if (tripTimerInterval) clearInterval(tripTimerInterval);
+  tripTimerInterval = setInterval(() => {
+    if (!tripStartTime) return;
     const elapsed = Math.floor((Date.now() - tripStartTime) / 1000);
     const min = Math.floor(elapsed / 60);
     const sec = String(elapsed % 60).padStart(2,'0');
@@ -407,19 +769,27 @@ function startTripTimer() {
   }, 1000);
 }
 
-// ─── Alert ───
-function showAlert(msg) {
+// ── Alert ──
+let alertTimeout = null;
+function showAlert(msg, type='info') {
   const el = document.getElementById('alertBanner');
   el.textContent = msg;
+  el.className = `alert-banner ${type}`;
   el.style.display = 'block';
-  setTimeout(() => { el.style.display = 'none'; }, 3000);
+  if (alertTimeout) clearTimeout(alertTimeout);
+  alertTimeout = setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
 
 function reportIssue() {
-  showAlert("Issue report sent to dispatch");
+  showAlert('📡 تم إرسال البلاغ لمركز التحكم — Issue reported to dispatch', 'info');
 }
 
-// ─── Haversine ───
+// ── Modals ──
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+// ── Haversine ──
 function haversine(lat1,lon1,lat2,lon2) {
   const R = 6371;
   const dLat = (lat2-lat1)*Math.PI/180;
@@ -427,8 +797,6 @@ function haversine(lat1,lon1,lat2,lon2) {
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-
-initMap();
 </script>
 </body>
 </html>
