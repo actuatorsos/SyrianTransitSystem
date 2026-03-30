@@ -40,7 +40,9 @@ jobs:
       SUPABASE_URL: http://mock-supabase.local
       SUPABASE_KEY: mock-key
       SUPABASE_SERVICE_KEY: mock-service-key
-      JWT_SECRET: ci-test-secret-do-not-use-in-prod
+      SUPABASE_ANON_KEY: mock-anon-key
+      JWT_SECRET: ci-test-secret-do-not-use-in-prod-xxxxxxxxxx
+      ALLOWED_ORIGINS: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +77,9 @@ jobs:
       SUPABASE_URL: http://mock-supabase.local
       SUPABASE_KEY: mock-key
       SUPABASE_SERVICE_KEY: mock-service-key
-      JWT_SECRET: ci-test-secret-do-not-use-in-prod
+      SUPABASE_ANON_KEY: mock-anon-key
+      JWT_SECRET: ci-test-secret-do-not-use-in-prod-xxxxxxxxxx
+      ALLOWED_ORIGINS: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
@@ -109,7 +113,9 @@ jobs:
           SUPABASE_URL: http://mock-supabase.local
           SUPABASE_KEY: mock-key
           SUPABASE_SERVICE_KEY: mock-service-key
-          JWT_SECRET: ci-test-secret-do-not-use-in-prod
+          SUPABASE_ANON_KEY: mock-anon-key
+          JWT_SECRET: ci-test-secret-do-not-use-in-prod-xxxxxxxxxx
+          ALLOWED_ORIGINS: http://localhost:3000
 
       - name: Wait for API to be ready
         run: |

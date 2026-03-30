@@ -43,7 +43,9 @@ app = FastAPI(
 _cors_origins_env = os.getenv("ALLOWED_ORIGINS", "")
 _allowed_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
 if not _allowed_origins:
-    raise RuntimeError("ALLOWED_ORIGINS env var must be set to a comma-separated list of allowed origins")
+    raise RuntimeError(
+        "ALLOWED_ORIGINS env var must be set to a comma-separated list of allowed origins"
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -259,11 +261,15 @@ def _supabase_headers(use_service_key: bool = False) -> dict:
     if use_service_key:
         key = os.getenv("SUPABASE_SERVICE_KEY", "")
         if not key:
-            raise HTTPException(status_code=500, detail="SUPABASE_SERVICE_KEY not configured")
+            raise HTTPException(
+                status_code=500, detail="SUPABASE_SERVICE_KEY not configured"
+            )
     else:
         key = os.getenv("SUPABASE_ANON_KEY", os.getenv("SUPABASE_KEY", ""))
         if not key:
-            raise HTTPException(status_code=500, detail="SUPABASE_ANON_KEY not configured")
+            raise HTTPException(
+                status_code=500, detail="SUPABASE_ANON_KEY not configured"
+            )
     return {
         "apikey": key,
         "Authorization": f"Bearer {key}",
@@ -362,6 +368,7 @@ async def _health_check() -> bool:
 TRACCAR_WEBHOOK_SECRET = os.getenv("TRACCAR_WEBHOOK_SECRET", "")
 if not TRACCAR_WEBHOOK_SECRET:
     import warnings
+
     warnings.warn(
         "TRACCAR_WEBHOOK_SECRET is not set — Traccar webhook endpoints will reject all requests "
         "until this is configured.",
@@ -1382,7 +1389,9 @@ async def create_user(
     """
     try:
         # Check if email exists
-        existing = await _supabase_get(f"users?email=eq.{urllib.parse.quote(user_data.email, safe='')}&select=id")
+        existing = await _supabase_get(
+            f"users?email=eq.{urllib.parse.quote(user_data.email, safe='')}&select=id"
+        )
 
         if existing:
             raise HTTPException(
@@ -1928,9 +1937,17 @@ async def traccar_position_webhook(
     """
     # Verify signature — fail-closed: if secret is not set, endpoint is disabled
     if not TRACCAR_WEBHOOK_SECRET:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Webhook endpoint not configured")
-    if not x_traccar_signature or not verify_traccar_signature(position.json(), x_traccar_signature):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing signature")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Webhook endpoint not configured",
+        )
+    if not x_traccar_signature or not verify_traccar_signature(
+        position.json(), x_traccar_signature
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing signature",
+        )
 
     try:
         # Find vehicle by Traccar device ID
@@ -1985,9 +2002,17 @@ async def traccar_event_webhook(
     """
     # Verify signature — fail-closed: if secret is not set, endpoint is disabled
     if not TRACCAR_WEBHOOK_SECRET:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Webhook endpoint not configured")
-    if not x_traccar_signature or not verify_traccar_signature(event.json(), x_traccar_signature):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing signature")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Webhook endpoint not configured",
+        )
+    if not x_traccar_signature or not verify_traccar_signature(
+        event.json(), x_traccar_signature
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing signature",
+        )
 
     try:
         # Find vehicle by Traccar device ID
