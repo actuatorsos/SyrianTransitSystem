@@ -1897,6 +1897,326 @@ async def get_analytics_overview(
         )
 
 
+@app.get("/api/admin/analytics/fleet-utilization")
+async def get_fleet_utilization(
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+):
+    """
+    Get fleet utilization over the last 24 hours, bucketed by hour.
+
+    Uses completed trips to infer active vehicle counts per hour.
+    Returns hourly active vs idle vehicle counts.
+    """
+    try:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(hours=24)
+
+        # Get all vehicles for total count
+        vehicles = await _supabase_get("vehicles?select=id,status")
+        total_vehicles = len(vehicles)
+
+        # Get trips in last 24h to compute per-hour active counts
+        trips = await _supabase_get(
+            f"trips?actual_start=gte.{cutoff.isoformat()}&select=actual_start,actual_end,vehicle_id"
+        )
+
+        # Build hourly buckets
+        hours = []
+        for h in range(23, -1, -1):
+            bucket_start = now - timedelta(hours=h + 1)
+            bucket_end = now - timedelta(hours=h)
+            label = bucket_start.strftime("%H:%M")
+
+            # Count vehicles with an active trip during this hour
+            active_ids = set()
+            for t in trips:
+                t_start_str = t.get("actual_start")
+                t_end_str = t.get("actual_end")
+                if not t_start_str:
+                    continue
+                try:
+                    t_start = datetime.fromisoformat(t_start_str.replace("Z", "+00:00"))
+                    t_end = (
+                        datetime.fromisoformat(t_end_str.replace("Z", "+00:00"))
+                        if t_end_str
+                        else now
+                    )
+                    # Overlap with bucket
+                    if t_start < bucket_end and t_end > bucket_start:
+                        active_ids.add(t.get("vehicle_id"))
+                except (ValueError, TypeError):
+                    continue
+
+            active = len(active_ids)
+            idle = max(0, total_vehicles - active)
+            hours.append({"hour": label, "active": active, "idle": idle})
+
+        return {"hours": hours, "total": total_vehicles}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@app.get("/api/admin/analytics/route-performance")
+async def get_route_performance(
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+):
+    """
+    Get per-route performance: on-time %, average delay, and trip count
+    based on completed trips in the last 7 days.
+    """
+    try:
+        from datetime import timezone
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+
+        routes = await _supabase_get(
+            "routes?is_active=eq.true&select=id,name,name_ar,distance_km"
+        )
+        trips = await _supabase_get(
+            f"trips?status=eq.completed&actual_start=gte.{cutoff}"
+            "&select=route_id,on_time_pct,scheduled_start,actual_start"
+        )
+
+        # Group trips by route
+        from collections import defaultdict
+
+        route_trips: dict = defaultdict(list)
+        for t in trips:
+            route_trips[t["route_id"]].append(t)
+
+        result = []
+        for r in routes:
+            rt = route_trips.get(r["id"], [])
+            trip_count = len(rt)
+
+            on_time_values = [
+                t["on_time_pct"] for t in rt if t.get("on_time_pct") is not None
+            ]
+            avg_on_time = (
+                round(sum(on_time_values) / len(on_time_values), 1)
+                if on_time_values
+                else None
+            )
+
+            # Avg delay in minutes: difference between actual_start and scheduled_start
+            delays = []
+            for t in rt:
+                if t.get("scheduled_start") and t.get("actual_start"):
+                    try:
+                        sched = datetime.fromisoformat(
+                            t["scheduled_start"].replace("Z", "+00:00")
+                        )
+                        actual = datetime.fromisoformat(
+                            t["actual_start"].replace("Z", "+00:00")
+                        )
+                        delay_min = (actual - sched).total_seconds() / 60
+                        delays.append(delay_min)
+                    except (ValueError, TypeError):
+                        pass
+
+            avg_delay = round(sum(delays) / len(delays), 1) if delays else None
+
+            result.append(
+                {
+                    "route_id": r["id"],
+                    "name": r.get("name_ar") or r.get("name"),
+                    "trip_count": trip_count,
+                    "on_time_pct": avg_on_time,
+                    "avg_delay_min": avg_delay,
+                    "distance_km": r.get("distance_km"),
+                }
+            )
+
+        result.sort(key=lambda x: x["trip_count"], reverse=True)
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@app.get("/api/admin/analytics/driver-scoreboard")
+async def get_driver_scoreboard(
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+):
+    """
+    Get driver scoreboard: trips completed and avg route adherence (on_time_pct)
+    based on completed trips in the last 30 days.
+    """
+    try:
+        from datetime import timezone
+        from collections import defaultdict
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+
+        drivers = await _supabase_get(
+            "users?role=eq.driver&select=id,full_name,full_name_ar,is_active"
+        )
+        trips = await _supabase_get(
+            f"trips?status=eq.completed&actual_start=gte.{cutoff}"
+            "&select=driver_id,on_time_pct,distance_km"
+        )
+
+        driver_trips: dict = defaultdict(list)
+        for t in trips:
+            if t.get("driver_id"):
+                driver_trips[t["driver_id"]].append(t)
+
+        result = []
+        for d in drivers:
+            dt = driver_trips.get(d["id"], [])
+            trip_count = len(dt)
+            on_time_values = [
+                t["on_time_pct"] for t in dt if t.get("on_time_pct") is not None
+            ]
+            avg_adherence = (
+                round(sum(on_time_values) / len(on_time_values), 1)
+                if on_time_values
+                else None
+            )
+            total_km = round(
+                sum(t.get("distance_km") or 0 for t in dt), 1
+            )
+
+            result.append(
+                {
+                    "driver_id": d["id"],
+                    "name": d.get("full_name_ar") or d.get("full_name"),
+                    "is_active": d.get("is_active", False),
+                    "trips_completed": trip_count,
+                    "avg_adherence_pct": avg_adherence,
+                    "total_km": total_km,
+                }
+            )
+
+        result.sort(key=lambda x: x["trips_completed"], reverse=True)
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
+@app.get("/api/admin/analytics/gps-heatmap")
+async def get_gps_heatmap(
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+):
+    """
+    Get GPS position data for heatmap visualization.
+
+    Returns recent vehicle positions (last 24h) as GeoJSON FeatureCollection
+    suitable for MapLibre heatmap layer.
+    """
+    try:
+        from datetime import timezone
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+
+        # Use ST_AsGeoJSON to get coordinates
+        positions = await _supabase_get(
+            f"vehicle_positions?recorded_at=gte.{cutoff}"
+            "&select=location,speed_kmh&order=recorded_at.desc&limit=2000"
+        )
+
+        features = []
+        for p in positions:
+            loc = p.get("location")
+            if not loc:
+                continue
+            # location is stored as WKT or GeoJSON depending on Supabase config
+            # Try to parse coordinates
+            try:
+                if isinstance(loc, dict):
+                    coords = loc.get("coordinates", [])
+                    if len(coords) >= 2:
+                        features.append(
+                            {
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "Point",
+                                    "coordinates": [coords[0], coords[1]],
+                                },
+                                "properties": {"weight": 1},
+                            }
+                        )
+                elif isinstance(loc, str) and loc.startswith("POINT"):
+                    # WKT format: POINT(lon lat)
+                    inner = loc.replace("POINT(", "").replace(")", "").strip()
+                    parts = inner.split()
+                    if len(parts) == 2:
+                        lon, lat = float(parts[0]), float(parts[1])
+                        features.append(
+                            {
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "Point",
+                                    "coordinates": [lon, lat],
+                                },
+                                "properties": {"weight": 1},
+                            }
+                        )
+            except (ValueError, TypeError, AttributeError):
+                continue
+
+        # Also include current positions from latest table
+        latest = await _supabase_get(
+            "vehicle_positions_latest?select=location,speed_kmh"
+        )
+        for p in latest:
+            loc = p.get("location")
+            if not loc:
+                continue
+            try:
+                if isinstance(loc, dict):
+                    coords = loc.get("coordinates", [])
+                    if len(coords) >= 2:
+                        features.append(
+                            {
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "Point",
+                                    "coordinates": [coords[0], coords[1]],
+                                },
+                                "properties": {"weight": 3},  # Higher weight for current
+                            }
+                        )
+                elif isinstance(loc, str) and loc.startswith("POINT"):
+                    inner = loc.replace("POINT(", "").replace(")", "").strip()
+                    parts = inner.split()
+                    if len(parts) == 2:
+                        lon, lat = float(parts[0]), float(parts[1])
+                        features.append(
+                            {
+                                "type": "Feature",
+                                "geometry": {
+                                    "type": "Point",
+                                    "coordinates": [lon, lat],
+                                },
+                                "properties": {"weight": 3},
+                            }
+                        )
+            except (ValueError, TypeError, AttributeError):
+                continue
+
+        return {
+            "type": "FeatureCollection",
+            "features": features,
+            "count": len(features),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
+
+
 # ============================================================================
 # Traccar Webhook Endpoints (Secured by TRACCAR_WEBHOOK_SECRET)
 # ============================================================================
