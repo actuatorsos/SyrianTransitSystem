@@ -106,12 +106,17 @@ CACHE_TTL_VEHICLES = 5       # vehicle positions — refreshed every 2s by drive
 CACHE_TTL_ROUTES_STOPS = 300  # routes & stops — static reference data
 CACHE_TTL_STATS = 30          # fleet stats — lightweight aggregate
 
-# Cache keys
+# Cache key prefixes — append :{operator_id} to namespace per tenant
 CACHE_KEY_VEHICLES_LIST = "transit:vehicles:list"
 CACHE_KEY_VEHICLES_POSITIONS = "transit:vehicles:positions"
 CACHE_KEY_ROUTES_LIST = "transit:routes:list"
 CACHE_KEY_STATS = "transit:stats"
 CACHE_KEY_STOPS_LIST = "transit:stops:list"
+
+
+def _tenant_cache_key(base: str, operator_id: str) -> str:
+    """Namespace a cache key by operator so tenants never share cached data."""
+    return f"{base}:{operator_id}"
 
 
 def _get_redis_client():
@@ -167,8 +172,10 @@ async def _cache_delete(*keys: str) -> None:
 # Rate Limiter (Redis-backed — survives Vercel cold starts)
 # ============================================================================
 
-RATE_LIMIT_LOGIN = (10, 60)       # 10 attempts per 60s per IP
-RATE_LIMIT_DRIVER_POS = (12, 60)  # 12 updates per 60s per driver (~1 per 5s)
+RATE_LIMIT_LOGIN = (10, 60)        # 10 attempts per 60s per IP
+RATE_LIMIT_DRIVER_POS = (12, 60)   # 12 updates per 60s per driver (~1 per 5s)
+RATE_LIMIT_GLOBAL = (200, 60)      # 200 req/60s per IP — general flood protection
+RATE_LIMIT_PUSH_SUB = (5, 60)      # 5 subscribe requests/60s per IP
 
 
 async def _rate_limit_check(identifier: str, max_requests: int, window_seconds: int) -> bool:
@@ -185,6 +192,17 @@ async def _rate_limit_check(identifier: str, max_requests: int, window_seconds: 
         return count <= max_requests
     except Exception:
         return True
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract the real client IP, honoring Vercel's X-Forwarded-For proxy header."""
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        # X-Forwarded-For may be a comma-separated list; first entry is the originating client
+        return forwarded_for.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
 
 
 # ============================================================================
@@ -250,6 +268,32 @@ app.add_middleware(
 )
 
 
+# Paths exempt from global IP rate limiting (lightweight infra/docs endpoints)
+_GLOBAL_RATE_LIMIT_SKIP = frozenset({"/api/health", "/", "/docs", "/openapi.json", "/redoc"})
+
+
+@app.middleware("http")
+async def _global_rate_limit_middleware(request: Request, call_next):
+    """Global IP-based rate limit (200 req/60s). Blocks flood attacks on all endpoints."""
+    if request.url.path not in _GLOBAL_RATE_LIMIT_SKIP:
+        client_ip = _get_client_ip(request)
+        max_req, window = RATE_LIMIT_GLOBAL
+        if not await _rate_limit_check(f"global:{client_ip}", max_req, window):
+            logger.warning(
+                "global_rate_limit_exceeded",
+                extra={"client_ip": client_ip, "path": request.url.path},
+            )
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": "Too many requests. Please slow down.",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+                headers={"Retry-After": str(window)},
+            )
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def _request_logging_middleware(request: Request, call_next):
     """Attach a request ID to every request and emit a structured access log."""
@@ -282,7 +326,7 @@ JWT_EXPIRATION_HOURS = 24
 # HTTP Bearer security scheme
 security = HTTPBearer()
 
-UserRole = Literal["admin", "dispatcher", "driver", "viewer"]
+UserRole = Literal["admin", "dispatcher", "driver", "viewer", "super_admin"]
 
 
 _PLACEHOLDER_JWT_SECRETS = {"change-me-to-a-random-64-char-string", "secret", ""}
@@ -306,6 +350,7 @@ class TokenPayload(BaseModel):
     email: str
     role: UserRole
     exp: datetime
+    operator_id: Optional[str] = None
     vehicle_id: Optional[str] = None
     vehicle_route_id: Optional[str] = None
 
@@ -316,6 +361,7 @@ class CurrentUser(BaseModel):
     user_id: str
     email: str
     role: UserRole
+    operator_id: Optional[str] = None
     vehicle_id: Optional[str] = None
     vehicle_route_id: Optional[str] = None
 
@@ -339,6 +385,7 @@ def create_access_token(
     email: str,
     role: UserRole,
     expires_delta: Optional[timedelta] = None,
+    operator_id: Optional[str] = None,
     vehicle_id: Optional[str] = None,
     vehicle_route_id: Optional[str] = None,
 ) -> str:
@@ -348,8 +395,9 @@ def create_access_token(
     Args:
         user_id: User UUID
         email: User email address
-        role: User role (admin, dispatcher, driver, viewer)
+        role: User role (admin, dispatcher, driver, viewer, super_admin)
         expires_delta: Custom expiration time (default: 24 hours)
+        operator_id: Tenant operator UUID (all non-super_admin users)
         vehicle_id: Assigned vehicle UUID (drivers only, cached to avoid DB lookup)
         vehicle_route_id: Assigned route UUID (drivers only, cached to avoid DB lookup)
 
@@ -362,6 +410,8 @@ def create_access_token(
     expire = datetime.utcnow() + expires_delta
     to_encode: dict = {"user_id": user_id, "email": email, "role": role, "exp": expire}
 
+    if operator_id is not None:
+        to_encode["operator_id"] = operator_id
     if vehicle_id is not None:
         to_encode["vehicle_id"] = vehicle_id
     if vehicle_route_id is not None:
@@ -400,6 +450,7 @@ def verify_token(token: str) -> TokenPayload:
             email=email,
             role=role,
             exp=payload.get("exp"),
+            operator_id=payload.get("operator_id"),
             vehicle_id=payload.get("vehicle_id"),
             vehicle_route_id=payload.get("vehicle_route_id"),
         )
@@ -434,6 +485,7 @@ async def get_current_user(
         user_id=token_payload.user_id,
         email=token_payload.email,
         role=token_payload.role,
+        operator_id=token_payload.operator_id,
         vehicle_id=token_payload.vehicle_id,
         vehicle_route_id=token_payload.vehicle_route_id,
     )
@@ -482,9 +534,51 @@ def optional_auth(
         user_id=token_payload.user_id,
         email=token_payload.email,
         role=token_payload.role,
+        operator_id=token_payload.operator_id,
         vehicle_id=token_payload.vehicle_id,
         vehicle_route_id=token_payload.vehicle_route_id,
     )
+
+
+# ============================================================================
+# Multi-tenancy helpers
+# ============================================================================
+
+async def _resolve_operator_id(operator_slug: Optional[str]) -> str:
+    """
+    Resolve an operator UUID from its slug.
+
+    Used by public (unauthenticated) endpoints that accept an `operator` query param
+    to identify which tenant's data to serve.
+
+    Args:
+        operator_slug: URL-safe operator identifier (e.g. "damascus")
+
+    Returns:
+        Operator UUID string
+
+    Raises:
+        HTTPException 400 if slug is missing, 404 if not found / inactive
+    """
+    if not operator_slug:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="operator query parameter is required",
+        )
+    operators = await _supabase_get(
+        f"operators?slug=eq.{urllib.parse.quote(operator_slug, safe='')}&is_active=eq.true&select=id"
+    )
+    if not operators:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Operator '{operator_slug}' not found",
+        )
+    return operators[0]["id"]
+
+
+def _op_filter(operator_id: str) -> str:
+    """Return a Supabase query string fragment that filters by operator_id."""
+    return f"operator_id=eq.{operator_id}"
 
 
 # ============================================================================
@@ -2943,8 +3037,16 @@ async def get_vapid_public_key():
 
 
 @app.post("/api/push/subscribe", tags=["push"])
-async def subscribe_push(req: PushSubscribeRequest):
+async def subscribe_push(req: PushSubscribeRequest, raw_request: Request):
     """Store a Web Push subscription and associate it with watched stop IDs."""
+    # Rate-limit push subscription to prevent endpoint spam (no auth required)
+    client_ip = _get_client_ip(raw_request)
+    max_req, window = RATE_LIMIT_PUSH_SUB
+    if not await _rate_limit_check(f"pushsub:{client_ip}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many subscription requests. Try again later.",
+        )
     endpoint = req.subscription.endpoint
     _push_subscriptions[endpoint] = {
         "subscription": req.subscription.model_dump(),
