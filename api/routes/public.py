@@ -1,15 +1,19 @@
 """
-Public routes: health, routes, stops, vehicles, stream, stats, schedules, alerts.
+Public routes: health, routes, stops, vehicles, stream, stats, schedules, alerts, gtfs.
 No authentication required.
 """
 
+import io
+import os
 import time
 import asyncio
+import zipfile
 from datetime import datetime
+from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Query, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 
 from lib.database import get_db
 from api.models import (
@@ -404,6 +408,67 @@ async def get_route_schedule(route_id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch schedule",
         )
+
+
+_GTFS_DIR = Path(__file__).parent.parent.parent / "db" / "gtfs"
+
+_GTFS_FILES = [
+    "agency.txt",
+    "stops.txt",
+    "routes.txt",
+    "trips.txt",
+    "stop_times.txt",
+    "calendar.txt",
+    "calendar_dates.txt",
+    "shapes.txt",
+    "feed_info.txt",
+]
+
+
+@router.get(
+    "/gtfs/static",
+    summary="GTFS Static feed download",
+    description=(
+        "Returns a ZIP archive of the GTFS static feed conforming to the "
+        "General Transit Feed Specification. Suitable for submission to "
+        "Google Maps, Apple Maps, and other GTFS-compatible trip planners."
+    ),
+    responses={
+        200: {
+            "content": {"application/zip": {}},
+            "description": "GTFS static feed ZIP archive",
+        }
+    },
+)
+async def gtfs_static_feed():
+    """Download the GTFS static feed as a ZIP file."""
+    buf = io.BytesIO()
+    missing = []
+
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for filename in _GTFS_FILES:
+            filepath = _GTFS_DIR / filename
+            if filepath.exists():
+                zf.write(filepath, arcname=filename)
+            else:
+                missing.append(filename)
+
+    if missing and len(missing) == len(_GTFS_FILES):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GTFS static files not found on server",
+        )
+
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=damascus-transit-gtfs.zip",
+            "X-GTFS-Version": "1.0",
+            "X-Missing-Files": ",".join(missing) if missing else "",
+        },
+    )
 
 
 @router.get("/alerts/active", response_model=List[AlertResponse])
