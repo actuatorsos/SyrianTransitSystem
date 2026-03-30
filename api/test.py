@@ -6,6 +6,7 @@ import sys
 
 app = FastAPI()
 
+
 @app.get("/api/test")
 def test():
     result = {"status": "ok", "python": "working"}
@@ -19,17 +20,21 @@ def test():
             result[mod] = str(e)
 
     import os
+
     result["SUPABASE_URL"] = "set" if os.getenv("SUPABASE_URL") else "missing"
     result["SUPABASE_KEY"] = "set" if os.getenv("SUPABASE_KEY") else "missing"
-    result["SUPABASE_SERVICE_KEY"] = "set" if os.getenv("SUPABASE_SERVICE_KEY") else "missing"
+    result["SUPABASE_SERVICE_KEY"] = (
+        "set" if os.getenv("SUPABASE_SERVICE_KEY") else "missing"
+    )
     result["JWT_SECRET"] = "set" if os.getenv("JWT_SECRET") else "missing"
 
     # Try importing the main module
     try:
         # Add parent to path
-        import importlib
+
         sys.path.insert(0, os.path.dirname(__file__))
         import index
+
         result["index_import"] = "ok"
         result["has_app"] = hasattr(index, "app")
     except Exception as e:

@@ -107,14 +107,18 @@ def verify_token(token: str) -> TokenPayload:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
             )
 
-        return TokenPayload(user_id=user_id, email=email, role=role, exp=payload.get("exp"))
+        return TokenPayload(
+            user_id=user_id, email=email, role=role, exp=payload.get("exp")
+        )
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
 
 
-async def get_current_user(credentials: HTTPAuthCredentials = Depends(security)) -> CurrentUser:
+async def get_current_user(
+    credentials: HTTPAuthCredentials = Depends(security),
+) -> CurrentUser:
     """
     FastAPI dependency: Extract and verify current user from Bearer token.
 
@@ -129,7 +133,11 @@ async def get_current_user(credentials: HTTPAuthCredentials = Depends(security))
     """
     token = credentials.credentials
     token_payload = verify_token(token)
-    return CurrentUser(user_id=token_payload.user_id, email=token_payload.email, role=token_payload.role)
+    return CurrentUser(
+        user_id=token_payload.user_id,
+        email=token_payload.email,
+        role=token_payload.role,
+    )
 
 
 def require_role(*allowed_roles: UserRole):
@@ -143,7 +151,9 @@ def require_role(*allowed_roles: UserRole):
         Dependency function
     """
 
-    async def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    async def role_checker(
+        current_user: CurrentUser = Depends(get_current_user),
+    ) -> CurrentUser:
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -154,7 +164,9 @@ def require_role(*allowed_roles: UserRole):
     return role_checker
 
 
-def optional_auth(credentials: Optional[HTTPAuthCredentials] = Depends(security)) -> Optional[CurrentUser]:
+def optional_auth(
+    credentials: Optional[HTTPAuthCredentials] = Depends(security),
+) -> Optional[CurrentUser]:
     """
     FastAPI dependency: Optional authentication (returns None if no token).
 
@@ -167,4 +179,8 @@ def optional_auth(credentials: Optional[HTTPAuthCredentials] = Depends(security)
     if credentials is None:
         return None
     token_payload = verify_token(credentials.credentials)
-    return CurrentUser(user_id=token_payload.user_id, email=token_payload.email, role=token_payload.role)
+    return CurrentUser(
+        user_id=token_payload.user_id,
+        email=token_payload.email,
+        role=token_payload.role,
+    )
