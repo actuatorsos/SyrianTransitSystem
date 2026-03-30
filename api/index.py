@@ -3087,7 +3087,11 @@ async def cron_simulate_positions(request: Request):
     auth = request.headers.get("authorization", "")
     if not CRON_SECRET or auth != f"Bearer {CRON_SECRET}":
         raise HTTPException(status_code=401, detail="Invalid cron secret")
-    return await _run_simulation()
+    try:
+        return await _run_simulation()
+    except Exception as e:
+        logger.error("Simulation failed", extra={"error": str(e)})
+        raise HTTPException(status_code=500, detail=f"Simulation error: {str(e)}")
 
 
 # ============================================================================
