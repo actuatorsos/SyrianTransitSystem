@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Literal
 
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials as HTTPAuthCredentials
@@ -97,6 +97,30 @@ async def _cache_delete(*keys: str) -> None:
 
 
 # ============================================================================
+# Rate Limiter (Redis-backed — survives Vercel cold starts)
+# ============================================================================
+
+RATE_LIMIT_LOGIN = (10, 60)       # 10 attempts per 60s per IP
+RATE_LIMIT_DRIVER_POS = (12, 60)  # 12 updates per 60s per driver (~1 per 5s)
+
+
+async def _rate_limit_check(identifier: str, max_requests: int, window_seconds: int) -> bool:
+    """Fixed-window rate limiter backed by Upstash Redis. Returns True if allowed."""
+    client = _get_redis_client()
+    if client is None:
+        return True  # graceful degradation when Redis is unavailable
+    try:
+        window = int(time.time()) // window_seconds
+        key = f"rl:{identifier}:{window}"
+        count = await client.incr(key)
+        if count == 1:
+            await client.expire(key, window_seconds + 1)
+        return count <= max_requests
+    except Exception:
+        return True
+
+
+# ============================================================================
 # FastAPI App Initialization
 # ============================================================================
 
@@ -113,6 +137,17 @@ if not _allowed_origins:
     raise RuntimeError(
         "ALLOWED_ORIGINS env var must be set to a comma-separated list of allowed origins"
     )
+# Strip localhost/127.0.0.1 origins in production to prevent dev origins leaking
+_is_production = os.getenv("VERCEL_ENV", "").lower() == "production"
+if _is_production:
+    _allowed_origins = [
+        o for o in _allowed_origins
+        if "localhost" not in o and "127.0.0.1" not in o
+    ]
+    if not _allowed_origins:
+        raise RuntimeError(
+            "All ALLOWED_ORIGINS are localhost — no valid origins remain for production"
+        )
 
 app.add_middleware(
     CORSMiddleware,
@@ -752,7 +787,7 @@ async def health_check():
 
 
 @app.post("/api/auth/login", response_model=TokenResponse)
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, raw_request: Request):
     """
     Authenticate user and return JWT token.
 
@@ -763,8 +798,16 @@ async def login(request: LoginRequest):
         JWT access token and user info
 
     Raises:
-        HTTPException: Invalid credentials
+        HTTPException: Invalid credentials or rate limited
     """
+    # Rate limit login attempts by IP
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    max_req, window = RATE_LIMIT_LOGIN
+    if not await _rate_limit_check(f"login:{client_ip}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Try again later.",
+        )
     try:
         users = await _supabase_get(
             f"users?email=eq.{urllib.parse.quote(request.email, safe='')}&select=id,email,password_hash,role"
@@ -1299,6 +1342,13 @@ async def report_driver_position(
     Returns:
         Success confirmation
     """
+    # Rate limit position updates per driver
+    max_req, window = RATE_LIMIT_DRIVER_POS
+    if not await _rate_limit_check(f"drvpos:{current_user.user_id}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Position update rate limit exceeded.",
+        )
     try:
         # Prefer the vehicle_id cached in the JWT token (set at login time) to avoid
         # an extra DB SELECT on every position update.  Fall back to a live query only
@@ -2412,15 +2462,15 @@ def verify_traccar_signature(request_body: str, signature: str) -> bool:
 @app.post("/api/traccar/position")
 async def traccar_position_webhook(
     position: TraccarPosition,
-    x_traccar_signature: Optional[str] = None,
+    x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
 ):
     """
     Webhook for Traccar GPS position updates.
-    Secured by X-Traccar-Signature HMAC header.
+    Secured by mandatory X-Traccar-Signature HMAC header.
 
     Args:
         position: Position data from Traccar
-        x_traccar_signature: HMAC-SHA256 signature
+        x_traccar_signature: HMAC-SHA256 signature (required)
 
     Returns:
         Success confirmation
@@ -2431,12 +2481,10 @@ async def traccar_position_webhook(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Webhook endpoint not configured",
         )
-    if not x_traccar_signature or not verify_traccar_signature(
-        position.json(), x_traccar_signature
-    ):
+    if not verify_traccar_signature(position.json(), x_traccar_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing signature",
+            detail="Invalid signature",
         )
 
     try:
@@ -2477,15 +2525,15 @@ async def traccar_position_webhook(
 @app.post("/api/traccar/event")
 async def traccar_event_webhook(
     event: TraccarEvent,
-    x_traccar_signature: Optional[str] = None,
+    x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
 ):
     """
     Webhook for Traccar events (engine on/off, speeding, etc).
-    Secured by X-Traccar-Signature HMAC header.
+    Secured by mandatory X-Traccar-Signature HMAC header.
 
     Args:
         event: Event data from Traccar
-        x_traccar_signature: HMAC-SHA256 signature
+        x_traccar_signature: HMAC-SHA256 signature (required)
 
     Returns:
         Success confirmation
@@ -2496,12 +2544,10 @@ async def traccar_event_webhook(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Webhook endpoint not configured",
         )
-    if not x_traccar_signature or not verify_traccar_signature(
-        event.json(), x_traccar_signature
-    ):
+    if not verify_traccar_signature(event.json(), x_traccar_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing signature",
+            detail="Invalid signature",
         )
 
     try:
