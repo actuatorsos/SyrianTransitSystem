@@ -412,6 +412,91 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Return all geofences with geometry as GeoJSON
+CREATE OR REPLACE FUNCTION get_geofences()
+RETURNS TABLE (
+    id UUID,
+    name TEXT,
+    name_ar TEXT,
+    geometry JSON,
+    geofence_type TEXT,
+    speed_limit_kmh INTEGER,
+    is_active BOOLEAN,
+    created_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        g.id,
+        g.name,
+        g.name_ar,
+        ST_AsGeoJSON(g.geometry)::JSON AS geometry,
+        g.geofence_type,
+        g.speed_limit_kmh,
+        g.is_active,
+        g.created_at
+    FROM geofences g
+    ORDER BY g.created_at DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a geofence from a GeoJSON polygon string
+CREATE OR REPLACE FUNCTION create_geofence(
+    p_name TEXT,
+    p_name_ar TEXT,
+    p_geojson TEXT,
+    p_geofence_type TEXT DEFAULT 'zone',
+    p_speed_limit INTEGER DEFAULT NULL
+) RETURNS UUID AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+    INSERT INTO geofences (name, name_ar, geometry, geofence_type, speed_limit_kmh)
+    VALUES (
+        p_name,
+        p_name_ar,
+        ST_GeomFromGeoJSON(p_geojson),
+        p_geofence_type,
+        p_speed_limit
+    )
+    RETURNING id INTO v_id;
+    RETURN v_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Return geofences a vehicle just exited (was inside before, now outside)
+CREATE OR REPLACE FUNCTION check_geofence_exit(
+    p_vehicle_id UUID,
+    p_new_lat DOUBLE PRECISION,
+    p_new_lon DOUBLE PRECISION
+) RETURNS TABLE (
+    geofence_id UUID,
+    geofence_name TEXT,
+    geofence_name_ar TEXT
+) AS $$
+DECLARE
+    v_new_point GEOMETRY;
+    v_prev_point GEOMETRY;
+BEGIN
+    v_new_point := ST_SetSRID(ST_MakePoint(p_new_lon, p_new_lat), 4326);
+
+    SELECT location INTO v_prev_point
+    FROM vehicle_positions_latest
+    WHERE vehicle_id = p_vehicle_id;
+
+    IF v_prev_point IS NULL THEN
+        RETURN;
+    END IF;
+
+    RETURN QUERY
+    SELECT g.id, g.name, g.name_ar
+    FROM geofences g
+    WHERE g.is_active = true
+      AND ST_Contains(g.geometry, v_prev_point)
+      AND NOT ST_Contains(g.geometry, v_new_point);
+END;
+$$ LANGUAGE plpgsql;
+
 -- ============================================================
 -- 15. REALTIME (Supabase)
 -- ============================================================

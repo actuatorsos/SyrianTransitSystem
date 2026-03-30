@@ -43,11 +43,25 @@ ALTER PUBLICATION supabase_realtime ADD TABLE vehicle_positions_latest;
 ALTER PUBLICATION supabase_realtime ADD TABLE alerts;
 ```
 
+### Enable Connection Pooling (Supavisor) — REQUIRED for 500+ vehicles
+
+Without this, the 20-connection free-tier pool exhausts at ~120 concurrent vehicles, causing 5xx errors.
+
+1. Go to **Settings** → **Database** → **Connection Pooling**
+2. Enable **Supavisor** (Transaction mode)
+3. Copy the **Pooler connection string** — it looks like:
+   `postgresql://postgres.xxxx:[password]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`
+4. In Vercel → **Settings** → **Environment Variables**, update `SUPABASE_URL` to the pooler host:
+   `https://aws-0-eu-central-1.pooler.supabase.com` (substitute your project's region)
+5. Redeploy after updating env vars
+
+> **Note:** The REST API URL format (`https://...`) does not include the `:6543` port — that port applies only to direct PostgreSQL connection strings. The pooler HTTP endpoint is always HTTPS/443.
+
 ### Get Your Keys
 
 1. Go to **Settings** → **API**
 2. Copy these values (you'll need them in Step 3):
-   - **Project URL** → `SUPABASE_URL`
+   - **Project URL** → `SUPABASE_URL` (use the pooler URL above, not the default project URL)
    - **anon/public key** → `SUPABASE_KEY`
    - **service_role key** → `SUPABASE_SERVICE_KEY`
 
@@ -90,7 +104,7 @@ In Vercel dashboard → your project → **Settings** → **Environment Variable
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `SUPABASE_URL` | `https://xxxx.supabase.co` | From Supabase Settings → API |
+| `SUPABASE_URL` | `https://aws-0-<region>.pooler.supabase.com` | Supavisor pooler URL (see Step 1) — **required for 500-vehicle scale** |
 | `SUPABASE_KEY` | `eyJ...` | anon/public key |
 | `SUPABASE_SERVICE_KEY` | `eyJ...` | service_role key (keep secret!) |
 | `JWT_SECRET` | (generate one) | Run: `openssl rand -hex 32` |
