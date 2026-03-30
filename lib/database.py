@@ -4,7 +4,7 @@ Handles connection pooling and provides helper methods for common queries.
 """
 
 import os
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -29,7 +29,9 @@ class SupabaseDB:
     def __init__(self):
         if self._client is None:
             if not SUPABASE_URL or not SUPABASE_KEY:
-                raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables are required")
+                raise ValueError(
+                    "SUPABASE_URL and SUPABASE_KEY environment variables are required"
+                )
             self._client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
     @property
@@ -48,7 +50,7 @@ class SupabaseDB:
     def health_check(self) -> bool:
         """Check database connectivity."""
         try:
-            result = self._client.table("users").select("id").limit(1).execute()
+            self._client.table("users").select("id").limit(1).execute()
             return True
         except Exception as e:
             print(f"Database health check failed: {e}")

@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL:-http://localhost}
+      - SUPABASE_KEY=${SUPABASE_KEY:-placeholder}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-placeholder}
+      - JWT_SECRET=${JWT_SECRET:-ci-test-secret-do-not-use-in-prod}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

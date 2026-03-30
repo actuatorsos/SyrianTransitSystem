@@ -12,19 +12,17 @@ import time
 import asyncio
 import hashlib
 import hmac
-import json
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional, List, Literal
-from decimal import Decimal
 
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, status, Query, Response
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials as HTTPAuthCredentials
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, validator
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -38,6 +36,7 @@ app = FastAPI(
     description="Real-time transit tracking and fleet management",
     version="1.0.0",
 )
+
 
 # ============================================================================
 # JWT Authentication (using PyJWT)
@@ -140,7 +139,9 @@ def verify_token(token: str) -> TokenPayload:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
             )
 
-        return TokenPayload(user_id=user_id, email=email, role=role, exp=payload.get("exp"))
+        return TokenPayload(
+            user_id=user_id, email=email, role=role, exp=payload.get("exp")
+        )
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
@@ -151,7 +152,9 @@ def verify_token(token: str) -> TokenPayload:
         )
 
 
-async def get_current_user(credentials: HTTPAuthCredentials = Depends(security)) -> CurrentUser:
+async def get_current_user(
+    credentials: HTTPAuthCredentials = Depends(security),
+) -> CurrentUser:
     """
     FastAPI dependency: Extract and verify current user from Bearer token.
 
@@ -166,7 +169,11 @@ async def get_current_user(credentials: HTTPAuthCredentials = Depends(security))
     """
     token = credentials.credentials
     token_payload = verify_token(token)
-    return CurrentUser(user_id=token_payload.user_id, email=token_payload.email, role=token_payload.role)
+    return CurrentUser(
+        user_id=token_payload.user_id,
+        email=token_payload.email,
+        role=token_payload.role,
+    )
 
 
 def require_role(*allowed_roles: UserRole):
@@ -180,7 +187,9 @@ def require_role(*allowed_roles: UserRole):
         Dependency function
     """
 
-    async def role_checker(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    async def role_checker(
+        current_user: CurrentUser = Depends(get_current_user),
+    ) -> CurrentUser:
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -191,7 +200,9 @@ def require_role(*allowed_roles: UserRole):
     return role_checker
 
 
-def optional_auth(credentials: Optional[HTTPAuthCredentials] = Depends(security)) -> Optional[CurrentUser]:
+def optional_auth(
+    credentials: Optional[HTTPAuthCredentials] = Depends(security),
+) -> Optional[CurrentUser]:
     """
     FastAPI dependency: Optional authentication (returns None if no token).
 
@@ -204,12 +215,17 @@ def optional_auth(credentials: Optional[HTTPAuthCredentials] = Depends(security)
     if credentials is None:
         return None
     token_payload = verify_token(credentials.credentials)
-    return CurrentUser(user_id=token_payload.user_id, email=token_payload.email, role=token_payload.role)
+    return CurrentUser(
+        user_id=token_payload.user_id,
+        email=token_payload.email,
+        role=token_payload.role,
+    )
 
 
 # ============================================================================
 # Supabase REST API Helpers (using httpx)
 # ============================================================================
+
 
 def _supabase_headers() -> dict:
     """Get headers for Supabase REST API requests."""
@@ -218,7 +234,7 @@ def _supabase_headers() -> dict:
         "apikey": key,
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
-        "Prefer": "return=representation"
+        "Prefer": "return=representation",
     }
 
 
@@ -232,7 +248,9 @@ async def _supabase_get(path: str, params: Optional[dict] = None) -> list:
     """Make GET request to Supabase REST API."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(_supabase_url(path), headers=_supabase_headers(), params=params or {})
+            resp = await client.get(
+                _supabase_url(path), headers=_supabase_headers(), params=params or {}
+            )
             resp.raise_for_status()
             data = resp.json()
             return data if isinstance(data, list) else [data] if data else []
@@ -244,18 +262,24 @@ async def _supabase_post(path: str, data: dict) -> dict:
     """Make POST request to Supabase REST API."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(_supabase_url(path), headers=_supabase_headers(), json=data)
+            resp = await client.post(
+                _supabase_url(path), headers=_supabase_headers(), json=data
+            )
             resp.raise_for_status()
             return resp.json() if resp.content else {}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database operation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Database operation failed: {str(e)}"
+        )
 
 
 async def _supabase_patch(path: str, data: dict) -> list:
     """Make PATCH request to Supabase REST API (update)."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.patch(_supabase_url(path), headers=_supabase_headers(), json=data)
+            resp = await client.patch(
+                _supabase_url(path), headers=_supabase_headers(), json=data
+            )
             resp.raise_for_status()
             result = resp.json()
             return result if isinstance(result, list) else [result] if result else []
@@ -280,7 +304,7 @@ async def _supabase_rpc(func_name: str, params: dict) -> any:
             resp = await client.post(
                 f"{os.getenv('SUPABASE_URL')}/rest/v1/rpc/{func_name}",
                 headers=_supabase_headers(),
-                json=params
+                json=params,
             )
             resp.raise_for_status()
             return resp.json()
@@ -291,9 +315,9 @@ async def _supabase_rpc(func_name: str, params: dict) -> any:
 async def _health_check() -> bool:
     """Check database connectivity."""
     try:
-        result = await _supabase_get("users?select=id&limit=1")
+        await _supabase_get("users?select=id&limit=1")
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -601,26 +625,36 @@ async def login(request: LoginRequest):
         HTTPException: Invalid credentials
     """
     try:
-        users = await _supabase_get(f"users?email=eq.{request.email}&select=id,email,password_hash,role")
+        users = await _supabase_get(
+            f"users?email=eq.{request.email}&select=id,email,password_hash,role"
+        )
 
         if not users:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            )
 
         user = users[0]
 
         # Verify password
         if not verify_password(request.password, user["password_hash"]):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            )
 
         # Generate token
-        token = create_access_token(user_id=user["id"], email=user["email"], role=user["role"])
+        token = create_access_token(
+            user_id=user["id"], email=user["email"], role=user["role"]
+        )
 
         return TokenResponse(access_token=token, user_id=user["id"], role=user["role"])
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/routes", response_model=List[RouteResponse])
@@ -637,7 +671,9 @@ async def list_routes():
         # Get stop counts for each route
         enriched_routes = []
         for route in routes:
-            stops = await _supabase_get(f"route_stops?route_id=eq.{route['id']}&select=id")
+            stops = await _supabase_get(
+                f"route_stops?route_id=eq.{route['id']}&select=id"
+            )
             stop_count = len(stops)
 
             enriched_routes.append(
@@ -658,7 +694,9 @@ async def list_routes():
         return enriched_routes
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/routes/{route_id}", response_model=RouteResponse)
@@ -679,7 +717,9 @@ async def get_route(route_id: str):
         routes = await _supabase_get(f"routes?id=eq.{route_id}&select=*")
 
         if not routes:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Route not found"
+            )
 
         route = routes[0]
 
@@ -703,7 +743,9 @@ async def get_route(route_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/stops", response_model=List[StopResponse])
@@ -732,7 +774,9 @@ async def list_stops():
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/stops/nearest", response_model=List[NearestStop])
@@ -757,7 +801,8 @@ async def find_nearest_stops(
     try:
         # Call PostGIS RPC function
         stops = await _supabase_rpc(
-            "find_nearest_stops", {"p_lat": lat, "p_lon": lon, "p_limit": limit, "p_radius_m": radius}
+            "find_nearest_stops",
+            {"p_lat": lat, "p_lon": lon, "p_limit": limit, "p_radius_m": radius},
         )
 
         stops = stops if isinstance(stops, list) else [stops] if stops else []
@@ -777,7 +822,9 @@ async def find_nearest_stops(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/vehicles", response_model=List[VehicleResponse])
@@ -790,7 +837,9 @@ async def list_vehicles():
     """
     try:
         # Get vehicles with latest positions (join with vehicle_positions_latest)
-        positions = await _supabase_get("vehicle_positions_latest?select=*,vehicles(id,vehicle_id,name,name_ar,vehicle_type,capacity,status,assigned_route_id)")
+        positions = await _supabase_get(
+            "vehicle_positions_latest?select=*,vehicles(id,vehicle_id,name,name_ar,vehicle_type,capacity,status,assigned_route_id)"
+        )
 
         vehicles_data = positions or []
 
@@ -815,7 +864,9 @@ async def list_vehicles():
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/vehicles/positions", response_model=List[dict])
@@ -827,12 +878,16 @@ async def get_vehicle_positions():
         Vehicle ID, location, and basic tracking data
     """
     try:
-        result = await _supabase_get("vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at")
+        result = await _supabase_get(
+            "vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at"
+        )
 
         return result or []
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/stream")
@@ -844,6 +899,7 @@ async def stream_positions():
     Returns:
         Streaming response with position updates
     """
+
     async def generate():
         start_time = time.time()
         max_duration = 25  # Vercel hobby timeout
@@ -851,7 +907,9 @@ async def stream_positions():
         while time.time() - start_time < max_duration:
             try:
                 # Get positions updated since last poll
-                positions = await _supabase_get("vehicle_positions_latest?select=*,vehicles(name,name_ar)")
+                positions = await _supabase_get(
+                    "vehicle_positions_latest?select=*,vehicles(name,name_ar)"
+                )
 
                 positions = positions or []
 
@@ -892,9 +950,17 @@ async def get_fleet_stats():
         # Vehicle counts
         vehicles = await _supabase_get("vehicles?is_active=eq.true&select=id,status")
 
-        active_count = len([v for v in vehicles if v.get("status") == "active"]) if vehicles else 0
-        idle_count = len([v for v in vehicles if v.get("status") == "idle"]) if vehicles else 0
-        maintenance_count = len([v for v in vehicles if v.get("status") == "maintenance"]) if vehicles else 0
+        active_count = (
+            len([v for v in vehicles if v.get("status") == "active"]) if vehicles else 0
+        )
+        idle_count = (
+            len([v for v in vehicles if v.get("status") == "idle"]) if vehicles else 0
+        )
+        maintenance_count = (
+            len([v for v in vehicles if v.get("status") == "maintenance"])
+            if vehicles
+            else 0
+        )
 
         # Route counts
         routes = await _supabase_get("routes?is_active=eq.true&select=id")
@@ -905,13 +971,19 @@ async def get_fleet_stats():
         # Driver counts
         drivers = await _supabase_get("users?role=eq.driver&select=id,is_active")
 
-        active_drivers = len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        active_drivers = (
+            len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        )
 
         # Average occupancy
         positions = await _supabase_get("vehicle_positions_latest?select=occupancy_pct")
 
-        occupancy_values = [p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None]
-        avg_occupancy = sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        occupancy_values = [
+            p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
+        ]
+        avg_occupancy = (
+            sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        )
 
         return {
             "total_vehicles": len(vehicles),
@@ -927,7 +999,9 @@ async def get_fleet_stats():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/schedules/{route_id}", response_model=List[ScheduleResponse])
@@ -957,7 +1031,9 @@ async def get_route_schedule(route_id: str):
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/alerts/active", response_model=List[AlertResponse])
@@ -969,7 +1045,9 @@ async def get_active_alerts():
         List of active alerts
     """
     try:
-        alerts = await _supabase_get("alerts?is_resolved=eq.false&select=*&order=created_at.desc")
+        alerts = await _supabase_get(
+            "alerts?is_resolved=eq.false&select=*&order=created_at.desc"
+        )
 
         return [
             AlertResponse(
@@ -987,7 +1065,9 @@ async def get_active_alerts():
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ============================================================================
@@ -1012,10 +1092,14 @@ async def report_driver_position(
     """
     try:
         # Get driver's assigned vehicle
-        vehicles = await _supabase_get(f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id,vehicle_id")
+        vehicles = await _supabase_get(
+            f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id,vehicle_id"
+        )
 
         if not vehicles:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned"
+            )
 
         vehicle = vehicles[0]
 
@@ -1039,7 +1123,9 @@ async def report_driver_position(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/driver/trip/start")
@@ -1059,10 +1145,14 @@ async def start_trip(
     """
     try:
         # Get driver's vehicle and verify route assignment
-        vehicles = await _supabase_get(f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id")
+        vehicles = await _supabase_get(
+            f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id"
+        )
 
         if not vehicles:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned"
+            )
 
         vehicle_id = vehicles[0]["id"]
 
@@ -1079,14 +1169,23 @@ async def start_trip(
         result = await _supabase_post("trips", trip_data)
 
         if not result:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create trip")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create trip",
+            )
 
-        return {"status": "success", "trip_id": result.get("id"), "timestamp": datetime.utcnow().isoformat()}
+        return {
+            "status": "success",
+            "trip_id": result.get("id"),
+            "timestamp": datetime.utcnow().isoformat(),
+        }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/driver/trip/end")
@@ -1106,10 +1205,14 @@ async def end_trip(
     """
     try:
         # Get current trip
-        trips = await _supabase_get(f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id")
+        trips = await _supabase_get(
+            f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id"
+        )
 
         if not trips:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active trip")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No active trip"
+            )
 
         trip_id = trips[0]["id"]
 
@@ -1122,12 +1225,18 @@ async def end_trip(
 
         await _supabase_patch(f"trips?id=eq.{trip_id}", update_data)
 
-        return {"status": "success", "trip_id": trip_id, "timestamp": datetime.utcnow().isoformat()}
+        return {
+            "status": "success",
+            "trip_id": trip_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/driver/trip/passenger-count")
@@ -1147,22 +1256,30 @@ async def update_passenger_count(
     """
     try:
         # Get current trip
-        trips = await _supabase_get(f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id")
+        trips = await _supabase_get(
+            f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id"
+        )
 
         if not trips:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active trip")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No active trip"
+            )
 
         trip_id = trips[0]["id"]
 
         # Update passenger count
-        await _supabase_patch(f"trips?id=eq.{trip_id}", {"passenger_count": data.passenger_count})
+        await _supabase_patch(
+            f"trips?id=eq.{trip_id}", {"passenger_count": data.passenger_count}
+        )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ============================================================================
@@ -1201,7 +1318,9 @@ async def list_users(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/admin/users", response_model=UserResponse)
@@ -1224,7 +1343,9 @@ async def create_user(
         existing = await _supabase_get(f"users?email=eq.{user_data.email}&select=id")
 
         if existing:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Email already exists"
+            )
 
         # Create user
         hashed_password = hash_password(user_data.password)
@@ -1242,9 +1363,14 @@ async def create_user(
         result = await _supabase_post("users", new_user)
 
         if not result:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user",
+            )
 
-        created_user = result if isinstance(result, dict) else result[0] if result else {}
+        created_user = (
+            result if isinstance(result, dict) else result[0] if result else {}
+        )
 
         return UserResponse(
             id=created_user.get("id"),
@@ -1259,7 +1385,9 @@ async def create_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.put("/api/admin/users/{user_id}", response_model=UserResponse)
@@ -1292,12 +1420,16 @@ async def update_user(
             update_dict["is_active"] = user_data.is_active
 
         if not update_dict:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update"
+            )
 
         result = await _supabase_patch(f"users?id=eq.{user_id}", update_dict)
 
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
 
         updated_user = result[0] if result else {}
 
@@ -1314,7 +1446,9 @@ async def update_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/admin/vehicles", response_model=List[VehicleResponse])
@@ -1356,7 +1490,9 @@ async def list_all_vehicles(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/admin/vehicles", response_model=VehicleResponse)
@@ -1390,7 +1526,10 @@ async def create_vehicle(
         result = await _supabase_post("vehicles", new_vehicle)
 
         if not result:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create vehicle")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create vehicle",
+            )
 
         created = result if isinstance(result, dict) else result[0] if result else {}
 
@@ -1407,7 +1546,9 @@ async def create_vehicle(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.put("/api/admin/vehicles/{vehicle_id}", response_model=VehicleResponse)
@@ -1439,12 +1580,16 @@ async def update_vehicle(
             update_dict["status"] = vehicle_data.status
 
         if not update_dict:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update"
+            )
 
         result = await _supabase_patch(f"vehicles?id=eq.{vehicle_id}", update_dict)
 
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found"
+            )
 
         updated = result[0] if result else {}
 
@@ -1461,7 +1606,9 @@ async def update_vehicle(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/admin/vehicles/{vehicle_id}/assign")
@@ -1490,7 +1637,9 @@ async def assign_vehicle(
         result = await _supabase_patch(f"vehicles?id=eq.{vehicle_id}", update_data)
 
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found"
+            )
 
         # Log to audit
         audit_entry = {
@@ -1505,7 +1654,9 @@ async def assign_vehicle(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/admin/alerts", response_model=List[AlertResponse])
@@ -1540,7 +1691,9 @@ async def list_all_alerts(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.put("/api/admin/alerts/{alert_id}/resolve")
@@ -1561,19 +1714,28 @@ async def resolve_alert(
         Success confirmation
     """
     try:
-        update_data = {"is_resolved": alert_data.resolved, "resolved_at": datetime.utcnow().isoformat() if alert_data.resolved else None}
+        update_data = {
+            "is_resolved": alert_data.resolved,
+            "resolved_at": datetime.utcnow().isoformat()
+            if alert_data.resolved
+            else None,
+        }
 
         result = await _supabase_patch(f"alerts?id=eq.{alert_id}", update_data)
 
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found"
+            )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/admin/trips", response_model=List[dict])
@@ -1605,7 +1767,7 @@ async def list_trips(
         if status_filter:
             params.append(f"status=eq.{status_filter}")
 
-        query = f"trips?select=*&order=created_at.desc"
+        query = "trips?select=*&order=created_at.desc"
         if params:
             query = f"trips?{'&'.join(params)}&select=*&order=created_at.desc"
 
@@ -1614,7 +1776,9 @@ async def list_trips(
         return result or []
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/admin/analytics/overview", response_model=AnalyticsOverview)
@@ -1636,7 +1800,9 @@ async def get_analytics_overview(
 
         active_vehicles = len([v for v in vehicles if v.get("status") == "active"])
         idle_vehicles = len([v for v in vehicles if v.get("status") == "idle"])
-        maintenance_vehicles = len([v for v in vehicles if v.get("status") == "maintenance"])
+        maintenance_vehicles = len(
+            [v for v in vehicles if v.get("status") == "maintenance"]
+        )
 
         # Routes
         routes = await _supabase_get("routes?is_active=eq.true&select=id")
@@ -1647,13 +1813,19 @@ async def get_analytics_overview(
         # Drivers
         drivers = await _supabase_get("users?role=eq.driver&select=is_active")
 
-        active_drivers = len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        active_drivers = (
+            len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        )
 
         # Average occupancy
         positions = await _supabase_get("vehicle_positions_latest?select=occupancy_pct")
 
-        occupancy_values = [p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None]
-        avg_occupancy = sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        occupancy_values = [
+            p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
+        ]
+        avg_occupancy = (
+            sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        )
 
         return AnalyticsOverview(
             total_vehicles=len(vehicles),
@@ -1669,7 +1841,9 @@ async def get_analytics_overview(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ============================================================================
@@ -1688,7 +1862,9 @@ def verify_traccar_signature(request_body: str, signature: str) -> bool:
     Returns:
         True if signature is valid
     """
-    computed = hmac.new(TRACCAR_WEBHOOK_SECRET.encode(), request_body.encode(), hashlib.sha256).hexdigest()
+    computed = hmac.new(
+        TRACCAR_WEBHOOK_SECRET.encode(), request_body.encode(), hashlib.sha256
+    ).hexdigest()
     return hmac.compare_digest(computed, signature)
 
 
@@ -1711,11 +1887,15 @@ async def traccar_position_webhook(
     # Verify signature if configured
     if TRACCAR_WEBHOOK_SECRET and x_traccar_signature:
         if not verify_traccar_signature(position.json(), x_traccar_signature):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
+            )
 
     try:
         # Find vehicle by Traccar device ID
-        devices = await _supabase_get(f"vehicles?gps_device_id=eq.{position.deviceId}&select=id,vehicle_id")
+        devices = await _supabase_get(
+            f"vehicles?gps_device_id=eq.{position.deviceId}&select=id,vehicle_id"
+        )
 
         if not devices:
             # Device not found - log and ignore gracefully
@@ -1765,11 +1945,15 @@ async def traccar_event_webhook(
     # Verify signature if configured
     if TRACCAR_WEBHOOK_SECRET and x_traccar_signature:
         if not verify_traccar_signature(event.json(), x_traccar_signature):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
+            )
 
     try:
         # Find vehicle by Traccar device ID
-        devices = await _supabase_get(f"vehicles?gps_device_id=eq.{event.deviceId}&select=id")
+        devices = await _supabase_get(
+            f"vehicles?gps_device_id=eq.{event.deviceId}&select=id"
+        )
 
         if not devices:
             return {"status": "ignored", "reason": "device_not_found"}
@@ -1819,11 +2003,25 @@ async def traccar_event_webhook(
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions with standard response format."""
-    return {
-        "error": exc.detail,
-        "status_code": exc.status_code,
-        "timestamp": datetime.utcnow().isoformat(),
-    }
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request, exc):
+    """Handle unexpected exceptions and return JSON."""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
 
 
 @app.get("/")

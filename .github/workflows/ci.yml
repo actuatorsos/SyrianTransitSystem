@@ -1,0 +1,176 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Stage 1 — Lint
+  # -------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Check style (ruff format)
+        run: ruff format --check api/ lib/
+
+      - name: Check lint (ruff check)
+        run: ruff check api/ lib/
+
+  # -------------------------------------------------------------------------
+  # Stage 2 — Tests + Coverage
+  # -------------------------------------------------------------------------
+  test:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: http://mock-supabase.local
+      SUPABASE_KEY: mock-key
+      SUPABASE_SERVICE_KEY: mock-service-key
+      JWT_SECRET: ci-test-secret-do-not-use-in-prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt uvicorn pytest pytest-cov httpx
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Run coverage
+        run: |
+          pytest tests/ \
+            --cov=api \
+            --cov=lib \
+            --cov-report=term \
+            --cov-fail-under=60
+
+  # -------------------------------------------------------------------------
+  # Stage 3 — API Contract Validation
+  # -------------------------------------------------------------------------
+  api-contract:
+    name: API Contract Validation
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    env:
+      SUPABASE_URL: http://mock-supabase.local
+      SUPABASE_KEY: mock-key
+      SUPABASE_SERVICE_KEY: mock-service-key
+      JWT_SECRET: ci-test-secret-do-not-use-in-prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt uvicorn pytest httpx
+
+      - name: Validate all 26 API endpoint contracts
+        run: pytest tests/test_api_contract.py -v --tb=short
+
+  # -------------------------------------------------------------------------
+  # Stage 4 — Docker Smoke Test
+  # -------------------------------------------------------------------------
+  docker-smoke:
+    name: Docker Smoke Test
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start containers
+        run: |
+          docker compose up --build -d
+        env:
+          SUPABASE_URL: http://mock-supabase.local
+          SUPABASE_KEY: mock-key
+          SUPABASE_SERVICE_KEY: mock-service-key
+          JWT_SECRET: ci-test-secret-do-not-use-in-prod
+
+      - name: Wait for API to be ready
+        run: |
+          echo "Waiting 15 seconds for API startup..."
+          sleep 15
+          docker compose ps
+
+      - name: Smoke test — /api/health returns 200
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/health)
+          echo "Health status: $status"
+          if [ "$status" != "200" ]; then
+            echo "FAIL: /api/health returned $status"
+            docker compose logs
+            exit 1
+          fi
+          echo "PASS: /api/health returned 200"
+
+      - name: Smoke test — /api/vehicles returns JSON array or error envelope
+        run: |
+          response=$(curl -s http://localhost:8000/api/vehicles)
+          echo "Vehicles response: $response"
+          # Accept array [] or error {"detail":"..."} — both are valid JSON
+          echo "$response" | python3 -c "import json,sys; json.load(sys.stdin); print('PASS: /api/vehicles returned valid JSON')"
+
+      - name: Smoke test — /api/stream returns SSE headers
+        run: |
+          # Use GET (not HEAD) with -D to dump headers; SSE does not allow HEAD
+          headers=$(curl -s --max-time 5 -D - -o /dev/null http://localhost:8000/api/stream || true)
+          echo "Stream headers: $headers"
+          if echo "$headers" | grep -qi "text/event-stream"; then
+            echo "PASS: /api/stream has SSE content-type header"
+          else
+            echo "FAIL: /api/stream missing text/event-stream header"
+            echo "$headers"
+            docker compose logs
+            exit 1
+          fi
+
+      - name: Tear down
+        if: always()
+        run: docker compose down
+
+  # -------------------------------------------------------------------------
+  # Stage 5 — Auto-deploy (main branch only)
+  # -------------------------------------------------------------------------
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: [api-contract, docker-smoke]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel (production)
+        run: vercel --prod --yes --token "$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
