@@ -131,12 +131,15 @@ def mock_db():
     import api.routes.admin as adm
     import api.routes.traccar as trc
 
+    import api.routes.gtfs_rt as gtfs_rt_mod
+
     original_fns = {
         "pub": pub.get_db,
         "auth": auth_mod.get_db,
         "drv": drv.get_db,
         "adm": adm.get_db,
         "trc": trc.get_db,
+        "gtfs_rt": gtfs_rt_mod.get_db,
     }
 
     pub.get_db = lambda: db
@@ -144,6 +147,7 @@ def mock_db():
     drv.get_db = lambda: db
     adm.get_db = lambda: db
     trc.get_db = lambda: db
+    gtfs_rt_mod.get_db = lambda: db
 
     yield db
 
@@ -153,6 +157,7 @@ def mock_db():
     drv.get_db = original_fns["drv"]
     adm.get_db = original_fns["adm"]
     trc.get_db = original_fns["trc"]
+    gtfs_rt_mod.get_db = original_fns["gtfs_rt"]
 
 
 @pytest.fixture

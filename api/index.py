@@ -18,6 +18,7 @@ from api.routes.driver import router as driver_router
 from api.routes.admin import router as admin_router
 from api.routes.traccar import router as traccar_router
 from api.routes.ws import router as ws_router, _position_broadcast_loop
+from api.routes.gtfs_rt import router as gtfs_rt_router
 
 # ============================================================================
 # App Initialization
@@ -41,6 +42,7 @@ app.include_router(driver_router)
 app.include_router(admin_router)
 app.include_router(traccar_router)
 app.include_router(ws_router)
+app.include_router(gtfs_rt_router)
 
 
 @app.on_event("startup")
