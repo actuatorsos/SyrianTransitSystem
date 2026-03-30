@@ -3,6 +3,7 @@ Driver routes: position reporting, trip management, passenger counts.
 All endpoints require driver role authentication.
 """
 
+import asyncio
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -11,6 +12,40 @@ from lib.auth import require_role, CurrentUser
 from api.models import PositionUpdate, TripStart, TripEnd, PassengerCountUpdate
 
 router = APIRouter(prefix="/api/driver", tags=["Driver"])
+
+
+async def _handle_geofence_exits(db, vehicle_id: str, lat: float, lon: float):
+    """Check for geofence exits and create alerts + broadcast via WebSocket."""
+    try:
+        from api.routes.ws import broadcast_geofence_alert
+
+        exited = db.rpc(
+            "check_geofence_exit",
+            {"p_vehicle_id": vehicle_id, "p_new_lat": lat, "p_new_lon": lon},
+        ).execute()
+
+        for gf in exited.data or []:
+            alert_data = {
+                "vehicle_id": vehicle_id,
+                "alert_type": "geofence_exit",
+                "severity": "warning",
+                "title": f"Vehicle exited geofence: {gf['geofence_name']}",
+                "title_ar": f"المركبة خرجت من المنطقة: {gf.get('geofence_name_ar') or gf['geofence_name']}",
+                "description": f"Vehicle exited geofence boundary '{gf['geofence_name']}'",
+                "is_resolved": False,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+
+            result = db.table("alerts").insert([alert_data]).execute()
+
+            if result.data:
+                alert_data["id"] = result.data[0]["id"]
+                alert_data["geofence_id"] = str(gf["geofence_id"])
+                alert_data["geofence_name"] = gf["geofence_name"]
+                await broadcast_geofence_alert(alert_data)
+
+    except Exception:
+        pass  # Non-critical: don't fail the position update
 
 
 @router.post("/position")
@@ -50,6 +85,11 @@ async def report_driver_position(
                 "p_occupancy": None,
             },
         ).execute()
+
+        # Check for geofence exits and create alerts
+        asyncio.create_task(
+            _handle_geofence_exits(db, vehicle["id"], position.latitude, position.longitude)
+        )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 

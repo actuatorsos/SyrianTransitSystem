@@ -21,6 +21,9 @@ from api.models import (
     AlertResponse,
     AlertResolve,
     AnalyticsOverview,
+    GeofenceCreate,
+    GeofenceUpdate,
+    GeofenceResponse,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -439,6 +442,142 @@ async def resolve_alert(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to resolve alert",
+        )
+
+
+# ============================================================================
+# Geofences
+# ============================================================================
+
+
+@router.get("/geofences", response_model=List[GeofenceResponse])
+async def list_geofences(
+    current_user: CurrentUser = Depends(require_role("admin", "dispatcher")),
+):
+    """List all geofences with GeoJSON geometry."""
+    db = get_db()
+
+    try:
+        result = db.rpc("get_geofences", {}).execute()
+
+        return [
+            GeofenceResponse(
+                id=str(g["id"]),
+                name=g["name"],
+                name_ar=g.get("name_ar"),
+                geometry=g["geometry"] if isinstance(g["geometry"], dict) else __import__("json").loads(g["geometry"]),
+                geofence_type=g["geofence_type"],
+                speed_limit_kmh=g.get("speed_limit_kmh"),
+                is_active=g["is_active"],
+                created_at=str(g["created_at"]),
+            )
+            for g in (result.data or [])
+        ]
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch geofences",
+        )
+
+
+@router.post("/geofences", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_geofence(
+    data: GeofenceCreate,
+    current_user: CurrentUser = Depends(require_role("admin")),
+):
+    """Create a new geofence polygon."""
+    import json
+
+    db = get_db()
+
+    try:
+        geojson_str = json.dumps(data.geojson_polygon)
+        result = db.rpc(
+            "create_geofence",
+            {
+                "p_name": data.name,
+                "p_name_ar": data.name_ar,
+                "p_geojson": geojson_str,
+                "p_geofence_type": data.geofence_type,
+                "p_speed_limit": data.speed_limit_kmh,
+            },
+        ).execute()
+
+        return {
+            "status": "created",
+            "id": result.data,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create geofence",
+        )
+
+
+@router.put("/geofences/{geofence_id}")
+async def update_geofence(
+    geofence_id: str,
+    data: GeofenceUpdate,
+    current_user: CurrentUser = Depends(require_role("admin")),
+):
+    """Update geofence metadata (name, type, speed limit, active status)."""
+    db = get_db()
+
+    try:
+        update_fields = data.dict(exclude_none=True)
+        if not update_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No fields to update",
+            )
+
+        result = db.table("geofences").update(update_fields).eq("id", geofence_id).execute()
+
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Geofence not found",
+            )
+
+        return {"status": "updated", "timestamp": datetime.utcnow().isoformat()}
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update geofence",
+        )
+
+
+@router.delete("/geofences/{geofence_id}")
+async def delete_geofence(
+    geofence_id: str,
+    current_user: CurrentUser = Depends(require_role("admin")),
+):
+    """Delete a geofence by ID."""
+    db = get_db()
+
+    try:
+        result = db.table("geofences").delete().eq("id", geofence_id).execute()
+
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Geofence not found",
+            )
+
+        return {"status": "deleted", "timestamp": datetime.utcnow().isoformat()}
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete geofence",
         )
 
 

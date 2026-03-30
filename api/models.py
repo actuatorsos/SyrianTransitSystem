@@ -313,6 +313,44 @@ class AnalyticsOverview(BaseModel):
 
 
 # ============================================================================
+# Geofence Models
+# ============================================================================
+
+
+class GeofenceCreate(BaseModel):
+    """Create geofence request."""
+
+    name: str = Field(..., min_length=1, max_length=100)
+    name_ar: Optional[str] = Field(None, max_length=100)
+    geojson_polygon: dict  # GeoJSON Polygon geometry {"type":"Polygon","coordinates":[...]}
+    geofence_type: Literal["zone", "depot", "terminal"] = "zone"
+    speed_limit_kmh: Optional[int] = Field(None, ge=0, le=300)
+
+
+class GeofenceUpdate(BaseModel):
+    """Update geofence request."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    name_ar: Optional[str] = Field(None, max_length=100)
+    geofence_type: Optional[Literal["zone", "depot", "terminal"]] = None
+    speed_limit_kmh: Optional[int] = Field(None, ge=0, le=300)
+    is_active: Optional[bool] = None
+
+
+class GeofenceResponse(BaseModel):
+    """Geofence response with GeoJSON geometry."""
+
+    id: str
+    name: str
+    name_ar: Optional[str] = None
+    geometry: dict  # GeoJSON Polygon
+    geofence_type: str
+    speed_limit_kmh: Optional[int] = None
+    is_active: bool
+    created_at: str
+
+
+# ============================================================================
 # Traccar Models
 # ============================================================================
 

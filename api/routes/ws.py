@@ -17,6 +17,21 @@ router = APIRouter(tags=["WebSocket"])
 _connections: set[WebSocket] = set()
 
 
+async def broadcast_geofence_alert(alert: dict):
+    """Push a geofence alert to all connected WebSocket clients."""
+    if not _connections:
+        return
+
+    message = json.dumps({"type": "geofence_alert", "data": alert})
+    dead = set()
+    for ws in list(_connections):
+        try:
+            await ws.send_text(message)
+        except Exception:
+            dead.add(ws)
+    _connections.difference_update(dead)
+
+
 async def _broadcast_positions():
     """Fetch latest positions and broadcast to all connected clients."""
     if not _connections:

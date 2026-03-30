@@ -1053,6 +1053,19 @@
         </div>
     </div>
 
+    <!-- PASSWORD CHANGE MODAL -->
+    <div id="passwordChangeView" class="login-container" style="display:none;">
+        <div class="login-card">
+            <div class="login-logo">تغيير كلمة المرور</div>
+            <div class="login-subtitle" style="color:#f59e0b;">يجب تغيير كلمة المرور قبل المتابعة</div>
+            <div class="login-error" id="pwdChangeError"></div>
+            <input type="password" id="currentPwd" class="login-input" placeholder="كلمة المرور الحالية" autocomplete="current-password">
+            <input type="password" id="newPwd" class="login-input" placeholder="كلمة المرور الجديدة (10+ حرف، أرقام، حروف كبيرة)" autocomplete="new-password">
+            <input type="password" id="confirmPwd" class="login-input" placeholder="تأكيد كلمة المرور الجديدة" autocomplete="new-password">
+            <button class="login-btn" id="pwdChangeBtn" onclick="handlePasswordChange()">تغيير وتسجيل الدخول</button>
+        </div>
+    </div>
+
     <!-- ADMIN DASHBOARD -->
     <div id="dashboardView" class="hidden" style="display: flex; width: 100%; height: 100%;">
         <!-- SIDEBAR -->
@@ -1085,6 +1098,10 @@
             <div class="nav-item" onclick="switchTab('analytics', this)">
                 <span class="nav-icon">📈</span>
                 <span>التحليلات</span>
+            </div>
+            <div class="nav-item" onclick="switchTab('geofences', this)">
+                <span class="nav-icon">📍</span>
+                <span>المناطق الجغرافية</span>
             </div>
         </nav>
 
@@ -1353,7 +1370,88 @@
         </div>
     </div>
 
+                <!-- GEOFENCES TAB -->
+                <div id="geofences-tab" class="tab-content">
+                    <div class="section-title">
+                        <button class="btn btn-primary" onclick="openGeofenceModal()">+ إضافة منطقة</button>
+                        المناطق الجغرافية
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+                        <div>
+                            <div id="geofence-map" style="height:400px;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);"></div>
+                            <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">انقر على الخريطة لرسم منطقة. انقر على منطقة لحذفها.</div>
+                        </div>
+                        <div class="table-wrapper" style="max-height:420px;overflow-y:auto;">
+                            <div class="table-controls">
+                                <button class="btn btn-primary btn-small" onclick="loadGeofences()">تحديث</button>
+                            </div>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>الإجراء</th>
+                                        <th>الحالة</th>
+                                        <th>النوع</th>
+                                        <th>الاسم</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="geofencesTable">
+                                    <tr><td colspan="4" class="text-center">جاري التحميل...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="section-title" style="margin-top:10px;">تنبيهات الخروج من المناطق (مباشر)</div>
+                    <div id="geofenceAlertsFeed" style="max-height:200px;overflow-y:auto;border:1px solid var(--border-color);border-radius:8px;padding:12px;background:var(--surface-dark,#111);">
+                        <div style="color:var(--text-muted);text-align:center;padding:20px;">لا توجد تنبيهات حديثة</div>
+                    </div>
+                </div>
+
     <!-- MODALS -->
+    <!-- Geofence Modal -->
+    <div class="modal" id="geofenceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="modal-close" onclick="closeGeofenceModal()">✕</button>
+                <div class="modal-title">إضافة منطقة جغرافية</div>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">الاسم</label>
+                    <input type="text" id="geofenceName" class="form-input" placeholder="اسم المنطقة">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">الاسم (عربي)</label>
+                    <input type="text" id="geofenceNameAr" class="form-input" placeholder="اسم المنطقة بالعربي">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">النوع</label>
+                        <select id="geofenceType" class="form-select">
+                            <option value="zone">منطقة</option>
+                            <option value="depot">مستودع</option>
+                            <option value="terminal">محطة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">حد السرعة (كم/س)</label>
+                        <input type="number" id="geofenceSpeedLimit" class="form-input" placeholder="اختياري" min="0" max="300">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">إحداثيات GeoJSON (Polygon)</label>
+                    <textarea id="geofenceGeoJSON" class="form-input" rows="4" placeholder='{"type":"Polygon","coordinates":[[[36.27,33.51],[36.28,33.51],[36.28,33.52],[36.27,33.52],[36.27,33.51]]]}' style="font-size:11px;font-family:monospace;"></textarea>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">أو ارسم المنطقة على الخريطة في تبويب المناطق الجغرافية</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeGeofenceModal()">إغلاق</button>
+                <button class="btn btn-primary" onclick="saveGeofence()">حفظ</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Vehicle Modal -->
     <div class="modal" id="vehicleModal">
         <div class="modal-content">
@@ -1458,6 +1556,11 @@
         let allAlerts = [];
         let map = null;
         let vehicleMarkers = {};
+        let geofenceMap = null;
+        let allGeofences = [];
+        let wsConnection = null;
+        let drawingCoords = [];
+        let drawingMarkers = [];
 
         function getApiBase() {
             if (window.location.hostname === 'localhost' || window.location.hostname.includes('vercel')) {
@@ -1486,20 +1589,32 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(res.status === 401 ? 'بيانات الدخول غير صحيحة' : 'خطأ في الخادم');
+                return res.json();
+            })
             .then(data => {
-                if (data.token && data.user) {
-                    currentToken = data.token;
-                    currentUser = data.user;
-                    sessionStorage.setItem('authToken', data.token);
-                    sessionStorage.setItem('user', JSON.stringify(data.user));
+                if (data.access_token) {
+                    currentToken = data.access_token;
+                    currentUser = { id: data.user_id, role: data.role };
+                    sessionStorage.setItem('authToken', data.access_token);
+                    sessionStorage.setItem('user', JSON.stringify(currentUser));
+
+                    // Force password change if required
+                    if (data.must_change_password) {
+                        document.getElementById('loginView').style.display = 'none';
+                        document.getElementById('passwordChangeView').style.display = 'flex';
+                        document.getElementById('currentPwd').value = password;
+                        return;
+                    }
+
                     showDashboard();
                 } else {
-                    showLoginError(data.error || 'فشل تسجيل الدخول');
+                    showLoginError(data.detail || data.error || 'فشل تسجيل الدخول');
                 }
             })
             .catch(err => {
-                showLoginError('خطأ في الاتصال. يرجى المحاولة لاحقاً.');
+                showLoginError(err.message || 'خطأ في الاتصال. يرجى المحاولة لاحقاً.');
                 console.error('Login error:', err);
             })
             .finally(() => {
@@ -1515,21 +1630,72 @@
             setTimeout(() => loginError.classList.remove('show'), 5000);
         }
 
+        function handlePasswordChange() {
+            const currentPwd = document.getElementById('currentPwd').value;
+            const newPwd = document.getElementById('newPwd').value;
+            const confirmPwd = document.getElementById('confirmPwd').value;
+            const btn = document.getElementById('pwdChangeBtn');
+            const errorEl = document.getElementById('pwdChangeError');
+
+            if (newPwd !== confirmPwd) {
+                errorEl.textContent = 'كلمات المرور غير متطابقة';
+                errorEl.classList.add('show');
+                return;
+            }
+            if (newPwd.length < 10) {
+                errorEl.textContent = 'كلمة المرور يجب أن تكون 10 أحرف على الأقل';
+                errorEl.classList.add('show');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'جاري التغيير...';
+
+            fetch(`${API_BASE}/api/auth/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentToken}`
+                },
+                body: JSON.stringify({ current_password: currentPwd, new_password: newPwd })
+            })
+            .then(res => {
+                if (!res.ok) return res.json().then(d => { throw new Error(d.detail || 'فشل تغيير كلمة المرور'); });
+                return res.json();
+            })
+            .then(() => {
+                document.getElementById('passwordChangeView').style.display = 'none';
+                showDashboard();
+            })
+            .catch(err => {
+                errorEl.textContent = err.message;
+                errorEl.classList.add('show');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = 'تغيير وتسجيل الدخول';
+            });
+        }
+
         function handleLogout() {
             sessionStorage.removeItem('authToken');
             sessionStorage.removeItem('user');
             currentToken = null;
             currentUser = null;
+            document.getElementById('loginView').style.display = 'flex';
             document.getElementById('loginView').classList.remove('hidden');
             document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('passwordChangeView').style.display = 'none';
             document.getElementById('loginEmail').value = '';
             document.getElementById('loginPassword').value = '';
         }
 
         function showDashboard() {
+            document.getElementById('loginView').style.display = 'none';
             document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('passwordChangeView').style.display = 'none';
             document.getElementById('dashboardView').classList.remove('hidden');
-            document.getElementById('userName').textContent = currentUser?.name || 'Admin';
+            document.getElementById('userName').textContent = currentUser?.role || 'Admin';
             initDashboard();
         }
 
@@ -1542,6 +1708,7 @@
             loadRoutes();
             loadDrivers();
             loadAnalytics();
+            initGeofenceWebSocket();
         }
 
         // Check if user is already logged in
@@ -1581,13 +1748,22 @@
                 'routes': 'المسارات',
                 'alerts': 'التنبيهات',
                 'drivers': 'السائقون',
-                'analytics': 'التحليلات'
+                'analytics': 'التحليلات',
+                'geofences': 'المناطق الجغرافية'
             };
             document.getElementById('pageTitle').textContent = titles[tabName] || '';
 
             // Refresh map on dashboard
             if (tabName === 'dashboard' && map) {
                 setTimeout(() => map.resize(), 100);
+            }
+
+            // Init geofence map on first visit
+            if (tabName === 'geofences') {
+                setTimeout(() => {
+                    initGeofenceMap();
+                    if (geofenceMap) geofenceMap.resize();
+                }, 100);
             }
 
             // Close sidebar on mobile
@@ -1632,12 +1808,12 @@
         function loadStats() {
             apiCall('/api/admin/analytics/overview')
                 .then(data => {
-                    document.getElementById('totalVehicles').textContent = data.totalVehicles || 0;
-                    document.getElementById('activeVehicles').textContent = data.activeVehicles || 0;
-                    document.getElementById('idleVehicles').textContent = data.idleVehicles || 0;
-                    document.getElementById('maintenanceVehicles').textContent = data.maintenanceVehicles || 0;
-                    document.getElementById('tripsToday').textContent = data.tripsToday || 0;
-                    document.getElementById('onTimePercentage').textContent = (data.onTimePercentage || 0) + '%';
+                    document.getElementById('totalVehicles').textContent = data.total_vehicles || 0;
+                    document.getElementById('activeVehicles').textContent = data.active_vehicles || 0;
+                    document.getElementById('idleVehicles').textContent = data.idle_vehicles || 0;
+                    document.getElementById('maintenanceVehicles').textContent = data.maintenance_vehicles || 0;
+                    document.getElementById('tripsToday').textContent = data.total_routes || 0;
+                    document.getElementById('onTimePercentage').textContent = (data.avg_occupancy_pct || 0) + '%';
                 })
                 .catch(err => console.error('Error loading stats:', err));
         }
@@ -1919,6 +2095,217 @@
             apiCall(`/api/admin/alerts/${alertId}/resolve`, { method: 'PUT' })
                 .then(() => loadAlerts())
                 .catch(err => console.error('Error resolving alert:', err));
+        }
+
+        // ==================== GEOFENCES ====================
+        function loadGeofences() {
+            apiCall('/api/admin/geofences')
+                .then(data => {
+                    allGeofences = data || [];
+                    renderGeofencesTable(allGeofences);
+                    renderGeofencesOnMap(allGeofences);
+                })
+                .catch(err => console.error('Error loading geofences:', err));
+        }
+
+        function renderGeofencesTable(geofences) {
+            const tbody = document.getElementById('geofencesTable');
+            if (!geofences.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center">لا توجد مناطق</td></tr>';
+                return;
+            }
+            tbody.innerHTML = geofences.map(g => `
+                <tr>
+                    <td><button class="btn btn-danger btn-small" onclick="deleteGeofence('${g.id}')">حذف</button></td>
+                    <td><span class="badge" style="background:${g.is_active ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'};color:${g.is_active ? '#6ee7b7' : '#fca5a5'};">${g.is_active ? 'نشطة' : 'معطلة'}</span></td>
+                    <td>${g.geofence_type}</td>
+                    <td><strong>${g.name}</strong>${g.name_ar ? '<br><span style="color:var(--text-muted);font-size:11px;">' + g.name_ar + '</span>' : ''}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderGeofencesOnMap(geofences) {
+            if (!geofenceMap) return;
+
+            // Remove existing geofence layers/sources
+            allGeofences.forEach((_, i) => {
+                const id = 'geofence-' + i;
+                if (geofenceMap.getLayer(id + '-fill')) geofenceMap.removeLayer(id + '-fill');
+                if (geofenceMap.getLayer(id + '-outline')) geofenceMap.removeLayer(id + '-outline');
+                if (geofenceMap.getSource(id)) geofenceMap.removeSource(id);
+            });
+
+            geofences.forEach((g, i) => {
+                const id = 'geofence-' + i;
+                const colors = { zone: '#4299e1', depot: '#48bb78', terminal: '#ed8936' };
+                const color = colors[g.geofence_type] || '#4299e1';
+                geofenceMap.addSource(id, { type: 'geojson', data: { type: 'Feature', geometry: g.geometry, properties: { name: g.name } } });
+                geofenceMap.addLayer({ id: id + '-fill', type: 'fill', source: id, paint: { 'fill-color': color, 'fill-opacity': 0.2 } });
+                geofenceMap.addLayer({ id: id + '-outline', type: 'line', source: id, paint: { 'line-color': color, 'line-width': 2 } });
+            });
+        }
+
+        function initGeofenceMap() {
+            if (geofenceMap) return;
+            const container = document.getElementById('geofence-map');
+            if (!container) return;
+
+            geofenceMap = new maplibregl.Map({
+                container: 'geofence-map',
+                style: 'https://demotiles.maplibre.org/style.json',
+                center: [36.2765, 33.5138],
+                zoom: 12
+            });
+
+            geofenceMap.on('load', () => {
+                loadGeofences();
+            });
+
+            // Click to start drawing a polygon point
+            geofenceMap.on('click', (e) => {
+                const coords = [e.lngLat.lng, e.lngLat.lat];
+                drawingCoords.push(coords);
+
+                const el = document.createElement('div');
+                el.style.cssText = 'width:10px;height:10px;background:#edebe0;border-radius:50%;border:2px solid #428177;';
+                const m = new maplibregl.Marker(el).setLngLat(coords).addTo(geofenceMap);
+                drawingMarkers.push(m);
+
+                if (drawingCoords.length >= 3) {
+                    updateDrawingPreview();
+                }
+            });
+        }
+
+        function updateDrawingPreview() {
+            const sourceId = 'drawing-preview';
+            const closed = [...drawingCoords, drawingCoords[0]];
+            const geojson = { type: 'Feature', geometry: { type: 'Polygon', coordinates: [closed] }, properties: {} };
+            if (geofenceMap.getSource(sourceId)) {
+                geofenceMap.getSource(sourceId).setData(geojson);
+            } else {
+                geofenceMap.addSource(sourceId, { type: 'geojson', data: geojson });
+                geofenceMap.addLayer({ id: 'drawing-fill', type: 'fill', source: sourceId, paint: { 'fill-color': '#edebe0', 'fill-opacity': 0.15 } });
+                geofenceMap.addLayer({ id: 'drawing-outline', type: 'line', source: sourceId, paint: { 'line-color': '#edebe0', 'line-width': 2, 'line-dasharray': [2, 2] } });
+            }
+
+            // Auto-fill the GeoJSON field
+            const polygon = { type: 'Polygon', coordinates: [closed] };
+            const ta = document.getElementById('geofenceGeoJSON');
+            if (ta) ta.value = JSON.stringify(polygon);
+        }
+
+        function clearDrawing() {
+            drawingMarkers.forEach(m => m.remove());
+            drawingMarkers = [];
+            drawingCoords = [];
+            if (geofenceMap) {
+                if (geofenceMap.getLayer('drawing-fill')) geofenceMap.removeLayer('drawing-fill');
+                if (geofenceMap.getLayer('drawing-outline')) geofenceMap.removeLayer('drawing-outline');
+                if (geofenceMap.getSource('drawing-preview')) geofenceMap.removeSource('drawing-preview');
+            }
+        }
+
+        function openGeofenceModal() {
+            document.getElementById('geofenceName').value = '';
+            document.getElementById('geofenceNameAr').value = '';
+            document.getElementById('geofenceSpeedLimit').value = '';
+            document.getElementById('geofenceGeoJSON').value = drawingCoords.length >= 3
+                ? JSON.stringify({ type: 'Polygon', coordinates: [[...drawingCoords, drawingCoords[0]]] })
+                : '';
+            document.getElementById('geofenceModal').style.display = 'flex';
+        }
+
+        function closeGeofenceModal() {
+            document.getElementById('geofenceModal').style.display = 'none';
+        }
+
+        function saveGeofence() {
+            const name = document.getElementById('geofenceName').value.trim();
+            const name_ar = document.getElementById('geofenceNameAr').value.trim();
+            const geofence_type = document.getElementById('geofenceType').value;
+            const speed_limit_kmh = parseInt(document.getElementById('geofenceSpeedLimit').value) || null;
+            const geojsonRaw = document.getElementById('geofenceGeoJSON').value.trim();
+
+            if (!name || !geojsonRaw) {
+                alert('الاسم والإحداثيات مطلوبة');
+                return;
+            }
+
+            let geojson_polygon;
+            try {
+                geojson_polygon = JSON.parse(geojsonRaw);
+            } catch (e) {
+                alert('صيغة GeoJSON غير صحيحة');
+                return;
+            }
+
+            apiCall('/api/admin/geofences', {
+                method: 'POST',
+                body: JSON.stringify({ name, name_ar: name_ar || null, geofence_type, speed_limit_kmh, geojson_polygon })
+            })
+            .then(() => {
+                closeGeofenceModal();
+                clearDrawing();
+                loadGeofences();
+            })
+            .catch(err => {
+                console.error('Error creating geofence:', err);
+                alert('فشل إنشاء المنطقة');
+            });
+        }
+
+        function deleteGeofence(id) {
+            if (!confirm('هل تريد حذف هذه المنطقة؟')) return;
+            apiCall(`/api/admin/geofences/${id}`, { method: 'DELETE' })
+                .then(() => loadGeofences())
+                .catch(err => console.error('Error deleting geofence:', err));
+        }
+
+        function initGeofenceWebSocket() {
+            if (wsConnection) return;
+            const wsUrl = window.location.origin.replace('http', 'ws') + '/api/ws/track';
+            wsConnection = new WebSocket(wsUrl);
+
+            wsConnection.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'geofence_alert') {
+                        addGeofenceAlertToFeed(msg.data);
+                        // Also refresh the alerts tab
+                        if (allAlerts !== undefined) loadAlerts();
+                    }
+                } catch (e) {}
+            };
+
+            wsConnection.onclose = () => {
+                wsConnection = null;
+                // Reconnect after 5s
+                setTimeout(initGeofenceWebSocket, 5000);
+            };
+        }
+
+        function addGeofenceAlertToFeed(alert) {
+            const feed = document.getElementById('geofenceAlertsFeed');
+            if (!feed) return;
+
+            // Clear placeholder
+            if (feed.querySelector('[style*="text-align:center"]')) feed.innerHTML = '';
+
+            const time = new Date().toLocaleTimeString('ar-SY');
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:8px 10px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;';
+            div.innerHTML = `
+                <div>
+                    <span style="color:#f59e0b;font-weight:bold;">⚠ خروج من منطقة</span>
+                    <span style="margin-right:8px;color:var(--text-primary);">${alert.geofence_name || ''}</span>
+                </div>
+                <span style="color:var(--text-muted);font-size:11px;">${time}</span>
+            `;
+            feed.prepend(div);
+
+            // Keep only last 20
+            while (feed.children.length > 20) feed.removeChild(feed.lastChild);
         }
 
         // ==================== DRIVERS ====================
