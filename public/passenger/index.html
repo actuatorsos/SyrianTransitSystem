@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -40,7 +40,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 .top-bar .logo-row { display:flex; align-items:center; gap:10px; }
 .top-bar h1 { color:var(--white); font-size:20px; font-weight:700; }
 .top-bar .badge { background:var(--gold); color:var(--green-dark); padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; }
-.top-bar .live-dot { width:8px; height:8px; background:#10B981; border-radius:50%; margin-left:auto; animation:pulse 2s infinite; }
+.top-bar .live-dot { width:8px; height:8px; background:#10B981; border-radius:50%; margin-right:auto; animation:pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
 /* ─── Search Bar ─── */
@@ -89,7 +89,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 }
 .route-card:active { transform:scale(0.98); }
 .route-card::before {
-  content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+  content:''; position:absolute; right:0; top:0; bottom:0; width:4px;
   background:var(--green-mid);
 }
 
@@ -177,22 +177,22 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 <div class="loading-overlay" id="loading">
   <h2>DamascusTransit</h2>
   <div class="spinner"></div>
-  <p>Loading live fleet data...</p>
+  <p>جاري تحميل بيانات الأسطول...</p>
 </div>
 
 <!-- Connection status -->
-<div class="connection-bar" id="connectionBar">Reconnecting to live data...</div>
+<div class="connection-bar" id="connectionBar">جاري إعادة الاتصال بالبيانات المباشرة...</div>
 
 <!-- Top Bar -->
 <div class="top-bar">
   <div class="logo-row">
     <h1>DamascusTransit</h1>
-    <div class="badge">LIVE</div>
+    <div class="badge">مباشر</div>
     <div class="live-dot"></div>
   </div>
   <div class="search-bar" onclick="focusSearch()">
     <span class="search-icon">🔍</span>
-    <input type="text" id="searchInput" placeholder="Search routes or stops..." oninput="filterRoutes(this.value)">
+    <input type="text" id="searchInput" placeholder="Search routes… ابحث عن خطوط" oninput="filterRoutes(this.value)" dir="auto">
   </div>
 </div>
 
@@ -206,15 +206,15 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
   <!-- Routes list view -->
   <div id="routesView">
     <div class="sheet-header">
-      <h2>Nearby Routes</h2>
-      <span class="count" id="routeCount">8 routes</span>
+      <h2>الخطوط القريبة</h2>
+      <span class="count" id="routeCount">8 خطوط</span>
     </div>
     <div class="routes-scroll" id="routesList"></div>
   </div>
 
   <!-- Stop detail view -->
   <div class="stop-detail" id="stopDetail">
-    <button class="back-btn" onclick="showRoutes()">← Back to routes</button>
+    <button class="back-btn" onclick="showRoutes()">→ العودة إلى الخطوط</button>
     <div class="stop-name" id="stopName"></div>
     <div class="stop-address" id="stopAddress"></div>
     <div class="arrival-list" id="arrivalList"></div>
@@ -223,10 +223,10 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 
 <!-- Nav Bar -->
 <div class="nav-bar">
-  <button class="nav-item active" onclick="switchTab('map')"><span class="nav-icon">🗺️</span>Map</button>
-  <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span>Routes</button>
-  <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span>Stops</button>
-  <button class="nav-item" onclick="switchTab('alerts')"><span class="nav-icon">🔔</span>Alerts</button>
+  <button class="nav-item active" onclick="switchTab('map')"><span class="nav-icon">🗺️</span>الخريطة</button>
+  <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span>الخطوط</button>
+  <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span>المحطات</button>
+  <button class="nav-item" onclick="switchTab('alerts')"><span class="nav-icon">🔔</span>التنبيهات</button>
 </div>
 
 <script>
@@ -275,6 +275,52 @@ let map;
 let sheetExpanded = false;
 let eventSource = null;
 
+// ─── Arabic search normalization ───
+// Strips diacritics (tashkeel) and normalizes alef/hamza/teh-marbuta variants
+// so searching "مرجه" matches "مرجة", "اوتوستراد" matches "أوتوستراد", etc.
+function normalizeArabic(text) {
+  return text
+    // Remove tashkeel (harakat, shadda, etc.)
+    .replace(/[\u0610-\u061A\u064B-\u065F\u0670]/g, '')
+    // Normalize alef forms (أ إ آ ٱ) → ا
+    .replace(/[\u0622\u0623\u0625\u0671]/g, '\u0627')
+    // Normalize teh marbuta (ة) → ه
+    .replace(/\u0629/g, '\u0647')
+    // Normalize alef maqsura (ى) → ي
+    .replace(/\u0649/g, '\u064A')
+    .toLowerCase()
+    .trim();
+}
+
+function matchesSearch(route, query) {
+  if (!query) return true;
+  const q = normalizeArabic(query);
+  return (
+    normalizeArabic(route.name).includes(q) ||
+    normalizeArabic(route.nameAr).includes(q)
+  );
+}
+
+// ─── Haversine distance (km) between two lat/lon points ───
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ─── ETA calculation based on vehicle speed and distance to stop ───
+// Returns minutes. Falls back to a city-average estimate when speed is unavailable.
+function calcETA(vehicle, stopLat, stopLon) {
+  const distKm = haversine(vehicle.lat, vehicle.lon, stopLat, stopLon);
+  const speedKmh = vehicle.speed && vehicle.speed > 3 ? vehicle.speed : 25; // 25 km/h city average
+  const rawMin = (distKm / speedKmh) * 60;
+  return Math.max(1, Math.round(rawMin));
+}
+
 // ─── Map Init ───
 function initMap() {
   map = new maplibregl.Map({
@@ -285,14 +331,13 @@ function initMap() {
     attributionControl: false,
   });
 
-  map.addControl(new maplibregl.NavigationControl(), 'top-right');
+  map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
-  // Add user location
   map.addControl(new maplibregl.GeolocateControl({
     positionOptions: { enableHighAccuracy: true },
     trackUserLocation: true,
     showUserHeading: true,
-  }), 'top-right');
+  }), 'top-left');
 
   // Add stop markers
   STOPS.forEach(stop => {
@@ -301,10 +346,10 @@ function initMap() {
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([stop.lon, stop.lat])
       .setPopup(new maplibregl.Popup({ offset: 15, className: 'stop-popup' })
-        .setHTML(`<div style="font-family:'IBM Plex Sans Arabic';padding:4px;">
-          <strong>${stop.name}</strong><br>
-          <span style="color:#888;font-size:12px;">${stop.nameAr}</span><br>
-          <span style="font-size:12px;color:var(--green-mid);">Tap for arrivals →</span>
+        .setHTML(`<div style="font-family:'IBM Plex Sans Arabic';padding:4px;direction:rtl;">
+          <strong>${stop.nameAr}</strong><br>
+          <span style="color:#888;font-size:12px;">${stop.name}</span><br>
+          <span style="font-size:12px;color:var(--green-mid);">اضغط لعرض المواعيد ←</span>
         </div>`))
       .addTo(map);
 
@@ -364,6 +409,8 @@ function updateMarker(v) {
 
   if (markers[v.device_id]) {
     markers[v.device_id].setLngLat([v.lon, v.lat]);
+    // Refresh popup with latest speed/status
+    markers[v.device_id].getPopup().setHTML(markerPopupHTML(v, isReal));
     return;
   }
 
@@ -373,14 +420,7 @@ function updateMarker(v) {
   el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid ${isReal?'#DDD6FE':'#fff'};box-shadow:${isReal?'0 0 10px rgba(139,92,246,0.5),':''}0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:${isReal?14:11}px;cursor:pointer;`;
   el.textContent = isReal ? '📍' : (v.vehicle_type === 'bus' ? '🚌' : v.vehicle_type === 'microbus' ? '🚐' : '🚕');
 
-  const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
-    <div style="font-family:'IBM Plex Sans Arabic';padding:4px;">
-      <strong>${v.device_id}</strong>
-      ${isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;margin-left:4px;">REAL GPS</span>' : ''}
-      <br><span style="color:#888;font-size:12px;">${v.route_name || 'Unknown route'}</span>
-      <br><span style="font-size:12px;">${v.speed || 0} km/h · ${v.status}</span>
-    </div>
-  `);
+  const popup = new maplibregl.Popup({ offset: 15 }).setHTML(markerPopupHTML(v, isReal));
 
   markers[v.device_id] = new maplibregl.Marker({ element: el })
     .setLngLat([v.lon, v.lat])
@@ -388,7 +428,23 @@ function updateMarker(v) {
     .addTo(map);
 }
 
+function markerPopupHTML(v, isReal) {
+  return `
+    <div style="font-family:'IBM Plex Sans Arabic';padding:4px;">
+      <strong>${v.device_id}</strong>
+      ${isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;margin-right:4px;">GPS حقيقي</span>' : ''}
+      <br><span style="color:#888;font-size:12px;">${v.route_name || 'خط غير معروف'}</span>
+      <br><span style="font-size:12px;">${v.speed || 0} km/h · ${v.status}</span>
+    </div>
+  `;
+}
+
 // ─── Route Cards ───
+// ETA computed from real vehicle position + speed via Haversine.
+function getRouteRepresentativeStop(routeId) {
+  return STOPS.find(s => s.routes.includes(routeId));
+}
+
 function updateRouteCards() {
   const routeCounts = {};
   const routeETAs = {};
@@ -396,17 +452,23 @@ function updateRouteCards() {
   Object.values(vehicles).forEach(v => {
     const rname = v.route_name || '';
     ROUTES.forEach(r => {
-      if (rname.toLowerCase().includes(r.id.replace(/_/g,' ')) || rname.includes(r.name.split('→')[0].trim()) || rname.includes(r.nameAr)) {
+      const matched = rname.toLowerCase().includes(r.id.replace(/_/g,' ')) ||
+                      rname.includes(r.name.split('→')[0].trim()) ||
+                      rname.includes(r.nameAr);
+      if (matched) {
         routeCounts[r.id] = (routeCounts[r.id] || 0) + 1;
-        if (!routeETAs[r.id]) {
-          const eta = Math.floor(Math.random() * 12) + 1;
-          routeETAs[r.id] = { eta, vehicle: v };
+        const stop = getRouteRepresentativeStop(r.id);
+        if (stop) {
+          const eta = calcETA(v, stop.lat, stop.lon);
+          if (!routeETAs[r.id] || eta < routeETAs[r.id].eta) {
+            routeETAs[r.id] = { eta, vehicle: v };
+          }
         }
       }
     });
   });
 
-  // Assign unmatched vehicles to routes round-robin
+  // Assign unmatched vehicles round-robin with real ETA
   const unmatched = Object.values(vehicles).filter(v => {
     const rname = v.route_name || '';
     return !ROUTES.some(r => rname.toLowerCase().includes(r.id.replace(/_/g,' ')));
@@ -415,40 +477,40 @@ function updateRouteCards() {
     const r = ROUTES[i % ROUTES.length];
     routeCounts[r.id] = (routeCounts[r.id] || 0) + 1;
     if (!routeETAs[r.id]) {
-      routeETAs[r.id] = { eta: Math.floor(Math.random() * 15) + 2, vehicle: v };
+      const stop = getRouteRepresentativeStop(r.id);
+      const eta = stop ? calcETA(v, stop.lat, stop.lon) : 10;
+      routeETAs[r.id] = { eta, vehicle: v };
     }
   });
 
-  const searchVal = document.getElementById('searchInput').value.toLowerCase();
-  const filtered = ROUTES.filter(r =>
-    !searchVal || r.name.toLowerCase().includes(searchVal) || r.nameAr.includes(searchVal)
-  );
+  const searchVal = document.getElementById('searchInput').value;
+  const filtered = ROUTES.filter(r => matchesSearch(r, searchVal));
 
-  document.getElementById('routeCount').textContent = `${filtered.length} routes`;
+  document.getElementById('routeCount').textContent = `${filtered.length} خط`;
   document.getElementById('routesList').innerHTML = filtered.map(r => {
     const count = routeCounts[r.id] || 0;
     const etaInfo = routeETAs[r.id];
     const eta = etaInfo ? etaInfo.eta : '--';
     const isReal = etaInfo && etaInfo.vehicle && etaInfo.vehicle.source === 'traccar';
-    const etaClass = eta <= 2 ? 'arriving' : '';
+    const etaClass = typeof eta === 'number' && eta <= 2 ? 'arriving' : '';
 
     return `
     <div class="route-card" onclick="showRouteOnMap('${r.id}')">
-      <div class="route-name">${r.name}</div>
+      <div class="route-name">${r.nameAr}</div>
       <div class="route-meta">
-        <span>${r.nameAr}</span>
+        <span>${r.name}</span>
         <span>·</span>
-        <span>${r.stops} stops</span>
+        <span>${r.stops} محطة</span>
         <span>·</span>
-        <span>${count} vehicles active</span>
+        <span>${count} مركبة نشطة</span>
       </div>
       <div class="eta-row">
-        <div class="eta-badge ${etaClass}">${eta}<small>min</small></div>
+        <div class="eta-badge ${etaClass}">${eta}<small>د</small></div>
         <div class="eta-info">
-          <div class="vehicle-name">Next arrival${etaInfo ? ': ' + etaInfo.vehicle.device_id : ''}</div>
-          <div class="vehicle-detail">${r.distance} · ${count} on route</div>
+          <div class="vehicle-name">أقرب وصول${etaInfo ? ': ' + etaInfo.vehicle.device_id : ''}</div>
+          <div class="vehicle-detail">${r.distance} · ${etaInfo && etaInfo.vehicle ? etaInfo.vehicle.speed + ' km/h' : ''}</div>
         </div>
-        <span class="eta-source ${isReal ? 'real' : 'sim'}">${isReal ? 'GPS' : 'EST'}</span>
+        <span class="eta-source ${isReal ? 'real' : 'sim'}">${isReal ? 'GPS' : 'تقدير'}</span>
       </div>
     </div>`;
   }).join('');
@@ -458,33 +520,54 @@ function updateRouteCards() {
 function showStopDetail(stop) {
   document.getElementById('routesView').style.display = 'none';
   document.getElementById('stopDetail').classList.add('active');
-  document.getElementById('stopName').textContent = stop.name;
-  document.getElementById('stopAddress').textContent = stop.nameAr;
+  document.getElementById('stopName').textContent = stop.nameAr;
+  document.getElementById('stopAddress').textContent = stop.name;
 
-  // Generate arrivals
+  // Compute arrivals using real ETA from vehicle positions
   const arrivals = stop.routes.map(rid => {
     const route = ROUTES.find(r => r.id === rid);
     if (!route) return null;
-    const eta = Math.floor(Math.random() * 20) + 1;
-    const nearbyVehicles = Object.values(vehicles).filter(v =>
+
+    // Find nearest vehicle on this route
+    const routeVehicles = Object.values(vehicles).filter(v =>
       (v.route_name || '').toLowerCase().includes(rid.replace(/_/g,' '))
     );
-    const v = nearbyVehicles[0];
-    const isReal = v && v.source === 'traccar';
-    return { route, eta, vehicle: v, isReal };
-  }).filter(Boolean).sort((a,b) => a.eta - b.eta);
+
+    let bestVehicle = null;
+    let bestEta = Infinity;
+
+    routeVehicles.forEach(v => {
+      const eta = calcETA(v, stop.lat, stop.lon);
+      if (eta < bestEta) { bestEta = eta; bestVehicle = v; }
+    });
+
+    // Fallback: nearest vehicle overall
+    if (!bestVehicle) {
+      Object.values(vehicles).forEach(v => {
+        const eta = calcETA(v, stop.lat, stop.lon);
+        if (eta < bestEta) { bestEta = eta; bestVehicle = v; }
+      });
+    }
+
+    const eta = bestVehicle ? Math.min(bestEta, 60) : '--';
+    const isReal = bestVehicle && bestVehicle.source === 'traccar';
+    return { route, eta, vehicle: bestVehicle, isReal };
+  }).filter(Boolean).sort((a,b) => {
+    if (a.eta === '--') return 1;
+    if (b.eta === '--') return -1;
+    return a.eta - b.eta;
+  });
 
   document.getElementById('arrivalList').innerHTML = arrivals.map(a => `
     <div class="arrival-item">
-      <div class="arrival-eta">${a.eta}<small>min</small></div>
+      <div class="arrival-eta">${a.eta}<small>د</small></div>
       <div class="arrival-info">
-        <div class="name">${a.route.name} ${a.isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 5px;border-radius:6px;font-size:9px;">GPS</span>' : ''}</div>
-        <div class="detail">${a.vehicle ? a.vehicle.device_id + ' · ' + a.vehicle.speed + ' km/h' : 'Estimated'}</div>
+        <div class="name">${a.route.nameAr} ${a.isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 5px;border-radius:6px;font-size:9px;">GPS</span>' : ''}</div>
+        <div class="detail">${a.vehicle ? a.vehicle.device_id + ' · ' + a.vehicle.speed + ' km/h' : 'تقدير'}</div>
       </div>
     </div>
   `).join('');
 
-  // Expand sheet and fly to stop
   expandSheet();
   map.flyTo({ center: [stop.lon, stop.lat], zoom: 15 });
 }
@@ -516,7 +599,6 @@ document.getElementById('sheetHandle').addEventListener('click', () => {
   sheetExpanded ? collapseSheet() : expandSheet();
 });
 
-// Touch gesture for sheet
 let touchStartY = 0;
 document.getElementById('bottomSheet').addEventListener('touchstart', e => {
   touchStartY = e.touches[0].clientY;
@@ -538,6 +620,15 @@ function switchTab(tab) {
   });
   if (tab === 'routes' || tab === 'stops') expandSheet();
   else collapseSheet();
+}
+
+// ─── Service Worker Registration ───
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/passenger/service-worker.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW registration failed:', err));
+  });
 }
 
 // ─── Init ───
