@@ -137,7 +137,8 @@ jobs:
 
       - name: Smoke test — /api/stream returns SSE headers
         run: |
-          headers=$(curl -sI --max-time 5 http://localhost:8000/api/stream || true)
+          # Use GET (not HEAD) with -D to dump headers; SSE does not allow HEAD
+          headers=$(curl -s --max-time 5 -D - -o /dev/null http://localhost:8000/api/stream || true)
           echo "Stream headers: $headers"
           if echo "$headers" | grep -qi "text/event-stream"; then
             echo "PASS: /api/stream has SSE content-type header"
