@@ -2954,6 +2954,8 @@ async def _service_get(path: str) -> list:
             _supabase_url(path), headers=_supabase_headers(use_service_key=True)
         )
         resp.raise_for_status()
+        if not resp.content:
+            return []
         data = resp.json()
         return data if isinstance(data, list) else [data] if data else []
 
@@ -2967,7 +2969,7 @@ async def _service_rpc(func_name: str, params: dict) -> any:
             json=params,
         )
         resp.raise_for_status()
-        return resp.json()
+        return resp.json() if resp.content else None
 
 
 async def _run_simulation() -> dict:
