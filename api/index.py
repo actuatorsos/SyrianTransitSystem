@@ -12,6 +12,7 @@ import time
 import asyncio
 import hashlib
 import hmac
+import urllib.parse
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
@@ -19,6 +20,7 @@ from typing import Optional, List, Literal
 
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials as HTTPAuthCredentials
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -37,6 +39,19 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS: restrict to configured allowed origins; never allow wildcard in production
+_cors_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+_allowed_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+if not _allowed_origins:
+    raise RuntimeError("ALLOWED_ORIGINS env var must be set to a comma-separated list of allowed origins")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 # ============================================================================
 # JWT Authentication (using PyJWT)
@@ -51,11 +66,17 @@ security = HTTPBearer()
 UserRole = Literal["admin", "dispatcher", "driver", "viewer"]
 
 
+_PLACEHOLDER_JWT_SECRETS = {"change-me-to-a-random-64-char-string", "secret", ""}
+
+
 def _get_jwt_secret() -> str:
-    """Get JWT secret from environment (lazy initialization for Vercel)."""
-    secret = os.getenv("JWT_SECRET")
-    if not secret:
-        raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
+    """Get JWT secret from environment, enforcing minimum entropy."""
+    secret = os.getenv("JWT_SECRET", "")
+    if not secret or secret in _PLACEHOLDER_JWT_SECRETS or len(secret) < 32:
+        raise HTTPException(
+            status_code=500,
+            detail="JWT_SECRET is not configured or is too weak (minimum 32 characters required)",
+        )
     return secret
 
 
@@ -227,9 +248,22 @@ def optional_auth(
 # ============================================================================
 
 
-def _supabase_headers() -> dict:
-    """Get headers for Supabase REST API requests."""
-    key = os.getenv("SUPABASE_SERVICE_KEY", os.getenv("SUPABASE_KEY", ""))
+def _supabase_headers(use_service_key: bool = False) -> dict:
+    """Get headers for Supabase REST API requests.
+
+    Args:
+        use_service_key: Use the service-role key (bypasses RLS). Only pass True
+                         for privileged server-side operations. Public/user-scoped
+                         reads must use the anon key so RLS policies are enforced.
+    """
+    if use_service_key:
+        key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        if not key:
+            raise HTTPException(status_code=500, detail="SUPABASE_SERVICE_KEY not configured")
+    else:
+        key = os.getenv("SUPABASE_ANON_KEY", os.getenv("SUPABASE_KEY", ""))
+        if not key:
+            raise HTTPException(status_code=500, detail="SUPABASE_ANON_KEY not configured")
     return {
         "apikey": key,
         "Authorization": f"Bearer {key}",
@@ -326,6 +360,14 @@ async def _health_check() -> bool:
 # ============================================================================
 
 TRACCAR_WEBHOOK_SECRET = os.getenv("TRACCAR_WEBHOOK_SECRET", "")
+if not TRACCAR_WEBHOOK_SECRET:
+    import warnings
+    warnings.warn(
+        "TRACCAR_WEBHOOK_SECRET is not set — Traccar webhook endpoints will reject all requests "
+        "until this is configured.",
+        RuntimeWarning,
+        stacklevel=1,
+    )
 
 # ============================================================================
 # Pydantic Models
@@ -626,7 +668,7 @@ async def login(request: LoginRequest):
     """
     try:
         users = await _supabase_get(
-            f"users?email=eq.{request.email}&select=id,email,password_hash,role"
+            f"users?email=eq.{urllib.parse.quote(request.email, safe='')}&select=id,email,password_hash,role"
         )
 
         if not users:
@@ -1340,7 +1382,7 @@ async def create_user(
     """
     try:
         # Check if email exists
-        existing = await _supabase_get(f"users?email=eq.{user_data.email}&select=id")
+        existing = await _supabase_get(f"users?email=eq.{urllib.parse.quote(user_data.email, safe='')}&select=id")
 
         if existing:
             raise HTTPException(
@@ -1884,12 +1926,11 @@ async def traccar_position_webhook(
     Returns:
         Success confirmation
     """
-    # Verify signature if configured
-    if TRACCAR_WEBHOOK_SECRET and x_traccar_signature:
-        if not verify_traccar_signature(position.json(), x_traccar_signature):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
-            )
+    # Verify signature — fail-closed: if secret is not set, endpoint is disabled
+    if not TRACCAR_WEBHOOK_SECRET:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Webhook endpoint not configured")
+    if not x_traccar_signature or not verify_traccar_signature(position.json(), x_traccar_signature):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing signature")
 
     try:
         # Find vehicle by Traccar device ID
@@ -1942,12 +1983,11 @@ async def traccar_event_webhook(
     Returns:
         Success confirmation
     """
-    # Verify signature if configured
-    if TRACCAR_WEBHOOK_SECRET and x_traccar_signature:
-        if not verify_traccar_signature(event.json(), x_traccar_signature):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
-            )
+    # Verify signature — fail-closed: if secret is not set, endpoint is disabled
+    if not TRACCAR_WEBHOOK_SECRET:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Webhook endpoint not configured")
+    if not x_traccar_signature or not verify_traccar_signature(event.json(), x_traccar_signature):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing signature")
 
     try:
         # Find vehicle by Traccar device ID

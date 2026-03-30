@@ -3,10 +3,12 @@
 -- 8 routes, 42 stops, 24 vehicles, 1 admin user
 -- ============================================================
 
--- Default admin user (password: damascus2025 — CHANGE IN PRODUCTION)
+-- Seed users: generate a bcrypt hash before running this seed:
+--   python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR_STRONG_PASSWORD', bcrypt.gensalt()).decode())"
+-- Replace CHANGE_ME_HASH with the generated hash. Never commit real passwords or hashes of known passwords.
 INSERT INTO users (email, password_hash, full_name, full_name_ar, role, phone) VALUES
-('admin@damascustransit.sy', '$2b$12$LJ3m4ys4Rz0T6Q2wKz1xXOjEwVfXu0G9p3vN8dR5yM7bC4nA6K2Wy', 'System Admin', 'مدير النظام', 'admin', '+963911000001'),
-('dispatcher@damascustransit.sy', '$2b$12$LJ3m4ys4Rz0T6Q2wKz1xXOjEwVfXu0G9p3vN8dR5yM7bC4nA6K2Wy', 'Operations Center', 'مركز العمليات', 'dispatcher', '+963911000002');
+('admin@damascustransit.sy', 'CHANGE_ME_HASH', 'System Admin', 'مدير النظام', 'admin', '+963000000001'),
+('dispatcher@damascustransit.sy', 'CHANGE_ME_HASH', 'Operations Center', 'مركز العمليات', 'dispatcher', '+963000000002');
 
 -- ============================================================
 -- STOPS (42 real Damascus locations)
