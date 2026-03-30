@@ -128,6 +128,21 @@ def driver_token():
     )
 
 
+@pytest.fixture(scope="module")
+def driver_token_with_vehicle():
+    """Driver JWT with vehicle_id pre-cached (post-optimisation token shape)."""
+    from api.index import create_access_token
+
+    return create_access_token(
+        user_id="driver-001",
+        email="driver@transit.sy",
+        role="driver",
+        expires_delta=timedelta(hours=1),
+        vehicle_id="v-cached-001",
+        vehicle_route_id="route-001",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Auth unit tests (no HTTP, no mocking needed)
 # ---------------------------------------------------------------------------
@@ -486,6 +501,48 @@ class TestDriverWithAuth:
             )
         assert r.status_code == 200
         assert r.json()["status"] == "success"
+
+    def test_driver_position_fast_path_uses_jwt_vehicle(
+        self, client, driver_token_with_vehicle
+    ):
+        """JWT with vehicle_id: no DB lookup, only the RPC call is made."""
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._supabase_rpc", new_callable=AsyncMock) as mock_rpc,
+        ):
+            mock_rpc.return_value = {}
+            r = client.post(
+                "/api/driver/position",
+                json={"latitude": 33.5, "longitude": 36.3},
+                headers={"Authorization": f"Bearer {driver_token_with_vehicle}"},
+            )
+        assert r.status_code == 200
+        assert r.json()["status"] == "success"
+        mock_get.assert_not_called()
+        assert mock_rpc.call_args[0][1]["p_vehicle_id"] == "v-cached-001"
+        assert mock_rpc.call_args[0][1]["p_route_id"] == "route-001"
+
+    def test_driver_position_stale_jwt_vehicle_returns_401(
+        self, client, driver_token_with_vehicle
+    ):
+        """FK violation on stale JWT vehicle_id triggers 401 forcing re-login."""
+        from fastapi import HTTPException as FastAPIHTTPException
+
+        fk_error = FastAPIHTTPException(
+            status_code=500,
+            detail="RPC call failed: 23503 foreign key constraint violation",
+        )
+        with (
+            patch("api.index._supabase_rpc", new_callable=AsyncMock) as mock_rpc,
+        ):
+            mock_rpc.side_effect = fk_error
+            r = client.post(
+                "/api/driver/position",
+                json={"latitude": 33.5, "longitude": 36.3},
+                headers={"Authorization": f"Bearer {driver_token_with_vehicle}"},
+            )
+        assert r.status_code == 401
+        assert "log in again" in r.json()["detail"].lower()
 
     def test_driver_position_no_vehicle(self, client, driver_token):
         with (
