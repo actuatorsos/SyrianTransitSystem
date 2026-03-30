@@ -8,6 +8,7 @@ All auth and database code inlined for Vercel Python serverless compatibility.
 """
 
 import os
+import json
 import time
 import asyncio
 import hashlib
@@ -28,6 +29,72 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ============================================================================
+# Redis Cache (Upstash — serverless-compatible, graceful degradation)
+# ============================================================================
+
+# Cache TTLs (seconds)
+CACHE_TTL_VEHICLES = 5       # vehicle positions — refreshed every 2s by drivers
+CACHE_TTL_ROUTES_STOPS = 300  # routes & stops — static reference data
+CACHE_TTL_STATS = 30          # fleet stats — lightweight aggregate
+
+# Cache keys
+CACHE_KEY_VEHICLES_LIST = "transit:vehicles:list"
+CACHE_KEY_VEHICLES_POSITIONS = "transit:vehicles:positions"
+CACHE_KEY_ROUTES_LIST = "transit:routes:list"
+CACHE_KEY_STATS = "transit:stats"
+CACHE_KEY_STOPS_LIST = "transit:stops:list"
+
+
+def _get_redis_client():
+    """Return an Upstash Redis async client, or None if not configured."""
+    url = os.getenv("UPSTASH_REDIS_REST_URL", "")
+    token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
+    if not url or not token:
+        return None
+    try:
+        from upstash_redis.asyncio import Redis
+        return Redis(url=url, token=token)
+    except Exception:
+        return None
+
+
+async def _cache_get(key: str):
+    """Retrieve a JSON-encoded value from Redis. Returns None on miss or error."""
+    client = _get_redis_client()
+    if client is None:
+        return None
+    try:
+        raw = await client.get(key)
+        if raw is None:
+            return None
+        return json.loads(raw)
+    except Exception:
+        return None
+
+
+async def _cache_set(key: str, value, ttl: int) -> None:
+    """Store a JSON-encoded value in Redis with TTL (seconds). Silently fails if unavailable."""
+    client = _get_redis_client()
+    if client is None:
+        return
+    try:
+        await client.set(key, json.dumps(value, default=str), ex=ttl)
+    except Exception:
+        pass
+
+
+async def _cache_delete(*keys: str) -> None:
+    """Invalidate one or more Redis cache keys. Silently fails if unavailable."""
+    client = _get_redis_client()
+    if client is None:
+        return
+    try:
+        await client.delete(*keys)
+    except Exception:
+        pass
+
 
 # ============================================================================
 # FastAPI App Initialization
@@ -89,6 +156,8 @@ class TokenPayload(BaseModel):
     email: str
     role: UserRole
     exp: datetime
+    vehicle_id: Optional[str] = None
+    vehicle_route_id: Optional[str] = None
 
 
 class CurrentUser(BaseModel):
@@ -97,6 +166,8 @@ class CurrentUser(BaseModel):
     user_id: str
     email: str
     role: UserRole
+    vehicle_id: Optional[str] = None
+    vehicle_route_id: Optional[str] = None
 
 
 def hash_password(password: str) -> str:
@@ -114,7 +185,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(
-    user_id: str, email: str, role: UserRole, expires_delta: Optional[timedelta] = None
+    user_id: str,
+    email: str,
+    role: UserRole,
+    expires_delta: Optional[timedelta] = None,
+    vehicle_id: Optional[str] = None,
+    vehicle_route_id: Optional[str] = None,
 ) -> str:
     """
     Create a JWT access token.
@@ -124,6 +200,8 @@ def create_access_token(
         email: User email address
         role: User role (admin, dispatcher, driver, viewer)
         expires_delta: Custom expiration time (default: 24 hours)
+        vehicle_id: Assigned vehicle UUID (drivers only, cached to avoid DB lookup)
+        vehicle_route_id: Assigned route UUID (drivers only, cached to avoid DB lookup)
 
     Returns:
         Encoded JWT token string
@@ -132,7 +210,12 @@ def create_access_token(
         expires_delta = timedelta(hours=JWT_EXPIRATION_HOURS)
 
     expire = datetime.utcnow() + expires_delta
-    to_encode = {"user_id": user_id, "email": email, "role": role, "exp": expire}
+    to_encode: dict = {"user_id": user_id, "email": email, "role": role, "exp": expire}
+
+    if vehicle_id is not None:
+        to_encode["vehicle_id"] = vehicle_id
+    if vehicle_route_id is not None:
+        to_encode["vehicle_route_id"] = vehicle_route_id
 
     encoded_jwt = jwt.encode(to_encode, _get_jwt_secret(), algorithm=JWT_ALGORITHM)
     return encoded_jwt
@@ -163,7 +246,12 @@ def verify_token(token: str) -> TokenPayload:
             )
 
         return TokenPayload(
-            user_id=user_id, email=email, role=role, exp=payload.get("exp")
+            user_id=user_id,
+            email=email,
+            role=role,
+            exp=payload.get("exp"),
+            vehicle_id=payload.get("vehicle_id"),
+            vehicle_route_id=payload.get("vehicle_route_id"),
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -196,6 +284,8 @@ async def get_current_user(
         user_id=token_payload.user_id,
         email=token_payload.email,
         role=token_payload.role,
+        vehicle_id=token_payload.vehicle_id,
+        vehicle_route_id=token_payload.vehicle_route_id,
     )
 
 
@@ -242,6 +332,8 @@ def optional_auth(
         user_id=token_payload.user_id,
         email=token_payload.email,
         role=token_payload.role,
+        vehicle_id=token_payload.vehicle_id,
+        vehicle_route_id=token_payload.vehicle_route_id,
     )
 
 
@@ -691,9 +783,25 @@ async def login(request: LoginRequest):
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
             )
 
+        # For drivers, cache vehicle assignment in the token to avoid a DB
+        # lookup on every position update (eliminates the SELECT per POST /api/driver/position)
+        vehicle_id = None
+        vehicle_route_id = None
+        if user["role"] == "driver":
+            driver_vehicles = await _supabase_get(
+                f"vehicles?assigned_driver_id=eq.{user['id']}&select=id,assigned_route_id"
+            )
+            if driver_vehicles:
+                vehicle_id = driver_vehicles[0]["id"]
+                vehicle_route_id = driver_vehicles[0].get("assigned_route_id")
+
         # Generate token
         token = create_access_token(
-            user_id=user["id"], email=user["email"], role=user["role"]
+            user_id=user["id"],
+            email=user["email"],
+            role=user["role"],
+            vehicle_id=vehicle_id,
+            vehicle_route_id=vehicle_route_id,
         )
 
         return TokenResponse(access_token=token, user_id=user["id"], role=user["role"])
@@ -715,6 +823,10 @@ async def list_routes():
         List of active routes
     """
     try:
+        cached = await _cache_get(CACHE_KEY_ROUTES_LIST)
+        if cached is not None:
+            return cached
+
         routes = await _supabase_get("routes?is_active=eq.true&select=*")
 
         # Get stop counts for each route
@@ -740,6 +852,11 @@ async def list_routes():
                 )
             )
 
+        await _cache_set(
+            CACHE_KEY_ROUTES_LIST,
+            [r.model_dump() for r in enriched_routes],
+            CACHE_TTL_ROUTES_STOPS,
+        )
         return enriched_routes
 
     except Exception as e:
@@ -763,6 +880,11 @@ async def get_route(route_id: str):
         HTTPException: Route not found
     """
     try:
+        cache_key = f"transit:routes:{route_id}"
+        cached = await _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         routes = await _supabase_get(f"routes?id=eq.{route_id}&select=*")
 
         if not routes:
@@ -776,7 +898,7 @@ async def get_route(route_id: str):
         stops = await _supabase_get(f"route_stops?route_id=eq.{route_id}&select=id")
         stop_count = len(stops)
 
-        return RouteResponse(
+        result = RouteResponse(
             id=route["id"],
             route_id=route["route_id"],
             name=route["name"],
@@ -788,6 +910,9 @@ async def get_route(route_id: str):
             fare_syp=route.get("fare_syp"),
             stop_count=stop_count,
         )
+
+        await _cache_set(cache_key, result.model_dump(), CACHE_TTL_ROUTES_STOPS)
+        return result
 
     except HTTPException:
         raise
@@ -806,9 +931,13 @@ async def list_stops():
         List of active stops
     """
     try:
+        cached = await _cache_get(CACHE_KEY_STOPS_LIST)
+        if cached is not None:
+            return cached
+
         stops = await _supabase_get("stops?is_active=eq.true&select=*")
 
-        return [
+        result = [
             StopResponse(
                 id=stop["id"],
                 stop_id=stop["stop_id"],
@@ -821,6 +950,13 @@ async def list_stops():
             )
             for stop in stops
         ]
+
+        await _cache_set(
+            CACHE_KEY_STOPS_LIST,
+            [r.model_dump() for r in result],
+            CACHE_TTL_ROUTES_STOPS,
+        )
+        return result
 
     except Exception as e:
         raise HTTPException(
@@ -885,6 +1021,10 @@ async def list_vehicles():
         List of active vehicles with real-time position data
     """
     try:
+        cached = await _cache_get(CACHE_KEY_VEHICLES_LIST)
+        if cached is not None:
+            return cached
+
         # Get vehicles with latest positions (join with vehicle_positions_latest)
         positions = await _supabase_get(
             "vehicle_positions_latest?select=*,vehicles(id,vehicle_id,name,name_ar,vehicle_type,capacity,status,assigned_route_id)"
@@ -892,7 +1032,7 @@ async def list_vehicles():
 
         vehicles_data = positions or []
 
-        return [
+        result = [
             VehicleResponse(
                 id=v["vehicles"]["id"],
                 vehicle_id=v["vehicles"]["vehicle_id"],
@@ -912,6 +1052,13 @@ async def list_vehicles():
             if v.get("vehicles")
         ]
 
+        await _cache_set(
+            CACHE_KEY_VEHICLES_LIST,
+            [r.model_dump() for r in result],
+            CACHE_TTL_VEHICLES,
+        )
+        return result
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
@@ -927,11 +1074,17 @@ async def get_vehicle_positions():
         Vehicle ID, location, and basic tracking data
     """
     try:
+        cached = await _cache_get(CACHE_KEY_VEHICLES_POSITIONS)
+        if cached is not None:
+            return cached
+
         result = await _supabase_get(
             "vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at"
         )
 
-        return result or []
+        result = result or []
+        await _cache_set(CACHE_KEY_VEHICLES_POSITIONS, result, CACHE_TTL_VEHICLES)
+        return result
 
     except Exception as e:
         raise HTTPException(
@@ -996,6 +1149,10 @@ async def get_fleet_stats():
         Fleet overview stats
     """
     try:
+        cached = await _cache_get(CACHE_KEY_STATS)
+        if cached is not None:
+            return cached
+
         # Vehicle counts
         vehicles = await _supabase_get("vehicles?is_active=eq.true&select=id,status")
 
@@ -1034,7 +1191,7 @@ async def get_fleet_stats():
             sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
         )
 
-        return {
+        result = {
             "total_vehicles": len(vehicles),
             "active_vehicles": active_count,
             "idle_vehicles": idle_count,
@@ -1046,6 +1203,9 @@ async def get_fleet_stats():
             "avg_occupancy_pct": round(avg_occupancy, 1) if avg_occupancy else None,
             "timestamp": datetime.utcnow().isoformat(),
         }
+
+        await _cache_set(CACHE_KEY_STATS, result, CACHE_TTL_STATS)
+        return result
 
     except Exception as e:
         raise HTTPException(
@@ -1140,32 +1300,42 @@ async def report_driver_position(
         Success confirmation
     """
     try:
-        # Get driver's assigned vehicle
-        vehicles = await _supabase_get(
-            f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id,vehicle_id"
-        )
-
-        if not vehicles:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned"
+        # Prefer the vehicle_id cached in the JWT token (set at login time) to avoid
+        # an extra DB SELECT on every position update.  Fall back to a live query only
+        # when the token pre-dates this optimisation (vehicle_id absent).
+        if current_user.vehicle_id:
+            db_vehicle_id = current_user.vehicle_id
+            route_id = current_user.vehicle_route_id
+        else:
+            vehicles = await _supabase_get(
+                f"vehicles?assigned_driver_id=eq.{current_user.user_id}&select=id,assigned_route_id"
             )
 
-        vehicle = vehicles[0]
+            if not vehicles:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="No vehicle assigned"
+                )
+
+            db_vehicle_id = vehicles[0]["id"]
+            route_id = vehicles[0].get("assigned_route_id")
 
         # Call RPC to upsert position
         await _supabase_rpc(
             "upsert_vehicle_position",
             {
-                "p_vehicle_id": vehicle["id"],
+                "p_vehicle_id": db_vehicle_id,
                 "p_lat": position.latitude,
                 "p_lon": position.longitude,
                 "p_speed": position.speed_kmh or 0,
                 "p_heading": position.heading or 0,
                 "p_source": "driver_app",
-                "p_route_id": None,
+                "p_route_id": route_id,
                 "p_occupancy": None,
             },
         )
+
+        # Invalidate vehicle position caches so the next read reflects the new position
+        await _cache_delete(CACHE_KEY_VEHICLES_LIST, CACHE_KEY_VEHICLES_POSITIONS)
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
