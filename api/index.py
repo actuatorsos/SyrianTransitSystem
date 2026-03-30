@@ -2947,10 +2947,33 @@ def _interpolate_position(
 CRON_SECRET = os.getenv("CRON_SECRET", "")
 
 
+async def _service_get(path: str) -> list:
+    """Supabase GET with service key (bypasses RLS)."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(
+            _supabase_url(path), headers=_supabase_headers(use_service_key=True)
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data if isinstance(data, list) else [data] if data else []
+
+
+async def _service_rpc(func_name: str, params: dict) -> any:
+    """Supabase RPC with service key (bypasses RLS)."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.post(
+            f"{os.getenv('SUPABASE_URL')}/rest/v1/rpc/{func_name}",
+            headers=_supabase_headers(use_service_key=True),
+            json=params,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def _run_simulation() -> dict:
     """Core simulation logic — generates positions for all active vehicles."""
-    # Fetch active vehicles with assigned routes
-    vehicles = await _supabase_get(
+    # Use service key to bypass RLS (this is a privileged server-side operation)
+    vehicles = await _service_get(
         "vehicles?status=eq.active&assigned_route_id=not.is.null"
         "&select=id,vehicle_id,assigned_route_id,vehicle_type"
     )
@@ -2964,7 +2987,7 @@ async def _run_simulation() -> dict:
     # Fetch route stops with coordinates for each route
     route_stops_map: dict[str, list[dict]] = {}
     for rid in route_ids:
-        rows = await _supabase_get(
+        rows = await _service_get(
             f"route_stops?route_id=eq.{rid}"
             f"&select=stop_sequence,stops(stop_id,location)"
             f"&order=stop_sequence.asc"
@@ -3015,7 +3038,7 @@ async def _run_simulation() -> dict:
         speed = round(base_speed + random.uniform(-5, 5), 1)
         occupancy = random.randint(15, 85)
 
-        await _supabase_rpc(
+        await _service_rpc(
             "upsert_vehicle_position",
             {
                 "p_vehicle_id": vehicle["id"],
