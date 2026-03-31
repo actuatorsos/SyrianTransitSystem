@@ -94,12 +94,33 @@ async def get_vehicle_positions(
         if cached is not None:
             return cached
 
-        query = "vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at"
+        query = (
+            "vehicle_positions_latest"
+            "?select=vehicle_id,latitude,longitude,speed_kmh,heading,source,"
+            "occupancy_pct,recorded_at,vehicles(vehicle_id,vehicle_type,name,name_ar,assigned_route_id)"
+        )
         if op_id:
             query += f"&{_op_filter(op_id)}"
-        result = await _supabase_get(query)
+        raw = await _supabase_get(query)
 
-        result = result or []
+        result = []
+        for pos in (raw or []):
+            vehicle = pos.get("vehicles") or {}
+            result.append({
+                "vehicle_id": vehicle.get("vehicle_id") or pos.get("vehicle_id"),
+                "vehicle_type": vehicle.get("vehicle_type", "bus"),
+                "vehicle_name": vehicle.get("name", ""),
+                "vehicle_name_ar": vehicle.get("name_ar", ""),
+                "route_name": vehicle.get("assigned_route_id"),
+                "lat": pos.get("latitude"),
+                "lon": pos.get("longitude"),
+                "heading": pos.get("heading", 0),
+                "source": pos.get("source", "simulator"),
+                "speed_kmh": pos.get("speed_kmh"),
+                "occupancy_pct": pos.get("occupancy_pct"),
+                "recorded_at": pos.get("recorded_at"),
+            })
+
         await _cache_set(cache_key, result, CACHE_TTL_VEHICLES)
         return result
 

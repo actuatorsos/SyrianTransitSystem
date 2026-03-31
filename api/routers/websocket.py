@@ -64,19 +64,27 @@ ws_manager = ConnectionManager()
 async def _fetch_ws_positions() -> list:
     """Fetch latest vehicle positions for WebSocket broadcast."""
     try:
-        query = "vehicle_positions_latest?select=vehicle_id,latitude,longitude,speed_kmh,occupancy_pct,recorded_at,vehicles(name,name_ar,assigned_route_id)"
+        query = (
+            "vehicle_positions_latest"
+            "?select=vehicle_id,latitude,longitude,speed_kmh,heading,source,"
+            "occupancy_pct,recorded_at,vehicles(vehicle_id,vehicle_type,name,name_ar,assigned_route_id)"
+        )
         positions = await _supabase_get(query)
         result = []
         for pos in positions or []:
             vehicle = pos.get("vehicles") or {}
             result.append(
                 {
-                    "vehicle_id": pos.get("vehicle_id"),
+                    "vehicle_id": vehicle.get("vehicle_id") or pos.get("vehicle_id"),
+                    "vehicle_type": vehicle.get("vehicle_type", "bus"),
                     "route_id": vehicle.get("assigned_route_id"),
+                    "route_name": vehicle.get("assigned_route_id"),
                     "vehicle_name": vehicle.get("name", ""),
                     "vehicle_name_ar": vehicle.get("name_ar", ""),
-                    "latitude": pos.get("latitude"),
-                    "longitude": pos.get("longitude"),
+                    "lat": pos.get("latitude"),
+                    "lon": pos.get("longitude"),
+                    "heading": pos.get("heading", 0),
+                    "source": pos.get("source", "simulator"),
                     "speed_kmh": pos.get("speed_kmh"),
                     "occupancy_pct": pos.get("occupancy_pct"),
                     "timestamp": pos.get("recorded_at", datetime.utcnow().isoformat()),
