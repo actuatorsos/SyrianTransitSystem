@@ -5,7 +5,7 @@ import httpx
 from fastapi import HTTPException
 
 
-def _supabase_headers(use_service_key: bool = False) -> dict:
+def _supabase_headers(use_service_key: bool = True) -> dict:
     if use_service_key:
         key = os.getenv("SUPABASE_SERVICE_KEY", "")
         if not key:
