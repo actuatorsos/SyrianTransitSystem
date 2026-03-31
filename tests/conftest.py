@@ -2,7 +2,13 @@
 
 import os
 import pytest
-from fastapi.testclient import TestClient
+
+try:
+    from fastapi.testclient import TestClient
+
+    _HAS_FASTAPI = True
+except ImportError:
+    _HAS_FASTAPI = False
 
 # Set env vars before importing the app
 os.environ.setdefault("SUPABASE_URL", "http://mock-supabase.local")
@@ -16,6 +22,8 @@ os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000")
 @pytest.fixture(scope="session")
 def client():
     """TestClient for the FastAPI app."""
+    if not _HAS_FASTAPI:
+        pytest.skip("fastapi not installed — skipping unit-test client fixture")
     from api.index import app
 
     with TestClient(app, raise_server_exceptions=False) as c:
