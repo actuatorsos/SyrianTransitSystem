@@ -82,7 +82,9 @@ def restore_table(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Restore Supabase tables from JSON backup")
+    parser = argparse.ArgumentParser(
+        description="Restore Supabase tables from JSON backup"
+    )
     parser.add_argument("--backup-dir", required=True, help="Backup directory path")
     parser.add_argument(
         "--tables",
@@ -133,7 +135,9 @@ def main() -> None:
                 count = restore_table(client, table, backup_dir, args.dry_run)
                 total_rows += count
             except httpx.HTTPStatusError as exc:
-                errors.append(f"{table}: HTTP {exc.response.status_code} — {exc.response.text[:200]}")
+                errors.append(
+                    f"{table}: HTTP {exc.response.status_code} — {exc.response.text[:200]}"
+                )
                 print(f"  {table}: ERROR — {exc}", file=sys.stderr)
 
     print(f"\nTotal rows {'to restore' if args.dry_run else 'restored'}: {total_rows}")

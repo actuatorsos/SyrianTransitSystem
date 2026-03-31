@@ -60,7 +60,9 @@ def main():
     parser = argparse.ArgumentParser(description="Damascus Transit GPS Simulator")
     parser.add_argument(
         "--base-url",
-        default=os.getenv("TRANSIT_API_URL", "https://syrian-transit-system.vercel.app"),
+        default=os.getenv(
+            "TRANSIT_API_URL", "https://syrian-transit-system.vercel.app"
+        ),
         help="Transit API base URL",
     )
     parser.add_argument(
@@ -68,13 +70,20 @@ def main():
         default=os.getenv("TRANSIT_ADMIN_EMAIL", "admin@damascustransit.sy"),
         help="Admin email",
     )
-    parser.add_argument("--password", default=os.getenv("TRANSIT_ADMIN_PASS"), help="Admin password")
-    parser.add_argument("--interval", type=int, default=10, help="Seconds between updates")
+    parser.add_argument(
+        "--password", default=os.getenv("TRANSIT_ADMIN_PASS"), help="Admin password"
+    )
+    parser.add_argument(
+        "--interval", type=int, default=10, help="Seconds between updates"
+    )
     parser.add_argument("--once", action="store_true", help="Run once and exit")
     args = parser.parse_args()
 
     if not args.password:
-        print("Password required. Set TRANSIT_ADMIN_PASS or use --password.", file=sys.stderr)
+        print(
+            "Password required. Set TRANSIT_ADMIN_PASS or use --password.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     with httpx.Client(timeout=30.0) as client:
@@ -84,7 +93,9 @@ def main():
             result = simulate(client, args.base_url, token)
             print(f"Updated {result.get('updated', 0)} vehicles")
             for v in result.get("vehicles", []):
-                print(f"  {v['vehicle_id']}: ({v['lat']}, {v['lon']}) {v['speed_kmh']} km/h")
+                print(
+                    f"  {v['vehicle_id']}: ({v['lat']}, {v['lon']}) {v['speed_kmh']} km/h"
+                )
             return
 
         print(f"Simulating every {args.interval}s — Ctrl+C to stop")

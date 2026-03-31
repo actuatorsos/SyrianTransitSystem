@@ -17,6 +17,7 @@ os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000")
 def client():
     """TestClient for the FastAPI app."""
     from api.index import app
+
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
 

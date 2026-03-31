@@ -31,16 +31,16 @@ JWT_ALGORITHM = "HS256"
 security = HTTPBearer(auto_error=False)
 
 # Simulated per-request latencies (seconds) to approximate Supabase REST
-DB_WRITE_LATENCY_MEAN = 0.035   # 35 ms mean
-DB_WRITE_LATENCY_STD  = 0.015   # ±15 ms std
-DB_READ_LATENCY_MEAN  = 0.025
-DB_READ_LATENCY_STD   = 0.010
-HEAVY_READ_MEAN       = 0.060   # Analytics/aggregation queries
-HEAVY_READ_STD        = 0.020
+DB_WRITE_LATENCY_MEAN = 0.035  # 35 ms mean
+DB_WRITE_LATENCY_STD = 0.015  # ±15 ms std
+DB_READ_LATENCY_MEAN = 0.025
+DB_READ_LATENCY_STD = 0.010
+HEAVY_READ_MEAN = 0.060  # Analytics/aggregation queries
+HEAVY_READ_STD = 0.020
 
 # Simulate Vercel cold start: first request after inactivity gets a spike
 COLD_START_THRESHOLD_S = 30
-COLD_START_LATENCY_S   = 1.2
+COLD_START_LATENCY_S = 1.2
 
 # ── In-memory state ─────────────────────────────────────────────────────────
 _vehicles: Dict[str, dict] = {}
@@ -72,20 +72,28 @@ _all_users = {u["email"]: u for u in _test_drivers + _test_admins}
 
 # Static route data (Damascus routes)
 _ROUTES = [
-    {"id": f"R{i:02d}", "name": f"Route {i}", "name_ar": f"خط {i}",
-     "route_type": random.choice(["bus", "microbus"]),
-     "color": f"#{random.randint(0, 0xFFFFFF):06x}",
-     "distance_km": round(random.uniform(5, 25), 1),
-     "fare_syp": random.choice([500, 1000, 1500])}
+    {
+        "id": f"R{i:02d}",
+        "name": f"Route {i}",
+        "name_ar": f"خط {i}",
+        "route_type": random.choice(["bus", "microbus"]),
+        "color": f"#{random.randint(0, 0xFFFFFF):06x}",
+        "distance_km": round(random.uniform(5, 25), 1),
+        "fare_syp": random.choice([500, 1000, 1500]),
+    }
     for i in range(1, 9)
 ]
 
 # Static stop data (42 Damascus stops)
 _STOPS = [
-    {"id": f"S{i:03d}", "name": f"Stop {i}", "name_ar": f"موقف {i}",
-     "latitude": round(random.uniform(33.45, 33.55), 6),
-     "longitude": round(random.uniform(36.24, 36.34), 6),
-     "has_shelter": random.choice([True, False])}
+    {
+        "id": f"S{i:03d}",
+        "name": f"Stop {i}",
+        "name_ar": f"موقف {i}",
+        "latitude": round(random.uniform(33.45, 33.55), 6),
+        "longitude": round(random.uniform(36.24, 36.34), 6),
+        "has_shelter": random.choice([True, False]),
+    }
     for i in range(1, 43)
 ]
 
@@ -166,6 +174,7 @@ async def _maybe_cold_start():
 
 # ── Models ───────────────────────────────────────────────────────────────────
 
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -179,6 +188,7 @@ class PositionUpdate(BaseModel):
 
 
 # ── Public Routes ─────────────────────────────────────────────────────────────
+
 
 @app.get("/api/health")
 async def health():
@@ -252,13 +262,14 @@ async def get_stats():
 @app.get("/api/stream")
 async def stream():
     """SSE stream: sends vehicle positions every 5s (no auth — public in production)."""
+
     async def event_generator():
         for _ in range(6):  # 30s stream for load test
             data = [
-                {"vehicle_id": vid, **pos}
-                for vid, pos in list(_vehicles.items())[:50]
+                {"vehicle_id": vid, **pos} for vid, pos in list(_vehicles.items())[:50]
             ]
             import json
+
             yield f"data: {json.dumps(data)}\n\n"
             await asyncio.sleep(5)
 
@@ -266,6 +277,7 @@ async def stream():
 
 
 # ── Driver API ────────────────────────────────────────────────────────────────
+
 
 @app.post("/api/driver/position")
 async def report_position(
@@ -285,6 +297,7 @@ async def report_position(
 
 
 # ── Admin API ─────────────────────────────────────────────────────────────────
+
 
 @app.get("/api/admin/analytics/overview")
 async def admin_analytics_overview(current: dict = Depends(_get_admin)):

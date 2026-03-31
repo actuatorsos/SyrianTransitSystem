@@ -45,14 +45,15 @@ LON_MIN, LON_MAX = 36.24, 36.34
 
 def _random_position():
     return {
-        "latitude":  round(random.uniform(LAT_MIN, LAT_MAX), 6),
+        "latitude": round(random.uniform(LAT_MIN, LAT_MAX), 6),
         "longitude": round(random.uniform(LON_MIN, LON_MAX), 6),
         "speed_kmh": round(random.uniform(0, 60), 1),
-        "heading":   round(random.uniform(0, 359), 1),
+        "heading": round(random.uniform(0, 359), 1),
     }
 
 
 # ── PassengerUser (60% of load) ───────────────────────────────────────────────
+
 
 class PassengerUser(HttpUser):
     """
@@ -61,6 +62,7 @@ class PassengerUser(HttpUser):
     Browses routes, looks up stops, checks vehicle positions.
     Weight 6 = 60% of spawned users.
     """
+
     weight = 6
     wait_time = between(1, 4)  # realistic human browsing cadence
 
@@ -111,12 +113,14 @@ class PassengerUser(HttpUser):
 
 # ── SSEUser (20% of load) ─────────────────────────────────────────────────────
 
+
 class SSEUser(HttpUser):
     """
     Simulates a passenger keeping an SSE stream open for real-time updates.
     Each user opens /api/stream and reads the full response (30 s stream).
     Weight 2 = 20% of spawned users.
     """
+
     weight = 2
     wait_time = between(30, 60)  # re-connect after each stream ends
 
@@ -141,6 +145,7 @@ class SSEUser(HttpUser):
 
 # ── DriverUser (15% of load) ──────────────────────────────────────────────────
 
+
 class DriverUser(HttpUser):
     """
     Simulates a bus driver running the DamascusTransit Driver PWA.
@@ -153,6 +158,7 @@ class DriverUser(HttpUser):
       = 11 total → ~54.5% / 18.2% / 18.2% / 9.1%
     Close enough to target; see comment at bottom for exact split option.
     """
+
     weight = 2
     wait_time = constant(5)  # position update every 5 s
 
@@ -214,12 +220,14 @@ class DriverUser(HttpUser):
 
 # ── AdminUser (5% of load) ────────────────────────────────────────────────────
 
+
 class AdminUser(HttpUser):
     """
     Simulates a dispatcher / admin checking the operations dashboard.
     Authenticates as admin, polls analytics and trip history.
     Weight 1 = ~9% of spawned users (closest integer to 5%).
     """
+
     weight = 1
     wait_time = between(5, 15)  # dashboard auto-refresh cadence
 
@@ -289,6 +297,7 @@ class AdminUser(HttpUser):
 
 # ── Event hooks ───────────────────────────────────────────────────────────────
 
+
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
     print("\n[locust] DAM-56 Load test started")
@@ -320,7 +329,9 @@ def on_test_stop(environment, **kwargs):
                 f"p99={s.get_response_time_percentile(0.99):>4}ms"
             )
     total = stats.total
-    print(f"\n  TOTAL  reqs={total.num_requests}  fail={total.num_failures}  "
-          f"RPS={total.current_rps:.1f}  "
-          f"p50={total.median_response_time}ms  "
-          f"p95={total.get_response_time_percentile(0.95)}ms")
+    print(
+        f"\n  TOTAL  reqs={total.num_requests}  fail={total.num_failures}  "
+        f"RPS={total.current_rps:.1f}  "
+        f"p50={total.median_response_time}ms  "
+        f"p95={total.get_response_time_percentile(0.95)}ms"
+    )

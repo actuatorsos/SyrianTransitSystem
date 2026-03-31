@@ -69,8 +69,12 @@ class TestAdminCreateUser:
             "is_active": True,
         }
         with (
-            patch("api.routers.admin._supabase_get", new_callable=AsyncMock) as mock_get,
-            patch("api.routers.admin._supabase_post", new_callable=AsyncMock) as mock_post,
+            patch(
+                "api.routers.admin._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.admin._supabase_post", new_callable=AsyncMock
+            ) as mock_post,
         ):
             mock_get.return_value = []  # no existing email
             mock_post.return_value = mock_result
@@ -88,7 +92,9 @@ class TestAdminCreateUser:
         assert r.json()["email"] == "new@transit.sy"
 
     def test_create_user_duplicate_email(self, client, admin_token):
-        with patch("api.routers.admin._supabase_get", new_callable=AsyncMock) as mock_get:
+        with patch(
+            "api.routers.admin._supabase_get", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = [{"id": "existing-001"}]
             r = client.post(
                 "/api/admin/users",
@@ -134,7 +140,9 @@ class TestAdminUpdateUser:
                 "is_active": True,
             }
         ]
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = mock_result
             r = client.put(
                 "/api/admin/users/u-001",
@@ -145,7 +153,9 @@ class TestAdminUpdateUser:
         assert r.json()["full_name"] == "Updated Name"
 
     def test_update_user_not_found(self, client, admin_token):
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = []
             r = client.put(
                 "/api/admin/users/nonexistent",
@@ -180,7 +190,9 @@ class TestAdminCreateVehicle:
             "status": "idle",
             "is_active": True,
         }
-        with patch("api.routers.admin._supabase_post", new_callable=AsyncMock) as mock_post:
+        with patch(
+            "api.routers.admin._supabase_post", new_callable=AsyncMock
+        ) as mock_post:
             mock_post.return_value = mock_result
             r = client.post(
                 "/api/admin/vehicles",
@@ -197,7 +209,9 @@ class TestAdminCreateVehicle:
         assert r.json()["vehicle_id"] == "BUS-101"
 
     def test_create_vehicle_db_failure(self, client, admin_token):
-        with patch("api.routers.admin._supabase_post", new_callable=AsyncMock) as mock_post:
+        with patch(
+            "api.routers.admin._supabase_post", new_callable=AsyncMock
+        ) as mock_post:
             mock_post.return_value = None
             r = client.post(
                 "/api/admin/vehicles",
@@ -232,7 +246,9 @@ class TestAdminUpdateVehicle:
                 "is_active": True,
             }
         ]
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = mock_result
             r = client.put(
                 "/api/admin/vehicles/v-001",
@@ -242,7 +258,9 @@ class TestAdminUpdateVehicle:
         assert r.status_code == 200
 
     def test_update_vehicle_not_found(self, client, admin_token):
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = []
             r = client.put(
                 "/api/admin/vehicles/nonexistent",
@@ -261,8 +279,12 @@ class TestAdminAssignVehicle:
     def test_assign_vehicle_success(self, client, admin_token):
         mock_vehicle = [{"id": "v-001", "vehicle_id": "VH-001"}]
         with (
-            patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch,
-            patch("api.routers.admin._supabase_post", new_callable=AsyncMock) as mock_post,
+            patch(
+                "api.routers.admin._supabase_patch", new_callable=AsyncMock
+            ) as mock_patch,
+            patch(
+                "api.routers.admin._supabase_post", new_callable=AsyncMock
+            ) as mock_post,
         ):
             mock_patch.return_value = mock_vehicle
             mock_post.return_value = {"id": "audit-001"}
@@ -275,7 +297,9 @@ class TestAdminAssignVehicle:
         assert r.json()["status"] == "success"
 
     def test_assign_vehicle_not_found(self, client, admin_token):
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = []
             r = client.post(
                 "/api/admin/vehicles/nonexistent/assign",
@@ -293,7 +317,9 @@ class TestAdminAssignVehicle:
 class TestAdminResolveAlert:
     def test_resolve_alert_success(self, client, admin_token):
         mock_result = [{"id": "alert-001", "is_resolved": True}]
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = mock_result
             r = client.put(
                 "/api/admin/alerts/alert-001/resolve",
@@ -304,7 +330,9 @@ class TestAdminResolveAlert:
 
     def test_unresolve_alert(self, client, admin_token):
         mock_result = [{"id": "alert-001", "is_resolved": False}]
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = mock_result
             r = client.put(
                 "/api/admin/alerts/alert-001/resolve",
@@ -314,7 +342,9 @@ class TestAdminResolveAlert:
         assert r.status_code == 200
 
     def test_resolve_alert_not_found(self, client, admin_token):
-        with patch("api.routers.admin._supabase_patch", new_callable=AsyncMock) as mock_patch:
+        with patch(
+            "api.routers.admin._supabase_patch", new_callable=AsyncMock
+        ) as mock_patch:
             mock_patch.return_value = []
             r = client.put(
                 "/api/admin/alerts/nonexistent/resolve",
@@ -346,8 +376,12 @@ class TestDriverTripManagement:
         mock_vehicles = [{"id": "v-001"}]
         mock_trip = {"id": "trip-001"}
         with (
-            patch("api.routers.driver._supabase_get", new_callable=AsyncMock) as mock_get,
-            patch("api.routers.driver._supabase_post", new_callable=AsyncMock) as mock_post,
+            patch(
+                "api.routers.driver._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.driver._supabase_post", new_callable=AsyncMock
+            ) as mock_post,
         ):
             mock_get.return_value = mock_vehicles
             mock_post.return_value = mock_trip
@@ -360,7 +394,9 @@ class TestDriverTripManagement:
         assert r.json()["trip_id"] == "trip-001"
 
     def test_start_trip_no_vehicle(self, client, driver_token):
-        with patch("api.routers.driver._supabase_get", new_callable=AsyncMock) as mock_get:
+        with patch(
+            "api.routers.driver._supabase_get", new_callable=AsyncMock
+        ) as mock_get:
             mock_get.return_value = []
             r = client.post(
                 "/api/driver/trip/start",
@@ -372,8 +408,12 @@ class TestDriverTripManagement:
     def test_end_trip_success(self, client, driver_token):
         mock_trips = [{"id": "trip-001", "status": "in_progress"}]
         with (
-            patch("api.routers.driver._supabase_get", new_callable=AsyncMock) as mock_get,
-            patch("api.routers.driver._supabase_patch", new_callable=AsyncMock) as mock_patch,
+            patch(
+                "api.routers.driver._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.driver._supabase_patch", new_callable=AsyncMock
+            ) as mock_patch,
         ):
             mock_get.return_value = mock_trips
             mock_patch.return_value = mock_trips
@@ -416,8 +456,12 @@ class TestAuthRegister:
         }
         with (
             patch("api.routers.auth._supabase_get", new_callable=AsyncMock) as mock_get,
-            patch("api.routers.auth._supabase_post", new_callable=AsyncMock) as mock_post,
-            patch("api.routers.auth._rate_limit_check", new_callable=AsyncMock) as mock_rl,
+            patch(
+                "api.routers.auth._supabase_post", new_callable=AsyncMock
+            ) as mock_post,
+            patch(
+                "api.routers.auth._rate_limit_check", new_callable=AsyncMock
+            ) as mock_rl,
         ):
             mock_rl.return_value = True
             mock_get.return_value = []
@@ -436,7 +480,9 @@ class TestAuthRegister:
     def test_register_duplicate_email(self, client):
         with (
             patch("api.routers.auth._supabase_get", new_callable=AsyncMock) as mock_get,
-            patch("api.routers.auth._rate_limit_check", new_callable=AsyncMock) as mock_rl,
+            patch(
+                "api.routers.auth._rate_limit_check", new_callable=AsyncMock
+            ) as mock_rl,
         ):
             mock_rl.return_value = True
             mock_get.return_value = [{"id": "existing"}]
@@ -451,7 +497,9 @@ class TestAuthRegister:
         assert r.status_code == 409
 
     def test_register_short_password(self, client):
-        with patch("api.routers.auth._rate_limit_check", new_callable=AsyncMock) as mock_rl:
+        with patch(
+            "api.routers.auth._rate_limit_check", new_callable=AsyncMock
+        ) as mock_rl:
             mock_rl.return_value = True
             r = client.post(
                 "/api/auth/register",

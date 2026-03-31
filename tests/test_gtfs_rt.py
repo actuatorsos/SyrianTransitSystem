@@ -40,6 +40,7 @@ pytestmark = pytest.mark.skipif(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_feed(content: bytes) -> "gtfs_realtime_pb2.FeedMessage":
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.ParseFromString(content)
@@ -196,7 +197,9 @@ class TestGTFSRealtime:
         assert abs(vp.position.speed - 10.0) < 0.01
         assert vp.position.bearing == 90.0
         # 60% -> STANDING_ROOM_ONLY
-        assert vp.occupancy_status == gtfs_realtime_pb2.VehiclePosition.STANDING_ROOM_ONLY
+        assert (
+            vp.occupancy_status == gtfs_realtime_pb2.VehiclePosition.STANDING_ROOM_ONLY
+        )
 
     def test_trip_update_entity(self, client):
         """TripUpdate entity is present for in-progress trips."""
@@ -234,21 +237,21 @@ class TestGTFSRealtime:
 
     def test_skips_positions_with_null_coords(self, client):
         """Positions missing lat/lon are excluded."""
-        bad_pos = [{
-            "vehicle_id": VEHICLE_UUID,
-            "latitude": None,
-            "longitude": 36.2920,
-            "speed_kmh": None,
-            "heading": None,
-            "occupancy_pct": None,
-            "recorded_at": None,
-        }]
+        bad_pos = [
+            {
+                "vehicle_id": VEHICLE_UUID,
+                "latitude": None,
+                "longitude": 36.2920,
+                "speed_kmh": None,
+                "heading": None,
+                "occupancy_pct": None,
+                "recorded_at": None,
+            }
+        ]
         with patch(
             "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
-            side_effect=_mock_supabase_get(
-                bad_pos, SAMPLE_VEHICLES, SAMPLE_ROUTES, []
-            ),
+            side_effect=_mock_supabase_get(bad_pos, SAMPLE_VEHICLES, SAMPLE_ROUTES, []),
         ):
             feed = _parse_feed(client.get("/api/gtfs/realtime").content)
 
@@ -287,9 +290,7 @@ class TestGTFSRealtime:
             with patch(
                 "api.routers.gtfs._supabase_get",
                 new_callable=AsyncMock,
-                side_effect=_mock_supabase_get(
-                    pos, SAMPLE_VEHICLES, SAMPLE_ROUTES, []
-                ),
+                side_effect=_mock_supabase_get(pos, SAMPLE_VEHICLES, SAMPLE_ROUTES, []),
             ):
                 feed = _parse_feed(client.get("/api/gtfs/realtime").content)
 

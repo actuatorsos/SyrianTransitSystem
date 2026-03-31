@@ -18,6 +18,7 @@ import pytest
 # Public / unauthenticated endpoints
 # ---------------------------------------------------------------------------
 
+
 class TestPublicEndpoints:
     def test_health_returns_200(self, client):
         r = client.get("/api/health")
@@ -101,45 +102,60 @@ class TestPublicEndpoints:
 # Auth endpoints
 # ---------------------------------------------------------------------------
 
+
 class TestAuthEndpoints:
     def test_login_endpoint_exists(self, client):
-        r = client.post("/api/auth/login", json={"email": "x@x.com", "password": "wrong"})
+        r = client.post(
+            "/api/auth/login", json={"email": "x@x.com", "password": "wrong"}
+        )
         # 401 (bad creds) or 500 (no DB) — either way the endpoint exists
         assert r.status_code in (401, 500, 502, 503)
         assert r.headers["content-type"].startswith("application/json")
 
     def test_login_returns_json_error_on_bad_creds(self, client):
-        r = client.post("/api/auth/login", json={"email": "x@x.com", "password": "wrong"})
+        r = client.post(
+            "/api/auth/login", json={"email": "x@x.com", "password": "wrong"}
+        )
         body = r.json()
         assert "detail" in body
 
     def test_register_endpoint_exists(self, client):
-        r = client.post("/api/auth/register", json={
-            "email": "newuser@example.com",
-            "password": "securepassword123",
-            "full_name": "Test User",
-        })
+        r = client.post(
+            "/api/auth/register",
+            json={
+                "email": "newuser@example.com",
+                "password": "securepassword123",
+                "full_name": "Test User",
+            },
+        )
         # 409 (duplicate) or 500 (no DB) — endpoint must exist
         assert r.status_code in (200, 201, 409, 422, 500, 502, 503)
         assert r.headers["content-type"].startswith("application/json")
 
     def test_register_rejects_short_password(self, client):
-        r = client.post("/api/auth/register", json={
-            "email": "test@example.com",
-            "password": "short",
-            "full_name": "Test User",
-        })
+        r = client.post(
+            "/api/auth/register",
+            json={
+                "email": "test@example.com",
+                "password": "short",
+                "full_name": "Test User",
+            },
+        )
         assert r.status_code == 422
         assert "detail" in r.json()
 
     def test_forgot_password_endpoint_exists(self, client):
-        r = client.post("/api/auth/forgot-password", json={"email": "unknown@example.com"})
+        r = client.post(
+            "/api/auth/forgot-password", json={"email": "unknown@example.com"}
+        )
         # Always 200 (to prevent email enumeration) or 500/503 (no DB)
         assert r.status_code in (200, 500, 502, 503)
         assert r.headers["content-type"].startswith("application/json")
 
     def test_forgot_password_always_returns_message(self, client):
-        r = client.post("/api/auth/forgot-password", json={"email": "nobody@example.com"})
+        r = client.post(
+            "/api/auth/forgot-password", json={"email": "nobody@example.com"}
+        )
         if r.status_code == 200:
             assert "message" in r.json()
 
@@ -152,18 +168,24 @@ class TestAuthEndpoints:
         assert r.status_code in (401, 403)
 
     def test_change_password_requires_auth(self, client):
-        r = client.post("/api/auth/change-password", json={
-            "current_password": "old",
-            "new_password": "newpassword123",
-        })
+        r = client.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "old",
+                "new_password": "newpassword123",
+            },
+        )
         assert r.status_code in (401, 403)
 
     def test_change_password_rejects_short_new_password(self, client):
         # Without auth we get 401/403, but the route exists
-        r = client.post("/api/auth/change-password", json={
-            "current_password": "old",
-            "new_password": "short",
-        })
+        r = client.post(
+            "/api/auth/change-password",
+            json={
+                "current_password": "old",
+                "new_password": "short",
+            },
+        )
         assert r.status_code in (401, 403, 422)
 
 
@@ -171,16 +193,25 @@ class TestAuthEndpoints:
 # Driver endpoints (require JWT)
 # ---------------------------------------------------------------------------
 
+
 class TestDriverEndpointsUnauth:
     def test_driver_position_requires_auth(self, client):
-        r = client.post("/api/driver/position", json={
-            "vehicle_id": "v-001", "latitude": 33.5, "longitude": 36.3,
-            "speed": 40.0, "heading": 90.0
-        })
+        r = client.post(
+            "/api/driver/position",
+            json={
+                "vehicle_id": "v-001",
+                "latitude": 33.5,
+                "longitude": 36.3,
+                "speed": 40.0,
+                "heading": 90.0,
+            },
+        )
         assert r.status_code in (401, 403, 422, 500)
 
     def test_driver_trip_start_requires_auth(self, client):
-        r = client.post("/api/driver/trip/start", json={"vehicle_id": "v-001", "route_id": "r-001"})
+        r = client.post(
+            "/api/driver/trip/start", json={"vehicle_id": "v-001", "route_id": "r-001"}
+        )
         assert r.status_code in (401, 403, 422, 500)
 
     def test_driver_trip_end_requires_auth(self, client):
@@ -188,7 +219,9 @@ class TestDriverEndpointsUnauth:
         assert r.status_code in (401, 403, 422, 500)
 
     def test_driver_passenger_count_requires_auth(self, client):
-        r = client.post("/api/driver/trip/passenger-count", json={"trip_id": "t-001", "count": 10})
+        r = client.post(
+            "/api/driver/trip/passenger-count", json={"trip_id": "t-001", "count": 10}
+        )
         assert r.status_code in (401, 403, 422, 500)
 
 
@@ -196,15 +229,17 @@ class TestDriverEndpointsUnauth:
 # Admin endpoints (require JWT with admin role)
 # ---------------------------------------------------------------------------
 
+
 class TestAdminEndpointsUnauth:
     def test_admin_users_list_requires_auth(self, client):
         r = client.get("/api/admin/users")
         assert r.status_code in (401, 403, 500)
 
     def test_admin_users_create_requires_auth(self, client):
-        r = client.post("/api/admin/users", json={
-            "email": "new@example.com", "password": "pass", "role": "viewer"
-        })
+        r = client.post(
+            "/api/admin/users",
+            json={"email": "new@example.com", "password": "pass", "role": "viewer"},
+        )
         assert r.status_code in (401, 403, 422, 500)
 
     def test_admin_users_update_requires_auth(self, client):
@@ -216,9 +251,10 @@ class TestAdminEndpointsUnauth:
         assert r.status_code in (401, 403, 500)
 
     def test_admin_vehicles_create_requires_auth(self, client):
-        r = client.post("/api/admin/vehicles", json={
-            "plate_number": "DM-001", "model": "Bus", "capacity": 50
-        })
+        r = client.post(
+            "/api/admin/vehicles",
+            json={"plate_number": "DM-001", "model": "Bus", "capacity": 50},
+        )
         assert r.status_code in (401, 403, 422, 500)
 
     def test_admin_vehicles_update_requires_auth(self, client):
@@ -250,17 +286,19 @@ class TestAdminEndpointsUnauth:
 # Traccar webhook endpoints
 # ---------------------------------------------------------------------------
 
+
 class TestTraccarEndpoints:
     def test_traccar_position_endpoint_exists(self, client):
-        r = client.post("/api/traccar/position", json={
-            "deviceId": "device-001", "lat": 33.5, "lon": 36.3, "speed": 40
-        })
+        r = client.post(
+            "/api/traccar/position",
+            json={"deviceId": "device-001", "lat": 33.5, "lon": 36.3, "speed": 40},
+        )
         assert r.status_code in (200, 401, 403, 422, 500)
         assert r.headers["content-type"].startswith("application/json")
 
     def test_traccar_event_endpoint_exists(self, client):
-        r = client.post("/api/traccar/event", json={
-            "deviceId": "device-001", "type": "ignitionOn"
-        })
+        r = client.post(
+            "/api/traccar/event", json={"deviceId": "device-001", "type": "ignitionOn"}
+        )
         assert r.status_code in (200, 401, 403, 422, 500)
         assert r.headers["content-type"].startswith("application/json")
