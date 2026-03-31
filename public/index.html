@@ -134,6 +134,11 @@
             animation: none;
         }
 
+        .status-dot.reconnecting {
+            background-color: #f59e0b;
+            animation: pulse 1s infinite;
+        }
+
         .fleet-stats {
             display: flex;
             gap: 20px;
@@ -644,9 +649,12 @@
             polylines: new Map(),
             wsConnection: null,
             isConnected: false,
+            isReconnecting: false,
             reconnectAttempts: 0,
-            maxReconnectAttempts: 5,
-            reconnectDelay: 3000
+            reconnectTimer: null,
+            pollingInterval: null,
+            heartbeatTimer: null,
+            lastMessageAt: null
         };
 
         // Initialize Application
@@ -756,10 +764,79 @@
             });
         }
 
+        // Exponential backoff delay: 1s, 2s, 4s, 8s, ... capped at 30s
+        function getReconnectDelay(attempt) {
+            return Math.min(1000 * Math.pow(2, attempt), 30000);
+        }
+
+        // Start HTTP polling fallback
+        function startPolling() {
+            if (state.pollingInterval) return;
+            console.log('Starting HTTP polling fallback');
+            state.pollingInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/vehicles/positions`);
+                    if (res.ok) {
+                        const vehicles = await res.json();
+                        vehicles.forEach(v => {
+                            state.vehicles.set(v.vehicle_id, {
+                                ...v,
+                                lat: v.lat ?? v.latitude,
+                                lon: v.lon ?? v.longitude,
+                                lastUpdate: Date.now()
+                            });
+                        });
+                        renderVehicles();
+                        updateStats();
+                    }
+                } catch (e) {
+                    // Polling failed silently; still trying to reconnect WS
+                }
+            }, 5000);
+        }
+
+        // Stop HTTP polling fallback
+        function stopPolling() {
+            if (state.pollingInterval) {
+                clearInterval(state.pollingInterval);
+                state.pollingInterval = null;
+                console.log('Stopped HTTP polling fallback');
+            }
+        }
+
+        // Send periodic heartbeat ping and detect stale connections
+        function startHeartbeat(ws) {
+            stopHeartbeat();
+            state.lastMessageAt = Date.now();
+            state.heartbeatTimer = setInterval(() => {
+                if (ws.readyState !== WebSocket.OPEN) return;
+                // If no message received in 45s, connection is stale — reconnect
+                if (Date.now() - state.lastMessageAt > 45000) {
+                    console.warn('WebSocket heartbeat timeout — reconnecting');
+                    ws.close();
+                    return;
+                }
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }, 15000);
+        }
+
+        function stopHeartbeat() {
+            if (state.heartbeatTimer) {
+                clearInterval(state.heartbeatTimer);
+                state.heartbeatTimer = null;
+            }
+        }
+
         // Connect to WebSocket for real-time vehicle tracking
         function connectWebSocket() {
             if (state.wsConnection) {
+                state.wsConnection.onclose = null; // prevent duplicate reconnect
                 state.wsConnection.close();
+                state.wsConnection = null;
+            }
+            if (state.reconnectTimer) {
+                clearTimeout(state.reconnectTimer);
+                state.reconnectTimer = null;
             }
 
             const ws = new WebSocket(`${WS_BASE}/api/ws/track`);
@@ -767,12 +844,16 @@
 
             ws.onopen = () => {
                 state.isConnected = true;
+                state.isReconnecting = false;
                 state.reconnectAttempts = 0;
+                stopPolling();
+                startHeartbeat(ws);
                 updateConnectionStatus();
                 console.log('WebSocket connected');
             };
 
             ws.onmessage = (event) => {
+                state.lastMessageAt = Date.now();
                 try {
                     const msg = JSON.parse(event.data);
                     if (msg.type === 'positions' && Array.isArray(msg.data)) {
@@ -788,6 +869,8 @@
                         updateStats();
                     } else if (msg.type === 'ping') {
                         ws.send(JSON.stringify({ type: 'pong' }));
+                    } else if (msg.type === 'pong') {
+                        // server acknowledged our ping — connection alive
                     }
                 } catch (error) {
                     console.error('Error parsing WebSocket message:', error);
@@ -795,23 +878,20 @@
             };
 
             ws.onerror = () => {
-                state.isConnected = false;
-                updateConnectionStatus();
+                // onerror is always followed by onclose — handle state there
             };
 
             ws.onclose = () => {
+                stopHeartbeat();
                 state.isConnected = false;
+                state.isReconnecting = true;
                 updateConnectionStatus();
+                startPolling();
 
-                if (state.reconnectAttempts < state.maxReconnectAttempts) {
-                    state.reconnectAttempts++;
-                    setTimeout(() => {
-                        console.log(`Reconnecting WebSocket (attempt ${state.reconnectAttempts})`);
-                        connectWebSocket();
-                    }, state.reconnectDelay);
-                } else {
-                    showError('فقدان الاتصال بالخادم');
-                }
+                const delay = getReconnectDelay(state.reconnectAttempts);
+                state.reconnectAttempts++;
+                console.log(`WebSocket closed. Reconnecting in ${delay}ms (attempt ${state.reconnectAttempts})`);
+                state.reconnectTimer = setTimeout(() => connectWebSocket(), delay);
             };
         }
 
@@ -1055,9 +1135,14 @@
             const statusText = document.getElementById('status-text');
 
             if (state.isConnected) {
-                statusDot.classList.remove('disconnected');
+                statusDot.classList.remove('disconnected', 'reconnecting');
                 statusText.textContent = 'متصل';
+            } else if (state.isReconnecting) {
+                statusDot.classList.remove('disconnected');
+                statusDot.classList.add('reconnecting');
+                statusText.textContent = 'إعادة الاتصال...';
             } else {
+                statusDot.classList.remove('reconnecting');
                 statusDot.classList.add('disconnected');
                 statusText.textContent = 'غير متصل';
             }
