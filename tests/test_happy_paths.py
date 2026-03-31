@@ -203,12 +203,13 @@ class TestRoutesHappyPath:
     def test_list_routes_returns_200(self, client):
         with (
             patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
         ):
             mock_get.side_effect = [
                 [MOCK_ROUTE],  # routes query
                 [],  # route_stops for route-001
             ]
-            r = client.get("/api/routes")
+            r = client.get("/api/routes?operator=damascus")
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
@@ -216,20 +217,26 @@ class TestRoutesHappyPath:
         assert data[0]["stop_count"] == 0
 
     def test_get_single_route_returns_200(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.side_effect = [
                 [MOCK_ROUTE],  # route lookup
                 [MOCK_STOP],  # stops for route
             ]
-            r = client.get("/api/routes/route-001")
+            r = client.get("/api/routes/route-001?operator=damascus")
         assert r.status_code == 200
         data = r.json()
         assert data["id"] == "route-001"
 
     def test_get_route_not_found_returns_404(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.return_value = []
-            r = client.get("/api/routes/nonexistent")
+            r = client.get("/api/routes/nonexistent?operator=damascus")
         assert r.status_code == 404
         assert r.headers["content-type"].startswith("application/json")
 
@@ -241,9 +248,12 @@ class TestRoutesHappyPath:
 
 class TestStopsHappyPath:
     def test_list_stops_returns_200(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.return_value = [MOCK_STOP]
-            r = client.get("/api/stops")
+            r = client.get("/api/stops?operator=damascus")
         assert r.status_code == 200
         data = r.json()
         assert data[0]["stop_id"] == "S-1"
@@ -265,17 +275,23 @@ class TestStopsHappyPath:
 
 class TestVehiclesHappyPath:
     def test_list_vehicles_returns_200(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.return_value = [MOCK_VEHICLE_POS]
-            r = client.get("/api/vehicles")
+            r = client.get("/api/vehicles?operator=damascus")
         assert r.status_code == 200
         data = r.json()
         assert data[0]["vehicle_id"] == "VH-001"
 
     def test_list_vehicles_empty_positions(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.return_value = []
-            r = client.get("/api/vehicles")
+            r = client.get("/api/vehicles?operator=damascus")
         assert r.status_code == 200
         assert r.json() == []
 
@@ -288,9 +304,12 @@ class TestVehiclesHappyPath:
             "occupancy_pct": 50,
             "recorded_at": "2026-03-30T07:00:00",
         }
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.return_value = [mock_pos]
-            r = client.get("/api/vehicles/positions")
+            r = client.get("/api/vehicles/positions?operator=damascus")
         assert r.status_code == 200
         assert isinstance(r.json(), list)
 
@@ -302,7 +321,10 @@ class TestVehiclesHappyPath:
 
 class TestStatsHappyPath:
     def test_get_stats_returns_200(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.side_effect = [
                 MOCK_VEHICLE_STATUS,  # vehicles
                 [MOCK_ROUTE],  # routes
@@ -310,7 +332,7 @@ class TestStatsHappyPath:
                 [{"id": "d-001", "is_active": True}],  # active drivers
                 [{"occupancy_pct": 60}],  # occupancy
             ]
-            r = client.get("/api/stats")
+            r = client.get("/api/stats?operator=damascus")
         assert r.status_code == 200
         data = r.json()
         assert "total_vehicles" in data
@@ -325,9 +347,12 @@ class TestStatsHappyPath:
 
 class TestSchedulesHappyPath:
     def test_get_schedules_returns_200(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.return_value = [MOCK_SCHEDULE]
-            r = client.get("/api/schedules/route-001")
+            r = client.get("/api/schedules/route-001?operator=damascus")
         assert r.status_code == 200
         data = r.json()
         assert data[0]["route_id"] == "route-001"
@@ -341,9 +366,12 @@ class TestSchedulesHappyPath:
 
 class TestAlertsHappyPath:
     def test_list_active_alerts_returns_200(self, client):
-        with patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get:
+        with (
+            patch("api.index._supabase_get", new_callable=AsyncMock) as mock_get,
+            patch("api.index._resolve_operator_id", new_callable=AsyncMock, return_value="op-001"),
+        ):
             mock_get.return_value = [MOCK_ALERT]
-            r = client.get("/api/alerts/active")
+            r = client.get("/api/alerts/active?operator=damascus")
         assert r.status_code == 200
         data = r.json()
         assert data[0]["alert_type"] == "speed"
