@@ -9,6 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
 <title>سائق نقل دمشق</title>
+<script src="/lib/i18n.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
@@ -238,12 +239,12 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 <!-- ── Login Screen ── -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">🚌 نقل دمشق</div>
-    <div class="login-sub">Damascus Transit — Driver App</div>
+    <div class="login-logo" data-i18n="drv_title">🚌 نقل دمشق</div>
+    <div class="login-sub"><span data-i18n="drv_subtitle">تطبيق السائق</span></div>
     <div class="login-error" id="loginError"></div>
-    <input type="email" id="loginEmail" class="login-input" placeholder="البريد الإلكتروني / Email" autocomplete="email">
-    <input type="password" id="loginPassword" class="login-input" placeholder="كلمة المرور / Password" autocomplete="current-password">
-    <button class="login-btn" id="loginBtn" onclick="handleLogin()">دخول — Sign In</button>
+    <input type="email" id="loginEmail" class="login-input" data-i18n-placeholder="drv_email_ph" placeholder="البريد الإلكتروني" autocomplete="email">
+    <input type="password" id="loginPassword" class="login-input" data-i18n-placeholder="drv_password_ph" placeholder="كلمة المرور" autocomplete="current-password">
+    <button class="login-btn" id="loginBtn" onclick="handleLogin()" data-i18n="drv_login_btn">دخول — Sign In</button>
   </div>
 </div>
 
@@ -256,33 +257,34 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 
   <!-- Top bar -->
   <div class="driver-bar">
-    <div class="logo">🚌 سائق</div>
+    <div class="logo" data-i18n="drv_driver_label">🚌 سائق</div>
     <div class="route-badge" id="routeBadge">المرجة ← الغربية</div>
     <div class="status-pill off-duty" id="statusPill">
       <div class="dot"></div>
-      <span id="statusLabel">لا رحلة</span>
+      <span id="statusLabel" data-i18n="drv_no_trip">لا رحلة</span>
     </div>
+    <div id="drvLangToggle" style="margin-right:4px;"></div>
   </div>
 
   <!-- Route adherence badge -->
   <div class="adherence-badge on-route" id="adherenceBadge">
     <div class="icon">✅</div>
-    <div class="txt">على المسار</div>
+    <div class="txt" data-i18n="drv_on_route">على المسار</div>
     <div class="txt-en">On Route</div>
   </div>
 
   <!-- Speed HUD -->
   <div class="speed-hud" id="speedHud">
     <div class="number" id="speedVal">0</div>
-    <div class="unit">كم/س</div>
-    <div class="label" id="speedLabel">متوقف</div>
+    <div class="unit" data-i18n="drv_speed_unit">كم/س</div>
+    <div class="label" id="speedLabel" data-i18n="drv_stopped">متوقف · Stopped</div>
   </div>
 
   <!-- Trip stats -->
   <div class="trip-stats">
-    <div class="stat-card"><div class="val" id="tripTime">0:00</div><div class="lbl">وقت الرحلة</div></div>
-    <div class="stat-card"><div class="val" id="tripDist">0.0</div><div class="lbl">كم مقطوع</div></div>
-    <div class="stat-card"><div class="val" id="onTimeRate">—</div><div class="lbl">الالتزام</div></div>
+    <div class="stat-card"><div class="val" id="tripTime">0:00</div><div class="lbl" data-i18n="drv_trip_time">وقت الرحلة</div></div>
+    <div class="stat-card"><div class="val" id="tripDist">0.0</div><div class="lbl" data-i18n="drv_km_covered">كم مقطوع</div></div>
+    <div class="stat-card"><div class="val" id="onTimeRate">—</div><div class="lbl" data-i18n="drv_on_time">الالتزام</div></div>
   </div>
 
   <!-- Alert banner -->
@@ -294,13 +296,13 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 
     <!-- Trip idle notice (shown when no active trip) -->
     <div class="trip-idle-notice" id="tripIdleNotice">
-      ابدأ رحلة جديدة للبدء بتتبع التوقفات<br>
-      <small style="color:#888;">Start a trip to begin tracking stops</small>
+      <span data-i18n="drv_trip_idle">ابدأ رحلة جديدة للبدء بتتبع التوقفات</span><br>
+      <small style="color:#888;" data-i18n="drv_trip_idle_sub">Start a trip to begin tracking stops</small>
     </div>
 
     <!-- Next stop (hidden until trip started) -->
     <div class="next-stop" id="nextStopCard" style="display:none;">
-      <div class="label">المحطة التالية · Next Stop</div>
+      <div class="label" data-i18n="drv_next_stop">المحطة التالية · Next Stop</div>
       <div class="name-ar" id="nextStopAr">محطة الحجاز</div>
       <div class="name-en" id="nextStopName">Hijaz Station</div>
       <div class="eta-row">
@@ -320,7 +322,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
       <button class="counter-btn" onclick="adjustPassengers(-1)">−</button>
       <div class="counter-val">
         <div class="num" id="passengerCount">0</div>
-        <div class="lbl">ركاب · Passengers</div>
+        <div class="lbl" data-i18n="drv_passengers">ركاب · Passengers</div>
       </div>
       <button class="counter-btn" onclick="adjustPassengers(1)">+</button>
     </div>
@@ -335,16 +337,16 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 <!-- ── Start Trip Modal ── -->
 <div class="modal-overlay hidden" id="startModal">
   <div class="modal-card">
-    <div class="modal-title">بدء رحلة جديدة · Start New Trip</div>
-    <div class="modal-body">اختر الخط قبل بدء الرحلة · Select route before starting</div>
+    <div class="modal-title" data-i18n="drv_start_new_trip">بدء رحلة جديدة · Start New Trip</div>
+    <div class="modal-body" data-i18n="drv_select_route_msg">اختر الخط قبل بدء الرحلة · Select route before starting</div>
     <select class="route-select" id="routeSelect">
-      <option value="line-a">خط أ — Line A (المرجة ← الغربية)</option>
-      <option value="line-b">خط ب — Line B (القابون ← المزة)</option>
-      <option value="line-c">خط ج — Line C (الميدان ← ركن الدين)</option>
+      <option value="line-a" data-i18n="drv_line_a">خط أ — Line A (المرجة ← الغربية)</option>
+      <option value="line-b" data-i18n="drv_line_b">خط ب — Line B (القابون ← المزة)</option>
+      <option value="line-c" data-i18n="drv_line_c">خط ج — Line C (الميدان ← ركن الدين)</option>
     </select>
     <div class="modal-actions">
-      <button class="modal-btn cancel" onclick="closeModal('startModal')">إلغاء · Cancel</button>
-      <button class="modal-btn confirm" style="background:var(--green-mid);" onclick="confirmStartTrip()">بدء · Start</button>
+      <button class="modal-btn cancel" onclick="closeModal('startModal')" data-i18n="drv_cancel">إلغاء · Cancel</button>
+      <button class="modal-btn confirm" style="background:var(--green-mid);" onclick="confirmStartTrip()" data-i18n="drv_start">بدء · Start</button>
     </div>
   </div>
 </div>
@@ -352,11 +354,11 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 <!-- ── End Trip Modal ── -->
 <div class="modal-overlay hidden" id="endModal">
   <div class="modal-card">
-    <div class="modal-title">إنهاء الرحلة · End Trip</div>
-    <div class="modal-body" id="endModalBody">هل تريد إنهاء الرحلة الحالية؟ · End the current trip?</div>
+    <div class="modal-title" data-i18n="drv_end_trip_title">إنهاء الرحلة · End Trip</div>
+    <div class="modal-body" id="endModalBody" data-i18n="drv_confirm_end">هل تريد إنهاء الرحلة الحالية؟ · End the current trip?</div>
     <div class="modal-actions">
-      <button class="modal-btn cancel" onclick="closeModal('endModal')">رجوع · Back</button>
-      <button class="modal-btn confirm" onclick="confirmEndTrip()">إنهاء · End</button>
+      <button class="modal-btn cancel" onclick="closeModal('endModal')" data-i18n="drv_back">رجوع · Back</button>
+      <button class="modal-btn confirm" onclick="confirmEndTrip()" data-i18n="drv_end">إنهاء · End</button>
     </div>
   </div>
 </div>
@@ -399,10 +401,10 @@ function handleLogin() {
   const btn = document.getElementById('loginBtn');
   const err = document.getElementById('loginError');
 
-  if (!email || !password) { showLoginError('يرجى ملء جميع الحقول'); return; }
+  if (!email || !password) { showLoginError(t('drv_fill_all')); return; }
 
   btn.disabled = true;
-  btn.textContent = 'جاري الدخول...';
+  btn.textContent = t('drv_logging_in');
 
   fetch(`${API_BASE}/api/auth/login`, {
     method:'POST',
@@ -417,13 +419,14 @@ function handleLogin() {
       sessionStorage.setItem('authToken', data.token);
       sessionStorage.setItem('user', JSON.stringify(data.user));
       document.getElementById('loginScreen').classList.add('hidden');
+      document.dispatchEvent(new Event('driver:logged-in'));
       initMap();
     } else {
-      showLoginError(data.error || 'فشل تسجيل الدخول');
+      showLoginError(data.error || t('drv_login_failed'));
     }
   })
-  .catch(() => showLoginError('خطأ في الاتصال'))
-  .finally(() => { btn.disabled = false; btn.textContent = 'دخول — Sign In'; });
+  .catch(() => showLoginError(t('drv_connection_error')))
+  .finally(() => { btn.disabled = false; btn.textContent = t('drv_login_btn'); });
 }
 
 function showLoginError(msg) {
@@ -494,7 +497,7 @@ function handlePosition(lat, lon, speed) {
 
   // Speed HUD
   document.getElementById('speedVal').textContent = speed;
-  document.getElementById('speedLabel').textContent = speed > 2 ? 'متحرك · Moving' : 'متوقف · Stopped';
+  document.getElementById('speedLabel').textContent = speed > 2 ? t('drv_moving') : t('drv_stopped');
 
   // Speed warning
   const overSpeed = speed > SPEED_LIMIT_KMH;
@@ -502,7 +505,7 @@ function handlePosition(lat, lon, speed) {
   const overlay = document.getElementById('speedWarningOverlay');
   hud.classList.toggle('warning', overSpeed);
   overlay.style.display = overSpeed ? 'block' : 'none';
-  if (overSpeed) showAlert(`⚠️ تجاوز الحد المسموح! ${speed} كم/س — Speed limit exceeded!`, 'warn');
+  if (overSpeed) showAlert(t('drv_speed_warning', { speed }), 'warn');
 
   // Distance
   if (lastPos && activeTrip) {
@@ -530,11 +533,11 @@ function handlePosition(lat, lon, speed) {
     const nextStop = ROUTE_STOPS[currentStopIndex];
     if (nextStop) {
       const dist = haversine(lat, lon, nextStop.lat, nextStop.lon);
-      document.getElementById('nextStopDist').textContent = `${dist.toFixed(2)} كم · km ahead`;
+      document.getElementById('nextStopDist').textContent = t('drv_km_ahead', { dist: dist.toFixed(2) });
       const eta = speed > 0 ? Math.ceil(dist / speed * 60) : '—';
-      document.getElementById('nextStopETA').innerHTML = `${eta}<small> د</small>`;
+      document.getElementById('nextStopETA').innerHTML = `${eta}<small> ${t('drv_min_abbrev')}</small>`;
       if (dist < 0.1) {
-        showAlert(`🚏 اقتراب من ${nextStop.nameAr} — Approaching ${nextStop.name}`, 'info');
+        showAlert(t('drv_approaching', { nameAr: nextStop.nameAr, name: nextStop.name }), 'info');
         document.getElementById('arriveBtn') && (document.getElementById('arriveBtn').style.background = '#b9a779');
       }
     }
@@ -555,11 +558,11 @@ function checkRouteAdherence(lat, lon) {
     const badge = document.getElementById('adherenceBadge');
     if (onRoute) {
       badge.className = 'adherence-badge on-route';
-      badge.innerHTML = '<div class="icon">✅</div><div class="txt">على المسار</div><div class="txt-en">On Route</div>';
+      badge.innerHTML = `<div class="icon">✅</div><div class="txt">${t('drv_on_route')}</div><div class="txt-en">On Route</div>`;
     } else {
       badge.className = 'adherence-badge off-route';
-      badge.innerHTML = '<div class="icon">❌</div><div class="txt">خارج المسار!</div><div class="txt-en">Off Route!</div>';
-      showAlert('⚠️ خارج المسار المحدد! — You are off the designated route!', 'danger');
+      badge.innerHTML = `<div class="icon">❌</div><div class="txt">${t('drv_off_route')}</div><div class="txt-en">Off Route!</div>`;
+      showAlert(t('drv_off_route_alert'), 'danger');
     }
   }
 }
@@ -612,7 +615,7 @@ function confirmStartTrip() {
         updateStatusPill(true);
         showNextStopCard();
         renderActions();
-        showAlert('✅ تم بدء الرحلة بنجاح — Trip started successfully', 'info');
+        showAlert('✅ ' + (i18n.getCurrentLang() === 'ar' ? 'تم بدء الرحلة بنجاح — Trip started' : 'Trip started successfully — تم بدء الرحلة'), 'info');
       } else {
         // Demo fallback if API unavailable
         activeTrip = { tripId: 'demo-' + Date.now(), routeId };
@@ -625,7 +628,7 @@ function confirmStartTrip() {
         updateStatusPill(true);
         showNextStopCard();
         renderActions();
-        showAlert('🚌 رحلة تجريبية — Demo trip started', 'info');
+        showAlert('🚌 ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية — Demo trip started' : 'Demo trip started — رحلة تجريبية'), 'info');
       }
     })
     .catch(() => {
@@ -639,7 +642,7 @@ function confirmStartTrip() {
       updateStatusPill(true);
       showNextStopCard();
       renderActions();
-      showAlert('🚌 رحلة تجريبية (لا اتصال) — Demo mode', 'info');
+      showAlert('🚌 ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية (لا اتصال) — Demo mode' : 'Demo mode — رحلة تجريبية'), 'info');
     });
 }
 
@@ -697,7 +700,7 @@ function updateStatusPill(active) {
   const pill = document.getElementById('statusPill');
   const label = document.getElementById('statusLabel');
   pill.className = 'status-pill ' + (active ? 'on-duty' : 'off-duty');
-  label.textContent = active ? 'في الخدمة' : 'لا رحلة';
+  label.textContent = active ? (i18n.getCurrentLang() === 'ar' ? 'في الخدمة' : 'On Duty') : t('drv_no_trip');
 }
 
 function showNextStopCard() {
@@ -718,13 +721,13 @@ function renderActions() {
   const row = document.getElementById('actionsRow');
   if (!activeTrip) {
     row.innerHTML = `
-      <button class="action-btn btn-start" onclick="openStartModal()">▶ بدء رحلة · Start Trip</button>
-      <button class="action-btn btn-report" onclick="reportIssue()">⚠️ إبلاغ · Report</button>
+      <button class="action-btn btn-start" onclick="openStartModal()">▶ ${t('drv_action_start')}</button>
+      <button class="action-btn btn-report" onclick="reportIssue()">⚠️ ${t('drv_action_report')}</button>
     `;
   } else {
     row.innerHTML = `
-      <button class="action-btn btn-arrive" id="arriveBtn" onclick="arriveAtStop()">📍 وصلت للمحطة · Arrive</button>
-      <button class="action-btn btn-end" onclick="openEndModal()">■ إنهاء الرحلة · End</button>
+      <button class="action-btn btn-arrive" id="arriveBtn" onclick="arriveAtStop()">📍 ${t('drv_action_arrived')}</button>
+      <button class="action-btn btn-end" onclick="openEndModal()">■ ${t('drv_action_end')}</button>
     `;
   }
 }
@@ -744,7 +747,7 @@ function updateNextStop() {
   if (stop) {
     document.getElementById('nextStopAr').textContent = stop.nameAr;
     document.getElementById('nextStopName').textContent = stop.name;
-    document.getElementById('waitingPassengers').textContent = `~${Math.floor(Math.random()*15)+3} ركاب بانتظار`;
+    document.getElementById('waitingPassengers').textContent = `~${Math.floor(Math.random()*15)+3} ${i18n.getCurrentLang() === 'ar' ? 'ركاب بانتظار' : 'passengers waiting'}`;
   } else {
     document.getElementById('nextStopAr').textContent = '—';
     document.getElementById('nextStopName').textContent = 'Route complete';
@@ -789,6 +792,20 @@ function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
 }
 
+// ── Language toggle init ──
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('drvLangToggle');
+  if (container) container.appendChild(i18n.createToggleButton());
+});
+
+// Re-render dynamic content on language change
+document.addEventListener('langchange', () => {
+  renderActions();
+  updateStatusPill(!!activeTrip);
+  const speedVal = parseInt(document.getElementById('speedVal').textContent) || 0;
+  document.getElementById('speedLabel').textContent = speedVal > 2 ? t('drv_moving') : t('drv_stopped');
+});
+
 // ── Haversine ──
 function haversine(lat1,lon1,lat2,lon2) {
   const R = 6371;
@@ -796,6 +813,66 @@ function haversine(lat1,lon1,lat2,lon2) {
   const dLon = (lon2-lon1)*Math.PI/180;
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── Service Worker + Web Push ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/driver/service-worker.js');
+      console.log('Driver SW registered:', reg.scope);
+
+      // Listen for dispatch messages from SW
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'PUSH_DATA') {
+          const { data } = event.data;
+          if (data.message) showAlert(data.message, data.severity || 'info');
+        }
+      });
+
+      // Subscribe to push notifications after login
+      document.addEventListener('driver:logged-in', () => subscribePush(reg, 'driver'));
+    } catch (err) {
+      console.warn('Driver SW registration failed:', err);
+    }
+  });
+}
+
+async function subscribePush(reg, role) {
+  if (!('PushManager' in window)) return;
+  try {
+    const keyRes = await fetch(`${API_BASE}/api/push/vapid-public-key`);
+    const { publicKey, enabled } = await keyRes.json();
+    if (!enabled || !publicKey) return;
+
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) return; // already subscribed
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+
+    const token = authToken || sessionStorage.getItem('authToken');
+    await fetch(`${API_BASE}/api/push/subscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ subscription: sub.toJSON(), role }),
+    });
+    console.log('Push subscription registered for', role);
+  } catch (err) {
+    console.warn('Push subscribe failed:', err);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 </script>
 </body>

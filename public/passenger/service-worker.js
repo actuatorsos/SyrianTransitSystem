@@ -105,3 +105,40 @@ async function tileStrategy(request) {
     return new Response('', { status: 503 });
   }
 }
+
+// ─── Web Push: receive notification ───
+self.addEventListener('push', event => {
+  let payload = { title: 'Damascus Transit', body: '', data: {} };
+  if (event.data) {
+    try { Object.assign(payload, JSON.parse(event.data.text())); } catch {}
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/passenger/icons/icon-192.png',
+      badge: '/passenger/icons/badge-72.png',
+      data: payload.data,
+      dir: 'auto',
+      lang: 'ar',
+    })
+  );
+});
+
+// ─── Web Push: notification click ───
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/passenger/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (const client of windowClients) {
+        if (client.url.includes('/passenger/') && 'focus' in client) {
+          if (event.notification.data && event.notification.data.stopId) {
+            client.postMessage({ type: 'FOCUS_STOP', stopId: event.notification.data.stopId });
+          }
+          return client.focus();
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
+});
