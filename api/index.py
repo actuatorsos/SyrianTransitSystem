@@ -22,7 +22,17 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Literal
 
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, status, Query, Header, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    Depends,
+    HTTPException,
+    status,
+    Query,
+    Header,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials as HTTPAuthCredentials
@@ -32,9 +42,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import sys
+import os as _os
+
+sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), ".."))
+from lib.email import send_alert_email, send_welcome_email, send_password_reset_email
+
 # ============================================================================
 # Structured Logging (JSON format for Vercel / cloud log aggregators)
 # ============================================================================
+
 
 class _JsonFormatter(logging.Formatter):
     """Emit log records as single-line JSON for structured log ingestion."""
@@ -51,10 +68,27 @@ class _JsonFormatter(logging.Formatter):
         # Merge any extra fields attached to the record
         for key, val in record.__dict__.items():
             if key not in {
-                "name", "msg", "args", "levelname", "levelno", "pathname",
-                "filename", "module", "exc_info", "exc_text", "stack_info",
-                "lineno", "funcName", "created", "msecs", "relativeCreated",
-                "thread", "threadName", "processName", "process", "message",
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "message",
             }:
                 payload[key] = val
         return json.dumps(payload, default=str, ensure_ascii=False)
@@ -88,7 +122,7 @@ if _SENTRY_DSN:
     sentry_sdk.init(
         dsn=_SENTRY_DSN,
         integrations=[FastApiIntegration(), HttpxIntegration()],
-        traces_sample_rate=0.1,   # 10 % of requests for performance tracing
+        traces_sample_rate=0.1,  # 10 % of requests for performance tracing
         profiles_sample_rate=0.0,
         environment=os.getenv("VERCEL_ENV", "development"),
         send_default_pii=False,
@@ -102,9 +136,9 @@ else:
 # ============================================================================
 
 # Cache TTLs (seconds)
-CACHE_TTL_VEHICLES = 5       # vehicle positions — refreshed every 2s by drivers
+CACHE_TTL_VEHICLES = 5  # vehicle positions — refreshed every 2s by drivers
 CACHE_TTL_ROUTES_STOPS = 300  # routes & stops — static reference data
-CACHE_TTL_STATS = 30          # fleet stats — lightweight aggregate
+CACHE_TTL_STATS = 30  # fleet stats — lightweight aggregate
 
 # Cache key prefixes — append :{operator_id} to namespace per tenant
 CACHE_KEY_VEHICLES_LIST = "transit:vehicles:list"
@@ -127,6 +161,7 @@ def _get_redis_client():
         return None
     try:
         from upstash_redis.asyncio import Redis
+
         return Redis(url=url, token=token)
     except Exception:
         return None
@@ -172,13 +207,15 @@ async def _cache_delete(*keys: str) -> None:
 # Rate Limiter (Redis-backed — survives Vercel cold starts)
 # ============================================================================
 
-RATE_LIMIT_LOGIN = (10, 60)        # 10 attempts per 60s per IP
-RATE_LIMIT_DRIVER_POS = (12, 60)   # 12 updates per 60s per driver (~1 per 5s)
-RATE_LIMIT_GLOBAL = (200, 60)      # 200 req/60s per IP — general flood protection
-RATE_LIMIT_PUSH_SUB = (5, 60)      # 5 subscribe requests/60s per IP
+RATE_LIMIT_LOGIN = (10, 60)  # 10 attempts per 60s per IP
+RATE_LIMIT_DRIVER_POS = (12, 60)  # 12 updates per 60s per driver (~1 per 5s)
+RATE_LIMIT_GLOBAL = (200, 60)  # 200 req/60s per IP — general flood protection
+RATE_LIMIT_PUSH_SUB = (5, 60)  # 5 subscribe requests/60s per IP
 
 
-async def _rate_limit_check(identifier: str, max_requests: int, window_seconds: int) -> bool:
+async def _rate_limit_check(
+    identifier: str, max_requests: int, window_seconds: int
+) -> bool:
     """Fixed-window rate limiter backed by Upstash Redis. Returns True if allowed."""
     client = _get_redis_client()
     if client is None:
@@ -210,21 +247,60 @@ def _get_client_ip(request: Request) -> str:
 # ============================================================================
 
 _OPENAPI_TAGS = [
-    {"name": "health",    "description": "Service health and status checks. No authentication required."},
-    {"name": "auth",      "description": "User authentication. Returns a JWT bearer token."},
-    {"name": "routes",    "description": "Transit route data. Public read access; no authentication required."},
-    {"name": "stops",     "description": "Bus stop locations and nearest-stop lookup. Public read access."},
-    {"name": "vehicles",  "description": "Real-time vehicle positions and fleet list. Public read access."},
-    {"name": "stream",    "description": "Server-Sent Events (SSE) stream for live vehicle updates. Public."},
-    {"name": "websocket", "description": "WebSocket real-time vehicle tracking with route subscriptions."},
-    {"name": "stats",     "description": "Aggregate fleet statistics. Public read access."},
-    {"name": "schedules", "description": "Route schedules and timetables. Public read access."},
-    {"name": "alerts",    "description": "Passenger-facing service alerts. Public read access."},
-    {"name": "driver",    "description": "Driver-only endpoints. Requires `driver` role JWT."},
-    {"name": "admin",     "description": "Admin and dispatcher endpoints. Requires `admin` or `dispatcher` role JWT."},
-    {"name": "traccar",   "description": "Traccar GPS device webhooks. Secured by HMAC signature header."},
-    {"name": "gtfs",      "description": "GTFS static and realtime feeds for Google Maps / transit apps."},
-    {"name": "operators", "description": "Fleet operator (tenant) management. super_admin role required for most operations."},
+    {
+        "name": "health",
+        "description": "Service health and status checks. No authentication required.",
+    },
+    {"name": "auth", "description": "User authentication. Returns a JWT bearer token."},
+    {
+        "name": "routes",
+        "description": "Transit route data. Public read access; no authentication required.",
+    },
+    {
+        "name": "stops",
+        "description": "Bus stop locations and nearest-stop lookup. Public read access.",
+    },
+    {
+        "name": "vehicles",
+        "description": "Real-time vehicle positions and fleet list. Public read access.",
+    },
+    {
+        "name": "stream",
+        "description": "Server-Sent Events (SSE) stream for live vehicle updates. Public.",
+    },
+    {
+        "name": "websocket",
+        "description": "WebSocket real-time vehicle tracking with route subscriptions.",
+    },
+    {"name": "stats", "description": "Aggregate fleet statistics. Public read access."},
+    {
+        "name": "schedules",
+        "description": "Route schedules and timetables. Public read access.",
+    },
+    {
+        "name": "alerts",
+        "description": "Passenger-facing service alerts. Public read access.",
+    },
+    {
+        "name": "driver",
+        "description": "Driver-only endpoints. Requires `driver` role JWT.",
+    },
+    {
+        "name": "admin",
+        "description": "Admin and dispatcher endpoints. Requires `admin` or `dispatcher` role JWT.",
+    },
+    {
+        "name": "traccar",
+        "description": "Traccar GPS device webhooks. Secured by HMAC signature header.",
+    },
+    {
+        "name": "gtfs",
+        "description": "GTFS static and realtime feeds for Google Maps / transit apps.",
+    },
+    {
+        "name": "operators",
+        "description": "Fleet operator (tenant) management. super_admin role required for most operations.",
+    },
 ]
 
 app = FastAPI(
@@ -254,8 +330,7 @@ if not _allowed_origins:
 _is_production = os.getenv("VERCEL_ENV", "").lower() == "production"
 if _is_production:
     _allowed_origins = [
-        o for o in _allowed_origins
-        if "localhost" not in o and "127.0.0.1" not in o
+        o for o in _allowed_origins if "localhost" not in o and "127.0.0.1" not in o
     ]
     if not _allowed_origins:
         raise RuntimeError(
@@ -272,7 +347,9 @@ app.add_middleware(
 
 
 # Paths exempt from global IP rate limiting (lightweight infra/docs endpoints)
-_GLOBAL_RATE_LIMIT_SKIP = frozenset({"/api/health", "/", "/docs", "/openapi.json", "/redoc"})
+_GLOBAL_RATE_LIMIT_SKIP = frozenset(
+    {"/api/health", "/", "/docs", "/openapi.json", "/redoc"}
+)
 
 
 @app.middleware("http")
@@ -548,6 +625,7 @@ def optional_auth(
 # Multi-tenancy helpers
 # ============================================================================
 
+
 async def _resolve_operator_id(operator_slug: Optional[str]) -> str:
     """
     Resolve an operator UUID from its slug.
@@ -729,7 +807,9 @@ async def _last_position_update() -> Optional[str]:
 async def _active_vehicle_count() -> Optional[int]:
     """Return the number of vehicles with status = 'active'."""
     try:
-        rows = await _supabase_get("vehicles?is_active=eq.true&status=eq.active&select=id")
+        rows = await _supabase_get(
+            "vehicles?is_active=eq.true&status=eq.active&select=id"
+        )
         return len(rows) if rows is not None else None
     except Exception:
         return None
@@ -1123,7 +1203,9 @@ async def login(request: LoginRequest, raw_request: Request):
 
 @app.get("/api/routes", response_model=List[RouteResponse], tags=["routes"])
 async def list_routes(
-    operator: Optional[str] = Query(None, description="Operator slug (e.g. 'damascus')"),
+    operator: Optional[str] = Query(
+        None, description="Operator slug (e.g. 'damascus')"
+    ),
     current_user: Optional[CurrentUser] = Depends(optional_auth),
 ):
     """
@@ -1601,17 +1683,19 @@ async def _fetch_ws_positions() -> list:
         result = []
         for pos in positions or []:
             vehicle = pos.get("vehicles") or {}
-            result.append({
-                "vehicle_id": pos.get("vehicle_id"),
-                "route_id": vehicle.get("assigned_route_id"),
-                "vehicle_name": vehicle.get("name", ""),
-                "vehicle_name_ar": vehicle.get("name_ar", ""),
-                "latitude": pos.get("latitude"),
-                "longitude": pos.get("longitude"),
-                "speed_kmh": pos.get("speed_kmh"),
-                "occupancy_pct": pos.get("occupancy_pct"),
-                "timestamp": pos.get("recorded_at", datetime.utcnow().isoformat()),
-            })
+            result.append(
+                {
+                    "vehicle_id": pos.get("vehicle_id"),
+                    "route_id": vehicle.get("assigned_route_id"),
+                    "vehicle_name": vehicle.get("name", ""),
+                    "vehicle_name_ar": vehicle.get("name_ar", ""),
+                    "latitude": pos.get("latitude"),
+                    "longitude": pos.get("longitude"),
+                    "speed_kmh": pos.get("speed_kmh"),
+                    "occupancy_pct": pos.get("occupancy_pct"),
+                    "timestamp": pos.get("recorded_at", datetime.utcnow().isoformat()),
+                }
+            )
         return result
     except Exception:
         return []
@@ -1678,7 +1762,9 @@ async def websocket_vehicle_tracking(websocket: WebSocket):
                 elif msg_type == "subscribe":
                     route_id = msg.get("route_id") or None
                     ws_manager.subscribe(websocket, route_id)
-                    await websocket.send_text(json.dumps({"type": "subscribed", "route_id": route_id}))
+                    await websocket.send_text(
+                        json.dumps({"type": "subscribed", "route_id": route_id})
+                    )
                 elif msg_type == "unsubscribe":
                     ws_manager.subscribe(websocket, None)
                     await websocket.send_text(json.dumps({"type": "unsubscribed"}))
@@ -1720,7 +1806,9 @@ async def get_fleet_stats(
         op_suffix = f"&{_op_filter(op_id)}" if op_id else ""
 
         # Vehicle counts
-        vehicles = await _supabase_get(f"vehicles?is_active=eq.true&select=id,status{op_suffix}")
+        vehicles = await _supabase_get(
+            f"vehicles?is_active=eq.true&select=id,status{op_suffix}"
+        )
 
         active_count = (
             len([v for v in vehicles if v.get("status") == "active"]) if vehicles else 0
@@ -1741,14 +1829,18 @@ async def get_fleet_stats(
         stops = await _supabase_get(f"stops?is_active=eq.true&select=id{op_suffix}")
 
         # Driver counts
-        drivers = await _supabase_get(f"users?role=eq.driver&select=id,is_active{op_suffix}")
+        drivers = await _supabase_get(
+            f"users?role=eq.driver&select=id,is_active{op_suffix}"
+        )
 
         active_drivers = (
             len([d for d in drivers if d.get("is_active")]) if drivers else 0
         )
 
         # Average occupancy
-        positions = await _supabase_get(f"vehicle_positions_latest?select=occupancy_pct{op_suffix}")
+        positions = await _supabase_get(
+            f"vehicle_positions_latest?select=occupancy_pct{op_suffix}"
+        )
 
         occupancy_values = [
             p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
@@ -1781,7 +1873,11 @@ async def get_fleet_stats(
         )
 
 
-@app.get("/api/schedules/{route_id}", response_model=List[ScheduleResponse], tags=["schedules"])
+@app.get(
+    "/api/schedules/{route_id}",
+    response_model=List[ScheduleResponse],
+    tags=["schedules"],
+)
 async def get_route_schedule(
     route_id: str,
     operator: Optional[str] = Query(None, description="Operator slug"),
@@ -1957,7 +2053,9 @@ async def report_driver_position(
         if current_user.operator_id:
             await _cache_delete(
                 _tenant_cache_key(CACHE_KEY_VEHICLES_LIST, current_user.operator_id),
-                _tenant_cache_key(CACHE_KEY_VEHICLES_POSITIONS, current_user.operator_id),
+                _tenant_cache_key(
+                    CACHE_KEY_VEHICLES_POSITIONS, current_user.operator_id
+                ),
             )
         else:
             await _cache_delete(CACHE_KEY_VEHICLES_LIST, CACHE_KEY_VEHICLES_POSITIONS)
@@ -2134,7 +2232,9 @@ async def update_passenger_count(
 
 @app.get("/api/admin/users", response_model=List[UserResponse], tags=["admin"])
 async def list_users(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     List all users scoped to the current operator.
@@ -2223,7 +2323,7 @@ async def create_user(
             result if isinstance(result, dict) else result[0] if result else {}
         )
 
-        return UserResponse(
+        response = UserResponse(
             id=created_user.get("id"),
             email=created_user.get("email"),
             full_name=created_user.get("full_name"),
@@ -2232,6 +2332,17 @@ async def create_user(
             phone=created_user.get("phone"),
             is_active=created_user.get("is_active"),
         )
+
+        # Fire-and-forget welcome email
+        asyncio.create_task(
+            send_welcome_email(
+                full_name=created_user.get("full_name", ""),
+                email=created_user.get("email", ""),
+                role=created_user.get("role", ""),
+            )
+        )
+
+        return response
 
     except HTTPException:
         raise
@@ -2304,7 +2415,9 @@ async def update_user(
 
 @app.get("/api/admin/vehicles", response_model=List[VehicleResponse], tags=["admin"])
 async def list_all_vehicles(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     List all vehicles including inactive ones, scoped to current operator.
@@ -2406,7 +2519,9 @@ async def create_vehicle(
         )
 
 
-@app.put("/api/admin/vehicles/{vehicle_id}", response_model=VehicleResponse, tags=["admin"])
+@app.put(
+    "/api/admin/vehicles/{vehicle_id}", response_model=VehicleResponse, tags=["admin"]
+)
 async def update_vehicle(
     vehicle_id: str,
     vehicle_data: VehicleUpdate,
@@ -2516,7 +2631,9 @@ async def assign_vehicle(
 
 @app.get("/api/admin/alerts", response_model=List[AlertResponse], tags=["admin"])
 async def list_all_alerts(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     Get all alerts (resolved and unresolved), scoped to current operator.
@@ -2596,12 +2713,87 @@ async def resolve_alert(
         )
 
 
+class NotificationTestRequest(BaseModel):
+    """Request body for the test notification endpoint."""
+
+    email: str
+    kind: Literal["alert", "welcome"] = "alert"
+
+
+@app.post("/api/admin/notifications/test", tags=["admin"])
+async def test_notification(
+    body: NotificationTestRequest,
+    current_user: CurrentUser = Depends(require_role("admin")),
+):
+    """
+    Send a test email to verify Resend integration is configured.
+
+    Args:
+        body: Target email address and notification kind ('alert' or 'welcome')
+        current_user: Authenticated admin
+
+    Returns:
+        Delivery status
+    """
+    import os as _env_os
+
+    api_key = _env_os.getenv("RESEND_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="RESEND_API_KEY is not configured on this server.",
+        )
+
+    if body.kind == "welcome":
+        ok = await send_welcome_email(
+            full_name="Test User",
+            email=body.email,
+            role="admin",
+        )
+    else:
+        ok = await send_alert_email(
+            alert_type="overspeed",
+            severity="high",
+            title="Test Alert — Overspeed",
+            vehicle_id="test-vehicle-001",
+            description="This is a test notification from the Damascus Transit Platform.",
+            created_at=datetime.utcnow().isoformat(),
+        )
+        # Override recipients to the provided address for test only
+        if not ok:
+            # Fall back: send directly to provided email
+            from lib.email import _send, _alert_html
+
+            html = _alert_html(
+                alert_type="overspeed",
+                severity="high",
+                title="Test Alert — Overspeed",
+                vehicle_id="test-vehicle-001",
+                description="This is a test notification from the Damascus Transit Platform.",
+                created_at=datetime.utcnow().isoformat(),
+            )
+            ok = await _send(
+                to=[body.email],
+                subject="[TEST] Transit Alert — Overspeed",
+                html=html,
+            )
+
+    return {
+        "status": "sent" if ok else "failed",
+        "kind": body.kind,
+        "recipient": body.email,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
 @app.get("/api/admin/trips", response_model=List[dict], tags=["admin"])
 async def list_trips(
     vehicle_id: Optional[str] = None,
     driver_id: Optional[str] = None,
     status_filter: Optional[str] = None,
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     List trips with optional filtering, scoped to current operator.
@@ -2641,9 +2833,13 @@ async def list_trips(
         )
 
 
-@app.get("/api/admin/analytics/overview", response_model=AnalyticsOverview, tags=["admin"])
+@app.get(
+    "/api/admin/analytics/overview", response_model=AnalyticsOverview, tags=["admin"]
+)
 async def get_analytics_overview(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     Get fleet analytics overview for dashboard, scoped to current operator.
@@ -2677,14 +2873,18 @@ async def get_analytics_overview(
         stops = await _supabase_get(f"stops?is_active=eq.true&select=id{op_suffix}")
 
         # Drivers
-        drivers = await _supabase_get(f"users?role=eq.driver&select=is_active{op_suffix}")
+        drivers = await _supabase_get(
+            f"users?role=eq.driver&select=is_active{op_suffix}"
+        )
 
         active_drivers = (
             len([d for d in drivers if d.get("is_active")]) if drivers else 0
         )
 
         # Average occupancy
-        positions = await _supabase_get(f"vehicle_positions_latest?select=occupancy_pct{op_suffix}")
+        positions = await _supabase_get(
+            f"vehicle_positions_latest?select=occupancy_pct{op_suffix}"
+        )
 
         occupancy_values = [
             p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
@@ -2714,7 +2914,9 @@ async def get_analytics_overview(
 
 @app.get("/api/admin/analytics/fleet-utilization", tags=["admin"])
 async def get_fleet_utilization(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     Get fleet utilization over the last 24 hours, bucketed by hour.
@@ -2784,7 +2986,9 @@ async def get_fleet_utilization(
 
 @app.get("/api/admin/analytics/route-performance", tags=["admin"])
 async def get_route_performance(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     Get per-route performance: on-time %, average delay, and trip count
@@ -2870,7 +3074,9 @@ async def get_route_performance(
 
 @app.get("/api/admin/analytics/driver-scoreboard", tags=["admin"])
 async def get_driver_scoreboard(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     Get driver scoreboard: trips completed and avg route adherence (on_time_pct)
@@ -2913,9 +3119,7 @@ async def get_driver_scoreboard(
                 if on_time_values
                 else None
             )
-            total_km = round(
-                sum(t.get("distance_km") or 0 for t in dt), 1
-            )
+            total_km = round(sum(t.get("distance_km") or 0 for t in dt), 1)
 
             result.append(
                 {
@@ -2939,7 +3143,9 @@ async def get_driver_scoreboard(
 
 @app.get("/api/admin/analytics/gps-heatmap", tags=["admin"])
 async def get_gps_heatmap(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """
     Get GPS position data for heatmap visualization.
@@ -3023,7 +3229,9 @@ async def get_gps_heatmap(
                                     "type": "Point",
                                     "coordinates": [coords[0], coords[1]],
                                 },
-                                "properties": {"weight": 3},  # Higher weight for current
+                                "properties": {
+                                    "weight": 3
+                                },  # Higher weight for current
                             }
                         )
                 elif isinstance(loc, str) and loc.startswith("POINT"):
@@ -3398,17 +3606,32 @@ async def traccar_event_webhook(
         critical_events = ["overspeed", "geofenceExit", "deviceOffline"]
 
         if event.type in critical_events:
+            severity = "high" if event.type == "overspeed" else "medium"
+            alert_title = f"Alert: {event.type}"
+            alert_description = f"Event from Traccar: {event.data}"
             alert_data = {
                 "vehicle_id": vehicle_id,
                 "alert_type": alert_type,
-                "severity": "high" if event.type == "overspeed" else "medium",
-                "title": f"Alert: {event.type}",
+                "severity": severity,
+                "title": alert_title,
                 "title_ar": f"تنبيه: {event.type}",
-                "description": f"Event from Traccar: {event.data}",
+                "description": alert_description,
                 "is_resolved": False,
             }
 
             await _supabase_post("alerts", alert_data)
+
+            # Fire-and-forget email notification
+            asyncio.create_task(
+                send_alert_email(
+                    alert_type=alert_type,
+                    severity=severity,
+                    title=alert_title,
+                    vehicle_id=vehicle_id,
+                    description=alert_description,
+                    created_at=datetime.utcnow().isoformat(),
+                )
+            )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
@@ -3433,8 +3656,13 @@ async def get_gtfs_static_file(filename: str):
     trips.txt, stop_times.txt, calendar.txt, or feed_info.txt.
     """
     allowed = {
-        "agency.txt", "stops.txt", "routes.txt", "trips.txt",
-        "stop_times.txt", "calendar.txt", "feed_info.txt",
+        "agency.txt",
+        "stops.txt",
+        "routes.txt",
+        "trips.txt",
+        "stop_times.txt",
+        "calendar.txt",
+        "feed_info.txt",
     }
     if filename not in allowed:
         raise HTTPException(status_code=404, detail="File not found")
@@ -3522,9 +3750,7 @@ async def get_gtfs_realtime():
 
             feed = gtfs_realtime_pb2.FeedMessage()
             feed.header.gtfs_realtime_version = "2.0"
-            feed.header.incrementality = (
-                gtfs_realtime_pb2.FeedHeader.FULL_DATASET
-            )
+            feed.header.incrementality = gtfs_realtime_pb2.FeedHeader.FULL_DATASET
             feed.header.timestamp = int(time.time())
 
             # ── VehiclePosition entities ──────────────────────────────────
@@ -3576,11 +3802,9 @@ async def get_gtfs_realtime():
                     vp.occupancy_status = occ
 
             # ── TripUpdate entities ───────────────────────────────────────
-            for trip in (trips_raw or []):
+            for trip in trips_raw or []:
                 vehicle = vehicles_by_uuid.get(trip["vehicle_id"])
-                route_text_id = route_id_by_uuid.get(
-                    trip.get("route_id", ""), ""
-                )
+                route_text_id = route_id_by_uuid.get(trip.get("route_id", ""), "")
 
                 entity = feed.entity.add()
                 entity.id = f"tu_{trip['id']}"
@@ -3623,22 +3847,24 @@ async def get_gtfs_realtime():
                 route_text_id = route_id_by_uuid.get(
                     vehicle.get("assigned_route_id", ""), ""
                 )
-                feed_json["entity"].append({
-                    "id": f"vp_{p['vehicle_id']}",
-                    "vehicle": {
+                feed_json["entity"].append(
+                    {
+                        "id": f"vp_{p['vehicle_id']}",
                         "vehicle": {
-                            "id": vehicle["vehicle_id"],
-                            "label": vehicle.get("name", ""),
+                            "vehicle": {
+                                "id": vehicle["vehicle_id"],
+                                "label": vehicle.get("name", ""),
+                            },
+                            "trip": {"route_id": route_text_id},
+                            "position": {
+                                "latitude": p.get("latitude"),
+                                "longitude": p.get("longitude"),
+                                "speed": (p.get("speed_kmh") or 0.0) / 3.6,
+                            },
+                            "timestamp": int(time.time()),
                         },
-                        "trip": {"route_id": route_text_id},
-                        "position": {
-                            "latitude": p.get("latitude"),
-                            "longitude": p.get("longitude"),
-                            "speed": (p.get("speed_kmh") or 0.0) / 3.6,
-                        },
-                        "timestamp": int(time.time()),
-                    },
-                })
+                    }
+                )
             return JSONResponse(content=feed_json)
 
     except Exception as e:
@@ -3885,7 +4111,9 @@ async def create_operator(
         )
 
 
-@app.put("/api/operators/{operator_id}", response_model=OperatorResponse, tags=["operators"])
+@app.put(
+    "/api/operators/{operator_id}", response_model=OperatorResponse, tags=["operators"]
+)
 async def update_operator(
     operator_id: str,
     data: OperatorUpdate,
