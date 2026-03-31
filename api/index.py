@@ -44,7 +44,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from lib.email import send_alert_email, send_welcome_email  # noqa: E402
+from lib.email import send_alert_email, send_password_reset_email, send_welcome_email  # noqa: E402
 
 load_dotenv()
 
