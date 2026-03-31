@@ -27,7 +27,7 @@ async def get_route_schedule(
         elif current_user and current_user.operator_id:
             op_id = current_user.operator_id
         else:
-            op_id = await _resolve_operator_id(operator)
+            op_id = await _resolve_operator_id(operator) if operator else None
 
         query = f"schedules?route_id=eq.{route_id}&select=*"
         if op_id:

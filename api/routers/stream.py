@@ -25,7 +25,7 @@ async def stream_positions(
     elif current_user and current_user.operator_id:
         op_id = current_user.operator_id
     else:
-        op_id = await _resolve_operator_id(operator)
+        op_id = await _resolve_operator_id(operator) if operator else None
 
     async def generate():
         start_time = time.time()

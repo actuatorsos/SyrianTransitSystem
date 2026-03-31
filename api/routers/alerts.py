@@ -22,7 +22,7 @@ async def get_active_alerts(
         elif current_user and current_user.operator_id:
             op_id = current_user.operator_id
         else:
-            op_id = await _resolve_operator_id(operator)
+            op_id = await _resolve_operator_id(operator) if operator else None
 
         query = "alerts?is_resolved=eq.false&select=*&order=created_at.desc"
         if op_id:

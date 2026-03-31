@@ -30,7 +30,7 @@ async def list_vehicles(
         elif current_user and current_user.operator_id:
             op_id = current_user.operator_id
         else:
-            op_id = await _resolve_operator_id(operator)
+            op_id = await _resolve_operator_id(operator) if operator else None
 
         cache_key = _tenant_cache_key(CACHE_KEY_VEHICLES_LIST, op_id or "all")
         cached = await _cache_get(cache_key)
@@ -87,7 +87,7 @@ async def get_vehicle_positions(
         elif current_user and current_user.operator_id:
             op_id = current_user.operator_id
         else:
-            op_id = await _resolve_operator_id(operator)
+            op_id = await _resolve_operator_id(operator) if operator else None
 
         cache_key = _tenant_cache_key(CACHE_KEY_VEHICLES_POSITIONS, op_id or "all")
         cached = await _cache_get(cache_key)
