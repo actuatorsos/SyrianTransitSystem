@@ -23,3 +23,10 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Nested repositories / local working copies
+damascus-transit-platform/
+
+# Test cache artifacts
+pytest-cache-files-*/
+.pytest_cache/
