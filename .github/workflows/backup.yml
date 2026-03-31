@@ -19,7 +19,7 @@ jobs:
       BACKUP_DIR: backup-${{ github.run_id }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v5
         with:
@@ -84,7 +84,7 @@ jobs:
     needs: backup-supabase
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Vercel CLI
         run: npm install -g vercel
