@@ -1113,16 +1113,20 @@ async def export_drivers_csv(
             f"&select=driver_id,on_time_pct,distance_km{op_suffix}"
         )
         driver_trips: dict = defaultdict(list)
-        for t in (trips or []):
+        for t in trips or []:
             if t.get("driver_id"):
                 driver_trips[t["driver_id"]].append(t)
 
         rows = []
-        for d in (drivers or []):
+        for d in drivers or []:
             dt = driver_trips.get(d["id"], [])
-            on_time_values = [t["on_time_pct"] for t in dt if t.get("on_time_pct") is not None]
+            on_time_values = [
+                t["on_time_pct"] for t in dt if t.get("on_time_pct") is not None
+            ]
             avg_adherence = (
-                round(sum(on_time_values) / len(on_time_values), 1) if on_time_values else None
+                round(sum(on_time_values) / len(on_time_values), 1)
+                if on_time_values
+                else None
             )
             total_km = round(sum(t.get("distance_km") or 0 for t in dt), 1)
             rows.append(
@@ -1134,7 +1138,9 @@ async def export_drivers_csv(
                     "phone": d.get("phone", ""),
                     "is_active": d.get("is_active", ""),
                     "trips_completed_30d": len(dt),
-                    "avg_adherence_pct_30d": avg_adherence if avg_adherence is not None else "",
+                    "avg_adherence_pct_30d": avg_adherence
+                    if avg_adherence is not None
+                    else "",
                     "total_km_30d": total_km,
                     "created_at": d.get("created_at", ""),
                 }
@@ -1166,22 +1172,30 @@ async def export_route_performance_csv(
             f"&select=route_id,on_time_pct,scheduled_start,actual_start{op_suffix}"
         )
         route_trips: dict = defaultdict(list)
-        for t in (trips or []):
+        for t in trips or []:
             route_trips[t["route_id"]].append(t)
 
         rows = []
-        for r in (routes or []):
+        for r in routes or []:
             rt = route_trips.get(r["id"], [])
-            on_time_values = [t["on_time_pct"] for t in rt if t.get("on_time_pct") is not None]
+            on_time_values = [
+                t["on_time_pct"] for t in rt if t.get("on_time_pct") is not None
+            ]
             avg_on_time = (
-                round(sum(on_time_values) / len(on_time_values), 1) if on_time_values else None
+                round(sum(on_time_values) / len(on_time_values), 1)
+                if on_time_values
+                else None
             )
             delays = []
             for t in rt:
                 if t.get("scheduled_start") and t.get("actual_start"):
                     try:
-                        sched = datetime.fromisoformat(t["scheduled_start"].replace("Z", "+00:00"))
-                        actual = datetime.fromisoformat(t["actual_start"].replace("Z", "+00:00"))
+                        sched = datetime.fromisoformat(
+                            t["scheduled_start"].replace("Z", "+00:00")
+                        )
+                        actual = datetime.fromisoformat(
+                            t["actual_start"].replace("Z", "+00:00")
+                        )
                         delays.append((actual - sched).total_seconds() / 60)
                     except (ValueError, TypeError):
                         pass
@@ -1193,7 +1207,9 @@ async def export_route_performance_csv(
                     "name_ar": r.get("name_ar", ""),
                     "distance_km": r.get("distance_km", ""),
                     "trip_count_7d": len(rt),
-                    "avg_on_time_pct_7d": avg_on_time if avg_on_time is not None else "",
+                    "avg_on_time_pct_7d": avg_on_time
+                    if avg_on_time is not None
+                    else "",
                     "avg_delay_min_7d": avg_delay if avg_delay is not None else "",
                 }
             )
