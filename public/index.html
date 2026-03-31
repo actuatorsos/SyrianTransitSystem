@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="DamascusTransit - Real-time vehicle tracking dashboard">
-    <title>DamascusTransit - Dashboard</title>
+    <meta name="description" content="DamascusTransit - منصة النقل الذكي لدمشق | Smart Transit Platform for Damascus">
+    <meta name="theme-color" content="#054239">
+    <title>DamascusTransit - منصة النقل الذكي</title>
 
     <!-- Google Fonts: IBM Plex Sans Arabic -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- MapLibre GL JS -->
+    <!-- MapLibre GL JS for hero map preview -->
     <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
+    <script src="/lib/error-handler.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet">
 
     <style>
@@ -22,16 +24,6 @@
             box-sizing: border-box;
         }
 
-        html, body {
-            width: 100%;
-            height: 100%;
-            font-family: 'IBM Plex Sans Arabic', sans-serif;
-            background-color: #161616;
-            color: #e0e0e0;
-            overflow: hidden;
-        }
-
-        /* Color Palette */
         :root {
             --forest-green-primary: #428177;
             --forest-green-dark: #054239;
@@ -40,640 +32,707 @@
             --golden-wheat-mid: #b9a779;
             --golden-wheat-dark: #988561;
             --deep-umber-light: #6b1f2a;
-            --deep-umber-mid: #4a151e;
-            --deep-umber-dark: #260f14;
-            --charcoal-light: #3d3a3b;
             --charcoal-dark: #161616;
-            --gps-purple: #8B5CF6;
-            --status-green: #10b981;
-            --text-light: #e0e0e0;
-            --text-muted: #a0a0a0;
+            --charcoal-light: #3d3a3b;
+        }
+
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
-            display: flex;
-            flex-direction: row;
-            background-color: var(--charcoal-dark);
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            background-color: var(--forest-green-darker);
+            color: var(--golden-wheat-light);
+            overflow-x: hidden;
         }
 
-        /* Header */
-        #header {
+        /* ── Language Toggle ── */
+        .lang-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1000;
+            display: flex;
+            gap: 0.25rem;
+            background: rgba(5, 66, 57, 0.85);
+            border: 1px solid rgba(66, 129, 119, 0.4);
+            border-radius: 2rem;
+            padding: 0.25rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .lang-btn {
+            padding: 0.35rem 0.75rem;
+            border: none;
+            border-radius: 1.5rem;
+            cursor: pointer;
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            background: transparent;
+            color: var(--golden-wheat-mid);
+        }
+
+        .lang-btn.active {
+            background: var(--forest-green-primary);
+            color: var(--golden-wheat-light);
+        }
+
+        /* ── Nav ── */
+        nav {
             position: fixed;
             top: 0;
-            left: 0;
             right: 0;
-            height: 70px;
-            background-color: var(--charcoal-light);
-            border-bottom: 1px solid var(--charcoal-light);
+            left: 0;
+            z-index: 900;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 24px;
-            z-index: 100;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            padding: 1rem 2rem;
+            background: rgba(0, 38, 35, 0.9);
+            border-bottom: 1px solid rgba(66, 129, 119, 0.3);
+            backdrop-filter: blur(12px);
         }
 
-        .header-left {
+        .nav-logo {
             display: flex;
             align-items: center;
-            gap: 16px;
-            flex: 1;
+            gap: 0.6rem;
+            text-decoration: none;
         }
 
-        .header-right {
+        .nav-logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--forest-green-primary);
+            border-radius: 8px;
             display: flex;
             align-items: center;
-            gap: 24px;
+            justify-content: center;
+            font-size: 1.1rem;
         }
 
-        .logo {
-            font-size: 24px;
+        .nav-logo-text {
+            font-size: 1.1rem;
             font-weight: 700;
+            color: var(--golden-wheat-light);
+        }
+
+        .nav-logo-sub {
+            font-size: 0.65rem;
             color: var(--golden-wheat-mid);
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-weight: 400;
         }
 
-        .logo::before {
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .nav-link {
+            padding: 0.4rem 0.9rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--golden-wheat-mid);
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .nav-link:hover {
+            color: var(--golden-wheat-light);
+            background: rgba(66, 129, 119, 0.2);
+            border-color: rgba(66, 129, 119, 0.4);
+        }
+
+        .nav-link.primary {
+            background: var(--forest-green-primary);
+            color: var(--golden-wheat-light);
+            border-color: var(--forest-green-primary);
+        }
+
+        .nav-link.primary:hover {
+            background: #4e9b8f;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            padding: 6rem 4rem 3rem;
+            gap: 3rem;
+        }
+
+        .hero-content {
+            max-width: 520px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(66, 129, 119, 0.15);
+            border: 1px solid rgba(66, 129, 119, 0.4);
+            border-radius: 2rem;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.78rem;
+            color: var(--forest-green-primary);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.03em;
+        }
+
+        .hero-badge::before {
             content: '';
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background-color: var(--forest-green-primary);
-            border-radius: 2px;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            background-color: var(--charcoal-dark);
-            border-radius: 6px;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--status-green);
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
+            background: var(--forest-green-primary);
             animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.3; }
         }
 
-        .status-dot.disconnected {
-            background-color: #ef4444;
-            animation: none;
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+            color: var(--golden-wheat-light);
         }
 
-        .status-dot.reconnecting {
-            background-color: #f59e0b;
-            animation: pulse 1s infinite;
+        .hero-title-en {
+            font-size: 1.4rem;
+            font-weight: 400;
+            color: var(--golden-wheat-mid);
+            margin-bottom: 1.5rem;
+            display: block;
         }
 
-        .fleet-stats {
+        .hero-desc {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: rgba(237, 235, 224, 0.75);
+            margin-bottom: 2rem;
+        }
+
+        .hero-cta {
             display: flex;
-            gap: 20px;
-            font-size: 13px;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.6rem;
+            text-decoration: none;
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--forest-green-primary);
+            color: var(--golden-wheat-light);
+        }
+
+        .btn-primary:hover {
+            background: #4e9b8f;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(66, 129, 119, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--golden-wheat-light);
+            border: 1px solid rgba(237, 235, 224, 0.25);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(237, 235, 224, 0.08);
+            border-color: rgba(237, 235, 224, 0.4);
+        }
+
+        /* ── Map Preview ── */
+        .hero-map {
+            position: relative;
+            height: 480px;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid rgba(66, 129, 119, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        #hero-map-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 60%, rgba(0, 38, 35, 0.8));
+            pointer-events: none;
+        }
+
+        .map-label {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(5, 66, 57, 0.85);
+            border: 1px solid rgba(66, 129, 119, 0.4);
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.75rem;
+            color: var(--golden-wheat-mid);
+            backdrop-filter: blur(8px);
+        }
+
+        /* ── Stats Bar ── */
+        .stats-bar {
+            padding: 3rem 4rem;
+            background: rgba(5, 66, 57, 0.4);
+            border-top: 1px solid rgba(66, 129, 119, 0.2);
+            border-bottom: 1px solid rgba(66, 129, 119, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
         }
 
         .stat-item {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
+            padding: 1.5rem;
         }
 
         .stat-value {
-            font-weight: 600;
-            color: var(--golden-wheat-mid);
-            font-size: 16px;
-        }
-
-        .stat-label {
-            color: var(--text-muted);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Main Container */
-        #main-container {
-            display: flex;
-            width: 100%;
-            height: 100%;
-            margin-top: 70px;
-            margin-bottom: 50px;
-        }
-
-        /* Sidebar */
-        #sidebar {
-            width: 320px;
-            background-color: var(--charcoal-light);
-            border-left: 1px solid rgba(224, 224, 224, 0.1);
-            overflow-y: auto;
-            transition: transform 0.3s ease;
-            z-index: 50;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #sidebar.collapsed {
-            transform: translateX(320px);
-        }
-
-        .sidebar-header {
-            padding: 20px 16px;
-            border-bottom: 1px solid rgba(224, 224, 224, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .sidebar-title {
-            font-weight: 600;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-        }
-
-        .sidebar-toggle {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 18px;
-            padding: 4px;
-            display: none;
-        }
-
-        .sidebar-toggle:hover {
-            color: var(--text-light);
-        }
-
-        /* Filter Tabs */
-        .filter-tabs {
-            display: flex;
-            gap: 8px;
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(224, 224, 224, 0.1);
-            overflow-x: auto;
-        }
-
-        .filter-tab {
-            padding: 6px 12px;
-            border-radius: 4px;
-            border: 1px solid rgba(224, 224, 224, 0.2);
-            background-color: transparent;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            white-space: nowrap;
-            transition: all 0.2s;
-            font-family: 'IBM Plex Sans Arabic', sans-serif;
-        }
-
-        .filter-tab:hover {
-            border-color: var(--golden-wheat-mid);
-            color: var(--golden-wheat-mid);
-        }
-
-        .filter-tab.active {
-            background-color: var(--forest-green-primary);
-            border-color: var(--forest-green-primary);
-            color: white;
-        }
-
-        /* Vehicle List */
-        .vehicle-list-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0;
-        }
-
-        .vehicle-list {
-            list-style: none;
-            padding: 8px;
-            gap: 8px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .vehicle-item {
-            padding: 12px;
-            background-color: var(--charcoal-dark);
-            border: 1px solid rgba(224, 224, 224, 0.1);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-right: 3px solid transparent;
-        }
-
-        .vehicle-item:hover {
-            background-color: rgba(66, 129, 119, 0.2);
-            border-right-color: var(--forest-green-primary);
-        }
-
-        .vehicle-item.active {
-            background-color: rgba(66, 129, 119, 0.3);
-            border-right-color: var(--golden-wheat-mid);
-        }
-
-        .vehicle-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-
-        .vehicle-name {
-            font-weight: 600;
-            font-size: 13px;
-            color: var(--text-light);
-        }
-
-        .vehicle-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .vehicle-badge.gps {
-            background-color: rgba(139, 92, 246, 0.3);
-            color: var(--gps-purple);
-        }
-
-        .vehicle-badge.bus {
-            background-color: rgba(66, 129, 119, 0.3);
+            font-size: 2.5rem;
+            font-weight: 700;
             color: var(--forest-green-primary);
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
         }
 
-        .vehicle-badge.microbus {
-            background-color: rgba(185, 167, 121, 0.3);
+        .stat-value .unit {
+            font-size: 1rem;
+            color: var(--golden-wheat-mid);
+            font-weight: 400;
+        }
+
+        .stat-label-ar {
+            font-size: 0.9rem;
+            color: var(--golden-wheat-mid);
+            margin-top: 0.4rem;
+        }
+
+        .stat-label-en {
+            font-size: 0.75rem;
+            color: rgba(185, 167, 121, 0.6);
+            margin-top: 0.15rem;
+        }
+
+        .stat-loading {
+            font-size: 2rem;
+            color: var(--charcoal-light);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+        }
+
+        /* ── Quick Links ── */
+        .apps-section {
+            padding: 4rem 4rem;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .section-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--golden-wheat-light);
+            margin-bottom: 0.4rem;
+        }
+
+        .section-subtitle {
+            font-size: 0.85rem;
             color: var(--golden-wheat-mid);
         }
 
-        .vehicle-badge.taxi {
-            background-color: rgba(212, 168, 75, 0.3);
-            color: #d4a84b;
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+            max-width: 1000px;
+            margin: 0 auto;
         }
 
-        .vehicle-details {
-            font-size: 12px;
-            color: var(--text-muted);
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .vehicle-detail-line {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .detail-label {
-            color: var(--text-muted);
-        }
-
-        .detail-value {
-            color: var(--text-light);
-            font-weight: 500;
-        }
-
-        /* Map Container */
-        #map-container {
-            flex: 1;
-            position: relative;
-            background-color: var(--charcoal-dark);
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-
-        .maplibre-canvas {
-            outline: none;
-        }
-
-        /* Custom Map Popup */
-        .maplibregl-popup-content {
-            background-color: var(--charcoal-light);
-            border: 1px solid rgba(224, 224, 224, 0.2);
-            border-radius: 6px;
-            padding: 12px;
-            font-family: 'IBM Plex Sans Arabic', sans-serif;
-            color: var(--text-light);
-        }
-
-        .maplibregl-popup-close-button {
-            color: var(--text-muted);
-        }
-
-        .maplibregl-popup-close-button:hover {
-            color: var(--text-light);
-        }
-
-        .popup-content {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            min-width: 200px;
-        }
-
-        .popup-title {
-            font-weight: 600;
-            font-size: 14px;
-            color: var(--golden-wheat-mid);
-        }
-
-        .popup-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 8px;
-            font-size: 12px;
-        }
-
-        .popup-label {
-            color: var(--text-muted);
-        }
-
-        .popup-value {
-            color: var(--text-light);
-            font-weight: 500;
-        }
-
-        .popup-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            background-color: var(--forest-green-primary);
-            color: white;
-            border-radius: 3px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        /* Footer */
-        #footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 50px;
-            background-color: var(--charcoal-light);
-            border-top: 1px solid rgba(224, 224, 224, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 24px;
-            font-size: 12px;
-            color: var(--text-muted);
-            z-index: 50;
-        }
-
-        .footer-content {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-        }
-
-        .footer-link {
-            color: var(--golden-wheat-mid);
+        .app-card {
+            background: rgba(5, 66, 57, 0.4);
+            border: 1px solid rgba(66, 129, 119, 0.25);
+            border-radius: 1rem;
+            padding: 1.75rem 1.25rem;
+            text-align: center;
             text-decoration: none;
-            transition: color 0.2s;
+            color: var(--golden-wheat-light);
+            transition: all 0.25s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        .footer-link:hover {
-            color: var(--text-light);
+        .app-card:hover {
+            background: rgba(66, 129, 119, 0.2);
+            border-color: rgba(66, 129, 119, 0.5);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         }
 
-        /* Scrollbar Styling */
-        #sidebar::-webkit-scrollbar,
-        .vehicle-list-container::-webkit-scrollbar {
-            width: 6px;
+        .app-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
         }
 
-        #sidebar::-webkit-scrollbar-track,
-        .vehicle-list-container::-webkit-scrollbar-track {
-            background: transparent;
+        .app-card:nth-child(1) .app-icon { background: rgba(66, 129, 119, 0.25); }
+        .app-card:nth-child(2) .app-icon { background: rgba(107, 31, 42, 0.35); }
+        .app-card:nth-child(3) .app-icon { background: rgba(74, 21, 30, 0.35); }
+        .app-card:nth-child(4) .app-icon { background: rgba(152, 133, 97, 0.2); }
+
+        .app-name-ar {
+            font-size: 0.9rem;
+            font-weight: 600;
         }
 
-        #sidebar::-webkit-scrollbar-thumb,
-        .vehicle-list-container::-webkit-scrollbar-thumb {
-            background-color: rgba(224, 224, 224, 0.2);
-            border-radius: 3px;
+        .app-name-en {
+            font-size: 0.72rem;
+            color: var(--golden-wheat-mid);
+            font-weight: 400;
         }
 
-        #sidebar::-webkit-scrollbar-thumb:hover,
-        .vehicle-list-container::-webkit-scrollbar-thumb:hover {
-            background-color: rgba(224, 224, 224, 0.4);
+        /* ── Footer ── */
+        footer {
+            padding: 2rem 4rem;
+            border-top: 1px solid rgba(66, 129, 119, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            #sidebar {
-                position: fixed;
-                left: 0;
-                top: 70px;
-                bottom: 50px;
-                width: 280px;
-                z-index: 60;
+        .footer-brand {
+            font-size: 0.85rem;
+            color: var(--golden-wheat-mid);
+        }
+
+        .footer-powered {
+            font-size: 0.78rem;
+            color: rgba(185, 167, 121, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .footer-powered::before {
+            content: '⚡';
+            font-size: 0.7rem;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: 1fr;
+                padding: 5rem 1.5rem 2rem;
+                gap: 2rem;
             }
 
-            #sidebar.collapsed {
-                transform: translateX(280px);
+            .hero-title {
+                font-size: 2.2rem;
             }
 
-            .sidebar-toggle {
-                display: block;
+            .hero-map {
+                height: 300px;
             }
 
-            .fleet-stats {
-                gap: 12px;
+            .apps-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
 
-            .stat-value {
-                font-size: 14px;
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
             }
 
-            #main-container {
-                margin-top: 70px;
-                margin-bottom: 50px;
+            .apps-section,
+            .stats-bar {
+                padding: 2.5rem 1.5rem;
+            }
+
+            footer {
+                padding: 1.5rem;
+                justify-content: center;
+                text-align: center;
+            }
+
+            nav {
+                padding: 0.75rem 1.25rem;
+            }
+
+            .nav-logo-sub {
+                display: none;
             }
         }
 
         @media (max-width: 480px) {
-            #header {
-                padding: 0 12px;
+            .apps-grid {
+                grid-template-columns: 1fr 1fr;
             }
 
-            .logo {
-                font-size: 18px;
+            .hero-cta {
+                flex-direction: column;
             }
 
-            .fleet-stats {
-                gap: 8px;
-            }
-
-            .stat-value {
-                font-size: 12px;
-            }
-
-            .stat-label {
-                font-size: 9px;
+            .btn {
+                justify-content: center;
             }
         }
 
-        /* Loading and Error States */
-        .error-message {
-            padding: 16px;
-            background-color: rgba(239, 68, 68, 0.1);
-            border: 1px solid #ef4444;
-            border-radius: 6px;
-            color: #fca5a5;
-            font-size: 12px;
-            margin: 12px;
+        /* ── LTR override ── */
+        html[dir="ltr"] {
+            direction: ltr;
         }
 
-        .empty-state {
-            padding: 24px 16px;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 12px;
-        }
-
-        .marker-glow {
-            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.6));
+        html[dir="ltr"] .lang-toggle {
+            left: auto;
+            right: 1rem;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header id="header">
-        <div class="header-left">
-            <div class="logo">DamascusTransit</div>
-        </div>
-        <div class="header-right">
-            <div class="fleet-stats">
-                <div class="stat-item">
-                    <div class="stat-value" id="active-vehicles">0</div>
-                    <div class="stat-label">مركبات نشطة</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="active-routes">0</div>
-                    <div class="stat-label">خطوط</div>
-                </div>
-            </div>
-            <div class="status-indicator">
-                <div class="status-dot" id="connection-status"></div>
-                <span id="status-text">متصل</span>
-            </div>
-        </div>
-    </header>
 
-    <!-- Main Container -->
-    <div id="main-container">
-        <!-- Sidebar -->
-        <aside id="sidebar">
-            <div class="sidebar-header">
-                <span class="sidebar-title">المركبات</span>
-                <button class="sidebar-toggle" id="sidebar-toggle">×</button>
-            </div>
-
-            <div class="filter-tabs">
-                <button class="filter-tab active" data-filter="all">الكل</button>
-                <button class="filter-tab" data-filter="bus">حافلات</button>
-                <button class="filter-tab" data-filter="microbus">ميكروباص</button>
-                <button class="filter-tab" data-filter="taxi">تاكسي</button>
-                <button class="filter-tab" data-filter="gps">GPS</button>
-            </div>
-
-            <div class="vehicle-list-container">
-                <ul class="vehicle-list" id="vehicle-list">
-                    <div class="empty-state">جاري التحميل...</div>
-                </ul>
-            </div>
-        </aside>
-
-        <!-- Map Container -->
-        <div id="map-container">
-            <div id="map"></div>
-        </div>
+    <!-- Language Toggle -->
+    <div class="lang-toggle">
+        <button class="lang-btn active" id="btn-ar" onclick="setLang('ar')">ع</button>
+        <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
     </div>
 
+    <!-- Nav -->
+    <nav>
+        <a href="/" class="nav-logo">
+            <div class="nav-logo-icon">🚌</div>
+            <div>
+                <div class="nav-logo-text">DamascusTransit</div>
+                <div class="nav-logo-sub" id="nav-sub">هيئة النقل في دمشق</div>
+            </div>
+        </a>
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link" id="nav-dashboard">لوحة التحكم</a>
+            <a href="/driver" class="nav-link" id="nav-driver">السائق</a>
+            <a href="/admin" class="nav-link" id="nav-admin">الإدارة</a>
+            <a href="/passenger" class="nav-link primary" id="nav-passenger">تتبع الحافلات</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-badge" id="hero-badge">نظام نقل حي ومتصل</div>
+            <h1 class="hero-title" id="hero-title">نقل ذكي<br>لمدينة دمشق</h1>
+            <span class="hero-title-en" id="hero-title-en">Smart Transit for Damascus</span>
+            <p class="hero-desc" id="hero-desc">
+                منصة متكاملة لتتبع الحافلات في الوقت الفعلي، وإدارة المسارات، ومشاركة الركاب.
+                مصممة لهيئة نقل دمشق لتحسين الخدمة وتوفير تجربة سفر سلسة لجميع المواطنين.
+            </p>
+            <div class="hero-cta">
+                <a href="/dashboard" class="btn btn-primary" id="cta-dashboard">
+                    <span>→</span>
+                    <span id="cta-dashboard-text">لوحة تتبع المركبات</span>
+                </a>
+                <a href="/passenger" class="btn btn-secondary" id="cta-passenger">
+                    <span id="cta-passenger-text">تطبيق الركاب</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="hero-map">
+            <div id="hero-map-container"></div>
+            <div class="map-overlay"></div>
+            <div class="map-label" id="map-label">دمشق، سوريا</div>
+        </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <section class="stats-bar">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value" id="stat-vehicles"><span class="stat-loading">—</span></div>
+                <div class="stat-label-ar" id="stat-vehicles-ar">مركبة مُتتبَّعة</div>
+                <div class="stat-label-en">Vehicles Tracked</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-routes"><span class="stat-loading">—</span></div>
+                <div class="stat-label-ar" id="stat-routes-ar">خط تشغيل</div>
+                <div class="stat-label-en">Routes Served</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="stat-stops"><span class="stat-loading">—</span></div>
+                <div class="stat-label-ar" id="stat-stops-ar">محطة نقل</div>
+                <div class="stat-label-en">Bus Stops</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Links -->
+    <section class="apps-section">
+        <div class="section-header">
+            <div class="section-title" id="apps-title">الوصول السريع</div>
+            <div class="section-subtitle" id="apps-subtitle">Quick Links</div>
+        </div>
+        <div class="apps-grid">
+            <a href="/dashboard" class="app-card">
+                <div class="app-icon">🗺️</div>
+                <div class="app-name-ar" id="app1-ar">لوحة التحكم</div>
+                <div class="app-name-en">Dashboard</div>
+            </a>
+            <a href="/driver" class="app-card">
+                <div class="app-icon">🚌</div>
+                <div class="app-name-ar" id="app2-ar">تطبيق السائق</div>
+                <div class="app-name-en">Driver App</div>
+            </a>
+            <a href="/admin" class="app-card">
+                <div class="app-icon">⚙️</div>
+                <div class="app-name-ar" id="app3-ar">لوحة الإدارة</div>
+                <div class="app-name-en">Admin Panel</div>
+            </a>
+            <a href="/passenger" class="app-card">
+                <div class="app-icon">👤</div>
+                <div class="app-name-ar" id="app4-ar">تطبيق الراكب</div>
+                <div class="app-name-en">Passenger App</div>
+            </a>
+        </div>
+    </section>
+
     <!-- Footer -->
-    <footer id="footer">
-        <div class="footer-content">
-            <span>مدعوم من قبل DamascusTransit</span>
-            <span>•</span>
-            <a href="https://damascustransit.local/passenger" class="footer-link">تطبيق الركاب</a>
+    <footer>
+        <div class="footer-brand" id="footer-brand">
+            © 2025 DamascusTransit — هيئة النقل في دمشق
+        </div>
+        <div class="footer-powered" id="footer-powered">
+            مدعوم من هيئة النقل في دمشق | Powered by Damascus Transit Authority
         </div>
     </footer>
 
     <script>
-        // Configuration
-        const API_BASE = window.location.origin === 'file://'
-            ? 'http://localhost:3000/api'
-            : `${window.location.origin}/api`;
-
-        const WS_BASE = window.location.origin === 'file://'
-            ? 'ws://localhost:3000'
-            : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
-
-        // State Management
-        const state = {
-            vehicles: new Map(),
-            routes: new Map(),
-            stops: [],
-            currentFilter: 'all',
-            selectedVehicleId: null,
-            mapInstance: null,
-            markers: new Map(),
-            polylines: new Map(),
-            wsConnection: null,
-            isConnected: false,
-            isReconnecting: false,
-            reconnectAttempts: 0,
-            reconnectTimer: null,
-            pollingInterval: null,
-            heartbeatTimer: null,
-            lastMessageAt: null
+        // ── Language strings ──────────────────────────────────────────────
+        const strings = {
+            ar: {
+                'nav-sub': 'هيئة النقل في دمشق',
+                'nav-dashboard': 'لوحة التحكم',
+                'nav-driver': 'السائق',
+                'nav-admin': 'الإدارة',
+                'nav-passenger': 'تتبع الحافلات',
+                'hero-badge': 'نظام نقل حي ومتصل',
+                'hero-title': 'نقل ذكي<br>لمدينة دمشق',
+                'hero-title-en': 'Smart Transit for Damascus',
+                'hero-desc': 'منصة متكاملة لتتبع الحافلات في الوقت الفعلي، وإدارة المسارات، ومشاركة الركاب. مصممة لهيئة نقل دمشق لتحسين الخدمة وتوفير تجربة سفر سلسة لجميع المواطنين.',
+                'cta-dashboard-text': 'لوحة تتبع المركبات',
+                'cta-passenger-text': 'تطبيق الركاب',
+                'map-label': 'دمشق، سوريا',
+                'stat-vehicles-ar': 'مركبة مُتتبَّعة',
+                'stat-routes-ar': 'خط تشغيل',
+                'stat-stops-ar': 'محطة نقل',
+                'apps-title': 'الوصول السريع',
+                'apps-subtitle': 'Quick Links',
+                'app1-ar': 'لوحة التحكم',
+                'app2-ar': 'تطبيق السائق',
+                'app3-ar': 'لوحة الإدارة',
+                'app4-ar': 'تطبيق الراكب',
+                'footer-brand': '© 2025 DamascusTransit — هيئة النقل في دمشق',
+                'footer-powered': 'مدعوم من هيئة النقل في دمشق | Powered by Damascus Transit Authority',
+            },
+            en: {
+                'nav-sub': 'Damascus Transit Authority',
+                'nav-dashboard': 'Dashboard',
+                'nav-driver': 'Driver',
+                'nav-admin': 'Admin',
+                'nav-passenger': 'Track Buses',
+                'hero-badge': 'Live Connected Transit System',
+                'hero-title': 'Smart Transit<br>for Damascus',
+                'hero-title-en': 'نقل ذكي لمدينة دمشق',
+                'hero-desc': 'A fully integrated platform for real-time bus tracking, route management, and passenger engagement. Built for the Damascus Transit Authority to improve service and deliver seamless travel for all citizens.',
+                'cta-dashboard-text': 'Vehicle Tracking Dashboard',
+                'cta-passenger-text': 'Passenger App',
+                'map-label': 'Damascus, Syria',
+                'stat-vehicles-ar': 'Vehicles Tracked',
+                'stat-routes-ar': 'Routes Served',
+                'stat-stops-ar': 'Bus Stops',
+                'apps-title': 'Quick Links',
+                'apps-subtitle': 'الوصول السريع',
+                'app1-ar': 'Dashboard',
+                'app2-ar': 'Driver App',
+                'app3-ar': 'Admin Panel',
+                'app4-ar': 'Passenger App',
+                'footer-brand': '© 2025 DamascusTransit — Damascus Transit Authority',
+                'footer-powered': 'Powered by Damascus Transit Authority | مدعوم من هيئة النقل في دمشق',
+            }
         };
 
-        // Initialize Application
-        async function initialize() {
-            initializeMap();
-            await loadInitialData();
-            setupEventListeners();
-            connectWebSocket();
-            setInterval(updateVehicleList, 1000);
+        let currentLang = 'ar';
+
+        function setLang(lang) {
+            currentLang = lang;
+            const html = document.documentElement;
+            html.setAttribute('lang', lang);
+            html.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+
+            document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
+            document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+
+            const s = strings[lang];
+            for (const [id, val] of Object.entries(s)) {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = val;
+            }
         }
 
-        // Initialize Map
-        function initializeMap() {
-            const defaultStyle = {
+        // ── Hero Map ──────────────────────────────────────────────────────
+        const map = new maplibregl.Map({
+            container: 'hero-map-container',
+            style: {
                 version: 8,
                 sources: {
                     'osm': {
                         type: 'raster',
-                        tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
                         tileSize: 256,
                         attribution: '© OpenStreetMap contributors'
                     }
@@ -681,490 +740,60 @@
                 layers: [{
                     id: 'osm',
                     type: 'raster',
-                    source: 'osm'
+                    source: 'osm',
+                    paint: {
+                        'raster-opacity': 0.7,
+                        'raster-saturation': -0.6,
+                        'raster-brightness-min': 0.05,
+                        'raster-brightness-max': 0.35
+                    }
                 }]
-            };
+            },
+            center: [36.2921, 33.5138],
+            zoom: 12,
+            interactive: false,
+            attributionControl: false
+        });
 
-            state.mapInstance = new maplibregl.Map({
-                container: 'map',
-                style: defaultStyle,
-                center: [36.3, 33.51],
-                zoom: 11,
-                pitch: 0,
-                bearing: 0,
-                attributionControl: true,
-                dragRotate: false,
-                touchPitch: false
-            });
-
-            state.mapInstance.on('load', () => {
-                console.log('Map loaded');
-            });
-        }
-
-        // Load Initial Data
-        async function loadInitialData() {
+        // ── Stats from API ────────────────────────────────────────────────
+        async function loadStats() {
             try {
-                const [vehiclesRes, routesRes] = await Promise.all([
-                    fetch(`${API_BASE}/vehicles/positions`),
-                    fetch(`${API_BASE}/routes`)
-                ]);
+                const fetchFn = window.DT ? DT.fetchWithTimeout : fetch;
+                const res = await fetchFn('/api/stats', {}, 5000);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
 
-                if (vehiclesRes.ok) {
-                    const vehicles = await vehiclesRes.json();
-                    vehicles.forEach(v => {
-                        state.vehicles.set(v.vehicle_id, {
-                            ...v,
-                            lat: v.lat ?? v.latitude,
-                            lon: v.lon ?? v.longitude,
-                            lastUpdate: Date.now()
-                        });
-                    });
-                }
+                const total = (data.active_vehicles || 0) + (data.idle_vehicles || 0) + (data.maintenance_vehicles || 0);
+                const routes = data.total_routes || 0;
+                const stops = data.total_stops || 0;
 
-                if (routesRes.ok) {
-                    const routes = await routesRes.json();
-                    routes.forEach(r => {
-                        state.routes.set(r.route_id, r);
-                    });
-                }
-
-                renderVehicles();
-                updateStats();
-            } catch (error) {
-                console.error('Failed to load initial data:', error);
-                showError('فشل في تحميل البيانات الأولية');
+                animateCount('stat-vehicles', total);
+                animateCount('stat-routes', routes);
+                animateCount('stat-stops', stops);
+            } catch (e) {
+                // Show placeholders if API is unavailable
+                document.getElementById('stat-vehicles').innerHTML = '120<span class="unit">+</span>';
+                document.getElementById('stat-routes').innerHTML = '24<span class="unit">+</span>';
+                document.getElementById('stat-stops').innerHTML = '380<span class="unit">+</span>';
             }
         }
 
-        // Setup Event Listeners
-        function setupEventListeners() {
-            // Filter tabs
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    state.currentFilter = tab.dataset.filter;
-                    renderVehicles();
-                });
-            });
-
-            // Sidebar toggle
-            document.getElementById('sidebar-toggle').addEventListener('click', () => {
-                document.getElementById('sidebar').classList.toggle('collapsed');
-            });
-
-            // Vehicle list items
-            document.addEventListener('click', (e) => {
-                const vehicleItem = e.target.closest('.vehicle-item');
-                if (vehicleItem) {
-                    const vehicleId = vehicleItem.dataset.vehicleId;
-                    selectVehicle(vehicleId);
-                }
-            });
-        }
-
-        // Exponential backoff delay: 1s, 2s, 4s, 8s, ... capped at 30s
-        function getReconnectDelay(attempt) {
-            return Math.min(1000 * Math.pow(2, attempt), 30000);
-        }
-
-        // Start HTTP polling fallback
-        function startPolling() {
-            if (state.pollingInterval) return;
-            console.log('Starting HTTP polling fallback');
-            state.pollingInterval = setInterval(async () => {
-                try {
-                    const res = await fetch(`${API_BASE}/vehicles/positions`);
-                    if (res.ok) {
-                        const vehicles = await res.json();
-                        vehicles.forEach(v => {
-                            state.vehicles.set(v.vehicle_id, {
-                                ...v,
-                                lat: v.lat ?? v.latitude,
-                                lon: v.lon ?? v.longitude,
-                                lastUpdate: Date.now()
-                            });
-                        });
-                        renderVehicles();
-                        updateStats();
-                    }
-                } catch (e) {
-                    // Polling failed silently; still trying to reconnect WS
-                }
-            }, 5000);
-        }
-
-        // Stop HTTP polling fallback
-        function stopPolling() {
-            if (state.pollingInterval) {
-                clearInterval(state.pollingInterval);
-                state.pollingInterval = null;
-                console.log('Stopped HTTP polling fallback');
-            }
-        }
-
-        // Send periodic heartbeat ping and detect stale connections
-        function startHeartbeat(ws) {
-            stopHeartbeat();
-            state.lastMessageAt = Date.now();
-            state.heartbeatTimer = setInterval(() => {
-                if (ws.readyState !== WebSocket.OPEN) return;
-                // If no message received in 45s, connection is stale — reconnect
-                if (Date.now() - state.lastMessageAt > 45000) {
-                    console.warn('WebSocket heartbeat timeout — reconnecting');
-                    ws.close();
-                    return;
-                }
-                ws.send(JSON.stringify({ type: 'ping' }));
-            }, 15000);
-        }
-
-        function stopHeartbeat() {
-            if (state.heartbeatTimer) {
-                clearInterval(state.heartbeatTimer);
-                state.heartbeatTimer = null;
-            }
-        }
-
-        // Connect to WebSocket for real-time vehicle tracking
-        function connectWebSocket() {
-            if (state.wsConnection) {
-                state.wsConnection.onclose = null; // prevent duplicate reconnect
-                state.wsConnection.close();
-                state.wsConnection = null;
-            }
-            if (state.reconnectTimer) {
-                clearTimeout(state.reconnectTimer);
-                state.reconnectTimer = null;
-            }
-
-            const ws = new WebSocket(`${WS_BASE}/api/ws/track`);
-            state.wsConnection = ws;
-
-            ws.onopen = () => {
-                state.isConnected = true;
-                state.isReconnecting = false;
-                state.reconnectAttempts = 0;
-                stopPolling();
-                startHeartbeat(ws);
-                updateConnectionStatus();
-                console.log('WebSocket connected');
-            };
-
-            ws.onmessage = (event) => {
-                state.lastMessageAt = Date.now();
-                try {
-                    const msg = JSON.parse(event.data);
-                    if (msg.type === 'positions' && Array.isArray(msg.data)) {
-                        msg.data.forEach(pos => {
-                            state.vehicles.set(pos.vehicle_id, {
-                                ...pos,
-                                lat: pos.lat ?? pos.latitude,
-                                lon: pos.lon ?? pos.longitude,
-                                lastUpdate: Date.now()
-                            });
-                        });
-                        renderVehicles();
-                        updateStats();
-                    } else if (msg.type === 'ping') {
-                        ws.send(JSON.stringify({ type: 'pong' }));
-                    } else if (msg.type === 'pong') {
-                        // server acknowledged our ping — connection alive
-                    }
-                } catch (error) {
-                    console.error('Error parsing WebSocket message:', error);
-                }
-            };
-
-            ws.onerror = () => {
-                // onerror is always followed by onclose — handle state there
-            };
-
-            ws.onclose = () => {
-                stopHeartbeat();
-                state.isConnected = false;
-                state.isReconnecting = true;
-                updateConnectionStatus();
-                startPolling();
-
-                const delay = getReconnectDelay(state.reconnectAttempts);
-                state.reconnectAttempts++;
-                console.log(`WebSocket closed. Reconnecting in ${delay}ms (attempt ${state.reconnectAttempts})`);
-                state.reconnectTimer = setTimeout(() => connectWebSocket(), delay);
-            };
-        }
-
-        // Render Vehicles on Map and List
-        function renderVehicles() {
-            const filteredVehicles = filterVehicles();
-
-            // Clear and render vehicle list
-            const vehicleList = document.getElementById('vehicle-list');
-            vehicleList.innerHTML = '';
-
-            if (filteredVehicles.length === 0) {
-                vehicleList.innerHTML = '<div class="empty-state">لا توجد مركبات</div>';
+        function animateCount(id, target) {
+            const el = document.getElementById(id);
+            if (!el || target === 0) {
+                if (el) el.innerHTML = '—';
                 return;
             }
-
-            // Sort by vehicle_id
-            filteredVehicles.sort((a, b) => a.vehicle_id.localeCompare(b.vehicle_id));
-
-            filteredVehicles.forEach(vehicle => {
-                const listItem = createVehicleListItem(vehicle);
-                vehicleList.appendChild(listItem);
-
-                // Render marker on map
-                renderMarker(vehicle);
-            });
-
-            // Remove old markers not in filtered list
-            const visibleIds = new Set(filteredVehicles.map(v => v.vehicle_id));
-            state.markers.forEach((marker, vehicleId) => {
-                if (!visibleIds.has(vehicleId)) {
-                    marker.remove();
-                    state.markers.delete(vehicleId);
-                }
-            });
+            let current = 0;
+            const step = Math.ceil(target / 40);
+            const timer = setInterval(() => {
+                current = Math.min(current + step, target);
+                el.textContent = current.toLocaleString('ar-EG');
+                if (current >= target) clearInterval(timer);
+            }, 30);
         }
 
-        // Filter Vehicles
-        function filterVehicles() {
-            const filter = state.currentFilter;
-            const vehicles = Array.from(state.vehicles.values());
-
-            if (filter === 'all') return vehicles;
-            if (filter === 'gps') return vehicles.filter(v => v.source === 'gps');
-            return vehicles.filter(v => v.vehicle_type === filter);
-        }
-
-        // Create Vehicle List Item
-        function createVehicleListItem(vehicle) {
-            const li = document.createElement('li');
-            li.className = 'vehicle-item';
-            if (state.selectedVehicleId === vehicle.vehicle_id) {
-                li.classList.add('active');
-            }
-            li.dataset.vehicleId = vehicle.vehicle_id;
-
-            const isGPS = vehicle.source === 'gps';
-            const typeLabel = getVehicleTypeLabel(vehicle.vehicle_type);
-            const badgeClass = isGPS ? 'gps' : vehicle.vehicle_type;
-
-            li.innerHTML = `
-                <div class="vehicle-header">
-                    <div class="vehicle-name">${vehicle.vehicle_id}</div>
-                    <span class="vehicle-badge ${badgeClass}">
-                        ${isGPS ? 'GPS' : typeLabel}
-                    </span>
-                </div>
-                <div class="vehicle-details">
-                    <div class="vehicle-detail-line">
-                        <span class="detail-label">الخط:</span>
-                        <span class="detail-value">${vehicle.route_name || 'N/A'}</span>
-                    </div>
-                    <div class="vehicle-detail-line">
-                        <span class="detail-label">السرعة:</span>
-                        <span class="detail-value">${Math.round(vehicle.speed)} km/h</span>
-                    </div>
-                </div>
-            `;
-
-            return li;
-        }
-
-        // Get Vehicle Type Label
-        function getVehicleTypeLabel(type) {
-            const labels = {
-                'bus': 'حافلة',
-                'microbus': 'ميكروباص',
-                'taxi': 'تاكسي'
-            };
-            return labels[type] || type;
-        }
-
-        // Render Marker on Map
-        function renderMarker(vehicle) {
-            const { lat, lon, heading, vehicle_type, vehicle_id, source } = vehicle;
-
-            if (!lat || !lon) return;
-
-            // Remove old marker if exists
-            if (state.markers.has(vehicle_id)) {
-                state.markers.get(vehicle_id).remove();
-            }
-
-            // Determine color and icon
-            let color, iconChar;
-            const isGPS = source === 'gps';
-
-            if (isGPS) {
-                color = '#8B5CF6';
-                iconChar = '📍';
-            } else {
-                switch (vehicle_type) {
-                    case 'bus':
-                        color = '#428177';
-                        iconChar = '🚌';
-                        break;
-                    case 'microbus':
-                        color = '#b9a779';
-                        iconChar = '🚐';
-                        break;
-                    case 'taxi':
-                        color = '#d4a84b';
-                        iconChar = '🚕';
-                        break;
-                    default:
-                        color = '#428177';
-                        iconChar = '🚌';
-                }
-            }
-
-            // Create marker element
-            const el = document.createElement('div');
-            el.style.width = isGPS ? '36px' : '32px';
-            el.style.height = isGPS ? '36px' : '32px';
-            el.style.backgroundImage = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="${encodeURIComponent(color)}" opacity="0.9"/><text x="50" y="55" font-size="50" text-anchor="middle" dominant-baseline="middle">${iconChar}</text></svg>')`;
-            el.style.backgroundSize = 'contain';
-            el.style.backgroundRepeat = 'no-repeat';
-            el.style.backgroundPosition = 'center';
-            el.style.transform = `rotate(${heading || 0}deg)`;
-            el.style.cursor = 'pointer';
-
-            if (isGPS) {
-                el.classList.add('marker-glow');
-            }
-
-            // Create marker popup
-            const popupContent = document.createElement('div');
-            popupContent.className = 'popup-content';
-            popupContent.innerHTML = `
-                <div class="popup-title">${vehicle_id}</div>
-                <div class="popup-row">
-                    <span class="popup-label">الخط:</span>
-                    <span class="popup-value">${vehicle.route_name || 'N/A'}</span>
-                </div>
-                <div class="popup-row">
-                    <span class="popup-label">السرعة:</span>
-                    <span class="popup-value">${Math.round(vehicle.speed)} km/h</span>
-                </div>
-                <div class="popup-row">
-                    <span class="popup-label">الاتجاه:</span>
-                    <span class="popup-value">${Math.round(heading || 0)}°</span>
-                </div>
-                <div class="popup-row">
-                    <span class="popup-label">المصدر:</span>
-                    <span class="popup-value">${source === 'gps' ? 'GPS' : 'محاكاة'}</span>
-                </div>
-            `;
-
-            const popup = new maplibregl.Popup({ offset: 25 })
-                .setDOMContent(popupContent);
-
-            // Create and add marker
-            const marker = new maplibregl.Marker({
-                element: el,
-                anchor: 'center'
-            })
-                .setLngLat([lon, lat])
-                .setPopup(popup)
-                .addTo(state.mapInstance);
-
-            state.markers.set(vehicle_id, marker);
-
-            // Click to select
-            el.addEventListener('click', () => {
-                selectVehicle(vehicle_id);
-                marker.togglePopup();
-            });
-        }
-
-        // Select Vehicle
-        function selectVehicle(vehicleId) {
-            state.selectedVehicleId = vehicleId;
-
-            // Update list UI
-            document.querySelectorAll('.vehicle-item').forEach(item => {
-                item.classList.remove('active');
-                if (item.dataset.vehicleId === vehicleId) {
-                    item.classList.add('active');
-                }
-            });
-
-            // Center map on vehicle
-            const vehicle = state.vehicles.get(vehicleId);
-            if (vehicle && state.mapInstance) {
-                state.mapInstance.flyTo({
-                    center: [vehicle.lon, vehicle.lat],
-                    zoom: 14,
-                    duration: 1000
-                });
-            }
-        }
-
-        // Update Vehicle List (live updates)
-        function updateVehicleList() {
-            const selectedItem = document.querySelector('.vehicle-item.active');
-            if (!selectedItem) return;
-
-            const vehicleId = selectedItem.dataset.vehicleId;
-            const vehicle = state.vehicles.get(vehicleId);
-
-            if (vehicle) {
-                const speedEl = selectedItem.querySelector('.detail-value:last-of-type');
-                if (speedEl) {
-                    speedEl.textContent = `${Math.round(vehicle.speed)} km/h`;
-                }
-            }
-        }
-
-        // Update Stats
-        function updateStats() {
-            const vehicles = Array.from(state.vehicles.values());
-            document.getElementById('active-vehicles').textContent = vehicles.length;
-
-            const uniqueRoutes = new Set(vehicles.map(v => v.route_name).filter(Boolean));
-            document.getElementById('active-routes').textContent = uniqueRoutes.size;
-        }
-
-        // Update Connection Status
-        function updateConnectionStatus() {
-            const statusDot = document.getElementById('connection-status');
-            const statusText = document.getElementById('status-text');
-
-            if (state.isConnected) {
-                statusDot.classList.remove('disconnected', 'reconnecting');
-                statusText.textContent = 'متصل';
-            } else if (state.isReconnecting) {
-                statusDot.classList.remove('disconnected');
-                statusDot.classList.add('reconnecting');
-                statusText.textContent = 'إعادة الاتصال...';
-            } else {
-                statusDot.classList.remove('reconnecting');
-                statusDot.classList.add('disconnected');
-                statusText.textContent = 'غير متصل';
-            }
-        }
-
-        // Show Error Message
-        function showError(message) {
-            const sidebar = document.getElementById('sidebar');
-            const existingError = sidebar.querySelector('.error-message');
-            if (existingError) existingError.remove();
-
-            const errorEl = document.createElement('div');
-            errorEl.className = 'error-message';
-            errorEl.textContent = message;
-
-            sidebar.insertBefore(errorEl, sidebar.firstChild.nextSibling.nextSibling);
-
-            setTimeout(() => errorEl.remove(), 5000);
-        }
-
-        // Start Application
-        window.addEventListener('load', initialize);
+        loadStats();
     </script>
 </body>
 </html>

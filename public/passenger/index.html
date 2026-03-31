@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
+<script src="/lib/error-handler.js"></script>
 <style>
 :root {
   --green-dark: #002623;
@@ -143,7 +144,8 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 }
 .nav-item {
   flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
-  font-size:10px; color:#999; cursor:pointer; border:none; background:none; padding:4px;
+  font-size:10px; color:#999; cursor:pointer; border:none; background:none; padding:8px 4px;
+  min-height:44px;
 }
 .nav-item.active { color:var(--green-mid); }
 .nav-item .nav-icon { font-size:22px; }
@@ -181,7 +183,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 </div>
 
 <!-- Connection status -->
-<div class="connection-bar" id="connectionBar">جاري إعادة الاتصال بالبيانات المباشرة...</div>
+<div class="connection-bar" id="connectionBar">🔄 انقطع الاتصال — جارٍ إعادة الاتصال بالبيانات المباشرة... | Connection lost, retrying...</div>
 
 <!-- Top Bar -->
 <div class="top-bar">
@@ -209,7 +211,12 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
       <h2>الخطوط القريبة</h2>
       <span class="count" id="routeCount">8 خطوط</span>
     </div>
-    <div class="routes-scroll" id="routesList"></div>
+    <div class="routes-scroll" id="routesList">
+      <!-- Skeleton placeholder shown until routes render -->
+      <div class="route-card" style="opacity:.4;pointer-events:none;margin-bottom:8px;"><div class="dt-skel" style="width:55%;height:1.2em;display:block;margin-bottom:8px;"></div><div class="dt-skel" style="width:80%;height:0.85em;display:block;"></div></div>
+      <div class="route-card" style="opacity:.4;pointer-events:none;margin-bottom:8px;"><div class="dt-skel" style="width:65%;height:1.2em;display:block;margin-bottom:8px;"></div><div class="dt-skel" style="width:75%;height:0.85em;display:block;"></div></div>
+      <div class="route-card" style="opacity:.4;pointer-events:none;margin-bottom:8px;"><div class="dt-skel" style="width:50%;height:1.2em;display:block;margin-bottom:8px;"></div><div class="dt-skel" style="width:85%;height:0.85em;display:block;"></div></div>
+    </div>
   </div>
 
   <!-- Stop detail view -->
@@ -226,8 +233,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
   <button class="nav-item active" onclick="switchTab('map')"><span class="nav-icon">🗺️</span>الخريطة</button>
   <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span>الخطوط</button>
   <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span>المحطات</button>
-  <button class="nav-item" onclick="switchTab('alerts')"><span class="nav-icon">🔔</span>التنبيهات</button>
-  <button id="pushToggleBtn" class="nav-item" onclick="togglePushNotifications()" title="تفعيل الإشعارات — Enable notifications" style="font-size:18px;min-width:44px;">🔔</button>
+  <button id="pushToggleBtn" class="nav-item" onclick="switchTab('alerts'); togglePushNotifications()" title="تفعيل الإشعارات — Enable notifications"><span class="nav-icon">🔔</span>التنبيهات</button>
 </div>
 
 <script>
@@ -391,14 +397,31 @@ function connectSSE() {
 // ─── Fetch all vehicles ───
 async function fetchVehicles() {
   try {
-    const res = await fetch(`${API_BASE}/api/vehicles`);
+    const fetchFn = window.DT ? DT.fetchWithTimeout : fetch;
+    const res = await fetchFn(`${API_BASE}/api/vehicles`, {}, 5000);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
+    // Hide connection error if it was shown
+    document.getElementById('connectionBar').classList.remove('disconnected');
     data.forEach(v => {
       vehicles[v.device_id] = v;
       updateMarker(v);
     });
     updateRouteCards();
-  } catch(e) { console.log('Fetch error:', e); }
+  } catch(e) {
+    console.log('Fetch error:', e);
+    const isTimeout = e.isTimeout || e.name === 'AbortError';
+    document.getElementById('connectionBar').classList.add('disconnected');
+    if (window.DT) {
+      DT.toast(
+        isTimeout ? 'انتهت مهلة التحميل — جارٍ إعادة المحاولة' : 'انقطع الاتصال — جارٍ إعادة المحاولة...',
+        isTimeout ? 'Load timed out, retrying in 10s...' : 'Connection lost, retrying...',
+        'warn',
+        8000
+      );
+    }
+    setTimeout(fetchVehicles, 10000);
+  }
 }
 
 // ─── Marker Management ───

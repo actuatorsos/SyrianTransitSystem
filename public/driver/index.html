@@ -10,6 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <title>سائق نقل دمشق</title>
 <script src="/lib/i18n.js"></script>
+<script src="/lib/error-handler.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
@@ -436,13 +437,29 @@ function showLoginError(msg) {
   setTimeout(() => el.classList.remove('show'), 5000);
 }
 
-function apiCall(endpoint, method='GET', body=null) {
+function apiCall(endpoint, method='GET', body=null, timeoutMs=5000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   const opts = {
     method,
     headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+    signal: ctrl.signal,
   };
   if (body) opts.body = JSON.stringify(body);
-  return fetch(`${API_BASE}${endpoint}`, opts).then(r => r.json());
+  return fetch(`${API_BASE}${endpoint}`, opts)
+    .then(r => { clearTimeout(timer); return r.json(); })
+    .catch(err => {
+      clearTimeout(timer);
+      const isTimeout = err.name === 'AbortError';
+      if (window.DT) {
+        DT.toast(
+          isTimeout ? 'انتهت مهلة الاتصال بالخادم' : 'تعذّر الاتصال — جارٍ إعادة المحاولة',
+          isTimeout ? 'Request timed out' : 'Connection lost, retrying...',
+          'warn'
+        );
+      }
+      throw err;
+    });
 }
 
 // ── Init ──

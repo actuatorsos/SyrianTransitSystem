@@ -2,7 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#002623">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/admin/manifest.json">
     <title>لوحة تحكم نقل دمشق | Damascus Transit Admin</title>
 
     <!-- Google Fonts: IBM Plex Sans Arabic -->
@@ -13,6 +18,9 @@
     <!-- MapLibre GL JS -->
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" />
     <script src="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.js"></script>
+
+    <!-- Shared error handling & utilities -->
+    <script src="/lib/error-handler.js"></script>
 
     <!-- Chart.js for analytics visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -200,12 +208,13 @@
             background: var(--umber);
             color: var(--white);
             border: none;
-            padding: 8px 16px;
+            padding: 12px 16px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 13px;
             font-weight: 600;
             transition: background 0.2s ease;
+            min-height: 44px;
         }
 
         .logout-btn:hover {
@@ -891,12 +900,12 @@
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
-                left: 0;
+                right: 0;
                 top: 0;
                 width: 260px;
                 height: 100vh;
                 z-index: 101;
-                transform: translateX(-100%);
+                transform: translateX(100%);
             }
 
             .sidebar.mobile-open {
@@ -990,7 +999,8 @@
 
             .btn {
                 font-size: 11px;
-                padding: 6px 10px;
+                padding: 12px 10px;
+                min-height: 44px;
             }
 
             .section-title {
@@ -1044,17 +1054,8 @@
     </style>
 </head>
 <body>
-    <!-- LOGIN VIEW -->
-    <div id="loginView" class="login-container active">
-        <div class="login-card">
-            <div class="login-logo">نقل دمشق</div>
-            <div class="login-subtitle">Damascus Transit Admin Panel</div>
-            <div class="login-error" id="loginError"></div>
-            <input type="text" id="loginEmail" class="login-input" placeholder="البريد الإلكتروني" autocomplete="email">
-            <input type="password" id="loginPassword" class="login-input" placeholder="كلمة المرور" autocomplete="current-password">
-            <button class="login-btn" id="loginBtn" onclick="handleLogin()">دخول</button>
-        </div>
-    </div>
+    <!-- LOGIN REDIRECT PLACEHOLDER (auth handled by /admin/login) -->
+    <div id="loginView" class="login-container" style="display:none;"></div>
 
     <!-- ADMIN DASHBOARD -->
     <div id="dashboardView" class="hidden" style="display: flex; width: 100%; height: 100%;">
@@ -1081,11 +1082,11 @@
                 <span class="nav-icon">🚨</span>
                 <span>التنبيهات</span>
             </div>
-            <div class="nav-item" onclick="switchTab('drivers', this)">
+            <div class="nav-item" data-role="admin-only" onclick="switchTab('drivers', this)">
                 <span class="nav-icon">👥</span>
                 <span>السائقون</span>
             </div>
-            <div class="nav-item" onclick="switchTab('analytics', this)">
+            <div class="nav-item" data-role="admin-only" onclick="switchTab('analytics', this)">
                 <span class="nav-icon">📈</span>
                 <span>التحليلات</span>
             </div>
@@ -1116,22 +1117,22 @@
                     <div class="stats-grid">
                         <div class="stat-card">
                             <div class="stat-label">إجمالي المركبات</div>
-                            <div class="stat-value" id="totalVehicles">--</div>
+                            <div class="stat-value" id="totalVehicles"><span class="dt-skel" style="width:48px;height:1.4em;"></span></div>
                             <div class="stat-change">📍 جميع المركبات</div>
                         </div>
                         <div class="stat-card accent-warning">
                             <div class="stat-label">المركبات النشطة</div>
-                            <div class="stat-value" id="activeVehicles">--</div>
+                            <div class="stat-value" id="activeVehicles"><span class="dt-skel" style="width:40px;height:1.4em;"></span></div>
                             <div class="stat-change">🟢 في الخدمة</div>
                         </div>
                         <div class="stat-card accent-umber">
                             <div class="stat-label">مركبات خامدة</div>
-                            <div class="stat-value" id="idleVehicles">--</div>
+                            <div class="stat-value" id="idleVehicles"><span class="dt-skel" style="width:40px;height:1.4em;"></span></div>
                             <div class="stat-change">🔴 متوقفة</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">الصيانة</div>
-                            <div class="stat-value" id="maintenanceVehicles">--</div>
+                            <div class="stat-value" id="maintenanceVehicles"><span class="dt-skel" style="width:36px;height:1.4em;"></span></div>
                             <div class="stat-change">🔧 قيد الصيانة</div>
                         </div>
                     </div>
@@ -1145,11 +1146,11 @@
                     <div class="stats-grid">
                         <div class="stat-card">
                             <div class="stat-label">الرحلات اليوم</div>
-                            <div class="stat-value" id="tripsToday">--</div>
+                            <div class="stat-value" id="tripsToday"><span class="dt-skel" style="width:48px;height:1.4em;"></span></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-label">الالتزام بالجدول</div>
-                            <div class="stat-value" id="onTimePercentage">--%</div>
+                            <div class="stat-value" id="onTimePercentage"><span class="dt-skel" style="width:60px;height:1.4em;"></span></div>
                         </div>
                     </div>
 
@@ -1202,9 +1203,9 @@
                                 </tr>
                             </thead>
                             <tbody id="vehiclesTable">
-                                <tr>
-                                    <td colspan="7" class="text-center">جاري التحميل...</td>
-                                </tr>
+                                <tr><td colspan="7" style="padding:12px 8px;"><span class="dt-skel" style="width:100%;height:1.2em;display:block;"></span></td></tr>
+                                <tr><td colspan="7" style="padding:12px 8px;"><span class="dt-skel" style="width:90%;height:1.2em;display:block;"></span></td></tr>
+                                <tr><td colspan="7" style="padding:12px 8px;"><span class="dt-skel" style="width:95%;height:1.2em;display:block;"></span></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1215,9 +1216,9 @@
                     <div class="section-title">إدارة المسارات</div>
 
                     <div class="route-cards" id="routesList">
-                        <div class="text-center" style="grid-column: 1/-1; padding: 40px; color: var(--text-muted);">
-                            جاري التحميل...
-                        </div>
+                        <div class="route-card" style="opacity:.4;pointer-events:none;"><div class="dt-skel" style="width:70%;height:1.3em;margin-bottom:10px;display:block;"></div><div class="dt-skel" style="width:100%;height:0.9em;display:block;"></div></div>
+                        <div class="route-card" style="opacity:.4;pointer-events:none;"><div class="dt-skel" style="width:60%;height:1.3em;margin-bottom:10px;display:block;"></div><div class="dt-skel" style="width:100%;height:0.9em;display:block;"></div></div>
+                        <div class="route-card" style="opacity:.4;pointer-events:none;"><div class="dt-skel" style="width:80%;height:1.3em;margin-bottom:10px;display:block;"></div><div class="dt-skel" style="width:100%;height:0.9em;display:block;"></div></div>
                     </div>
                 </div>
 
@@ -1256,9 +1257,8 @@
                                 </tr>
                             </thead>
                             <tbody id="alertsTable">
-                                <tr>
-                                    <td colspan="6" class="text-center">جاري التحميل...</td>
-                                </tr>
+                                <tr><td colspan="6" style="padding:12px 8px;"><span class="dt-skel" style="width:100%;height:1.2em;display:block;"></span></td></tr>
+                                <tr><td colspan="6" style="padding:12px 8px;"><span class="dt-skel" style="width:85%;height:1.2em;display:block;"></span></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1287,9 +1287,9 @@
                                 </tr>
                             </thead>
                             <tbody id="driversTable">
-                                <tr>
-                                    <td colspan="6" class="text-center">جاري التحميل...</td>
-                                </tr>
+                                <tr><td colspan="6" style="padding:12px 8px;"><span class="dt-skel" style="width:100%;height:1.2em;display:block;"></span></td></tr>
+                                <tr><td colspan="6" style="padding:12px 8px;"><span class="dt-skel" style="width:90%;height:1.2em;display:block;"></span></td></tr>
+                                <tr><td colspan="6" style="padding:12px 8px;"><span class="dt-skel" style="width:95%;height:1.2em;display:block;"></span></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1513,69 +1513,42 @@
         }
 
         // ==================== AUTHENTICATION ====================
-        function handleLogin() {
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPassword').value.trim();
-            const loginBtn = document.getElementById('loginBtn');
-            const loginError = document.getElementById('loginError');
-
-            if (!email || !password) {
-                showLoginError('يرجى ملء جميع الحقول');
-                return;
+        // Redirect to login page if not authenticated
+        function requireAuth() {
+            const token = sessionStorage.getItem('adminToken');
+            if (!token) {
+                window.location.replace('/admin/login.html');
             }
-
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'جاري المحاولة...';
-
-            fetch(`${API_BASE}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.token && data.user) {
-                    currentToken = data.token;
-                    currentUser = data.user;
-                    sessionStorage.setItem('authToken', data.token);
-                    sessionStorage.setItem('user', JSON.stringify(data.user));
-                    showDashboard();
-                } else {
-                    showLoginError(data.error || 'فشل تسجيل الدخول');
-                }
-            })
-            .catch(err => {
-                showLoginError('خطأ في الاتصال. يرجى المحاولة لاحقاً.');
-                console.error('Login error:', err);
-            })
-            .finally(() => {
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'دخول';
-            });
-        }
-
-        function showLoginError(msg) {
-            const loginError = document.getElementById('loginError');
-            loginError.textContent = msg;
-            loginError.classList.add('show');
-            setTimeout(() => loginError.classList.remove('show'), 5000);
+            return token;
         }
 
         function handleLogout() {
-            sessionStorage.removeItem('authToken');
-            sessionStorage.removeItem('user');
+            sessionStorage.removeItem('adminToken');
+            sessionStorage.removeItem('adminUserId');
+            sessionStorage.removeItem('adminRole');
             currentToken = null;
             currentUser = null;
-            document.getElementById('loginView').classList.remove('hidden');
-            document.getElementById('dashboardView').classList.add('hidden');
-            document.getElementById('loginEmail').value = '';
-            document.getElementById('loginPassword').value = '';
+            window.location.replace('/admin/login.html');
+        }
+
+        function applyRoleBasedUI(role) {
+            // Operator/dispatcher: hide driver management and analytics tabs
+            const adminOnlyTabs = document.querySelectorAll('[data-role="admin-only"]');
+            adminOnlyTabs.forEach(el => {
+                if (role === 'dispatcher') el.style.display = 'none';
+            });
+            // Update role label in topbar
+            const roleLabels = { admin: 'مدير النظام', super_admin: 'مدير عام', dispatcher: 'مشغّل' };
+            const roleEl = document.querySelector('.user-role');
+            if (roleEl) roleEl.textContent = roleLabels[role] || role;
         }
 
         function showDashboard() {
             document.getElementById('loginView').classList.add('hidden');
             document.getElementById('dashboardView').classList.remove('hidden');
-            document.getElementById('userName').textContent = currentUser?.name || 'Admin';
+            const name = currentUser?.full_name || currentUser?.email || 'Admin';
+            document.getElementById('userName').textContent = name;
+            applyRoleBasedUI(currentUser?.role || 'admin');
             initDashboard();
         }
 
@@ -1590,15 +1563,30 @@
             loadAnalytics();
         }
 
-        // Check if user is already logged in
+        // Check auth and restore session from sessionStorage (in-memory per tab)
         window.addEventListener('DOMContentLoaded', () => {
-            const token = sessionStorage.getItem('authToken');
-            const user = sessionStorage.getItem('user');
-            if (token && user) {
-                currentToken = token;
-                currentUser = JSON.parse(user);
-                showDashboard();
-            }
+            const token = requireAuth();
+            if (!token) return; // redirecting
+
+            const role = sessionStorage.getItem('adminRole') || 'admin';
+            const userId = sessionStorage.getItem('adminUserId');
+            currentToken = token;
+            currentUser = { role, id: userId };
+
+            // Fetch full user profile to get name
+            apiCall('/api/auth/me')
+                .then(user => {
+                    currentUser = user;
+                    document.getElementById('loginView').classList.add('hidden');
+                    document.getElementById('dashboardView').classList.remove('hidden');
+                    document.getElementById('userName').textContent = user.full_name || user.email || 'Admin';
+                    applyRoleBasedUI(user.role);
+                    initDashboard();
+                })
+                .catch(() => {
+                    // Profile fetch failed — fall back to stored data and still show dashboard
+                    showDashboard();
+                });
         });
 
         // ==================== TAB NAVIGATION ====================
@@ -1660,25 +1648,44 @@
         }
 
         // ==================== API HELPERS ====================
-        function apiCall(endpoint, options = {}) {
+        function apiCall(endpoint, options = {}, timeoutMs = 5000) {
             const headers = {
                 'Content-Type': 'application/json',
                 ...options.headers
             };
 
-            if (currentToken) {
-                headers['Authorization'] = `Bearer ${currentToken}`;
+            const token = currentToken || sessionStorage.getItem('adminToken');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
+
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), timeoutMs);
 
             return fetch(`${API_BASE}${endpoint}`, {
                 ...options,
-                headers
+                headers,
+                signal: ctrl.signal
             }).then(res => {
+                clearTimeout(timer);
                 if (res.status === 401) {
                     handleLogout();
                     throw new Error('Unauthorized');
                 }
                 return res.json();
+            }).catch(err => {
+                clearTimeout(timer);
+                if (err.message !== 'Unauthorized') {
+                    const isTimeout = err.name === 'AbortError';
+                    if (window.DT) {
+                        DT.toast(
+                            isTimeout ? 'انتهت مهلة الاتصال بالخادم' : 'تعذّر الاتصال — جارٍ إعادة المحاولة',
+                            isTimeout ? 'Connection timed out. Check your network.' : 'Connection lost, retrying...',
+                            'warn'
+                        );
+                    }
+                }
+                throw err;
             });
         }
 
@@ -1769,7 +1776,11 @@
         function renderVehicles(vehicles) {
             const tbody = document.getElementById('vehiclesTable');
             if (!vehicles.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">لا توجد مركبات</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="padding:0;">' +
+                    '<div class="dt-empty"><div class="e-icon">🚌</div>' +
+                    '<div class="e-ar">لا توجد مركبات مسجّلة</div>' +
+                    '<div class="e-en">No vehicles registered</div>' +
+                    '<div class="e-hint">أضف مركبة جديدة باستخدام زر الإضافة</div></div></td></tr>';
                 return;
             }
 
@@ -1884,7 +1895,11 @@
         function renderRoutes(routes) {
             const container = document.getElementById('routesList');
             if (!routes.length) {
-                container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 40px; color: var(--text-muted);">لا توجد مسارات</div>';
+                container.innerHTML = '<div style="grid-column:1/-1;">' +
+                    '<div class="dt-empty"><div class="e-icon">🗺️</div>' +
+                    '<div class="e-ar">لا توجد مسارات مُعرَّفة</div>' +
+                    '<div class="e-en">No routes defined</div>' +
+                    '<div class="e-hint">أضف مسارات عبر واجهة إدارة الشبكة</div></div></div>';
                 return;
             }
 
@@ -1922,8 +1937,13 @@
             const alertsTable = document.getElementById('alertsTable');
 
             if (!alerts.length) {
-                alertsList.innerHTML = '<div class="alert-item" style="padding: 40px; text-align: center; color: var(--text-muted);">لا توجد تنبيهات</div>';
-                alertsTable.innerHTML = '<tr><td colspan="6" class="text-center">لا توجد تنبيهات</td></tr>';
+                alertsList.innerHTML = '<div class="dt-empty"><div class="e-icon">✅</div>' +
+                    '<div class="e-ar">لا توجد تنبيهات نشطة</div>' +
+                    '<div class="e-en">No active alerts — all systems normal</div></div>';
+                alertsTable.innerHTML = '<tr><td colspan="6" style="padding:0;">' +
+                    '<div class="dt-empty"><div class="e-icon">✅</div>' +
+                    '<div class="e-ar">لا توجد تنبيهات</div>' +
+                    '<div class="e-en">No alerts</div></div></td></tr>';
                 return;
             }
 
@@ -1988,7 +2008,11 @@
         function renderDrivers(drivers) {
             const tbody = document.getElementById('driversTable');
             if (!drivers.length) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">لا يوجد سائقون</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="padding:0;">' +
+                    '<div class="dt-empty"><div class="e-icon">👤</div>' +
+                    '<div class="e-ar">لا يوجد سائقون مسجّلون</div>' +
+                    '<div class="e-en">No drivers registered</div>' +
+                    '<div class="e-hint">أضف سائقاً جديداً باستخدام زر الإضافة</div></div></td></tr>';
                 return;
             }
 
