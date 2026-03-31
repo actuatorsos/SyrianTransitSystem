@@ -3452,29 +3452,70 @@ async def get_gtfs_static_file(filename: str):
 # ============================================================================
 
 
+def _gtfs_rt_occupancy_status(occupancy_pct, pb_cls):
+    """Map 0-100 occupancy percentage to GTFS-RT OccupancyStatus enum."""
+    if occupancy_pct is None:
+        return None
+    if occupancy_pct <= 0:
+        return pb_cls.EMPTY
+    if occupancy_pct <= 25:
+        return pb_cls.MANY_SEATS_AVAILABLE
+    if occupancy_pct <= 50:
+        return pb_cls.FEW_SEATS_AVAILABLE
+    if occupancy_pct <= 75:
+        return pb_cls.STANDING_ROOM_ONLY
+    return pb_cls.FULL
+
+
+def _parse_iso_timestamp(iso_str: Optional[str]) -> Optional[int]:
+    """Convert ISO-8601 string to UNIX timestamp."""
+    if not iso_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+        return int(dt.timestamp())
+    except (ValueError, AttributeError):
+        return None
+
+
 @app.get("/api/gtfs/realtime", tags=["gtfs"])
+@app.get("/api/public/gtfs-rt", tags=["gtfs"])
 async def get_gtfs_realtime():
     """
-    GTFS-Realtime VehiclePositions feed.
+    GTFS-Realtime feed (VehiclePositions + TripUpdates).
 
-    Returns a binary protobuf FeedMessage (GTFS-RT 2.0) with live vehicle
-    positions fetched from vehicle_positions_latest.  Consumers should set
-    Accept: application/x-protobuf or application/octet-stream.
+    Returns a binary protobuf FeedMessage (GTFS-RT 2.0) with:
+    - VehiclePosition entities for all vehicles with known positions
+      (includes speed in m/s, bearing, occupancy status)
+    - TripUpdate entities for all in-progress trips
 
-    Falls back to a minimal empty feed when the gtfs-realtime-bindings
-    package is not installed, returning JSON instead so the endpoint remains
-    useful in dev environments without the optional dependency.
+    Suitable for consumption by Google Maps and other GTFS-RT-compatible
+    trip planners. No authentication required.
+
+    Falls back to JSON when gtfs-realtime-bindings is not installed.
     """
     try:
-        # Build position records from Supabase
+        # Fetch all data sources in parallel-safe manner
         positions = await _supabase_get(
             "vehicle_positions_latest"
-            "?select=vehicle_id,latitude,longitude,speed_kmh,recorded_at"
-            ",vehicles(vehicle_id,assigned_route_id)"
+            "?select=vehicle_id,latitude,longitude,speed_kmh,heading,"
+            "occupancy_pct,recorded_at"
         )
         positions = positions or []
 
-        # Try protobuf serialisation (requires gtfs-realtime-bindings + protobuf)
+        vehicles_raw = await _supabase_get(
+            "vehicles?select=id,vehicle_id,name,assigned_route_id"
+        )
+        vehicles_by_uuid = {v["id"]: v for v in (vehicles_raw or [])}
+
+        routes_raw = await _supabase_get("routes?select=id,route_id")
+        route_id_by_uuid = {r["id"]: r["route_id"] for r in (routes_raw or [])}
+
+        trips_raw = await _supabase_get(
+            "trips?select=id,vehicle_id,route_id,actual_start&status=eq.in_progress"
+        )
+        trips_by_vehicle = {t["vehicle_id"]: t for t in (trips_raw or [])}
+
         try:
             from google.transit import gtfs_realtime_pb2  # type: ignore
 
@@ -3485,34 +3526,81 @@ async def get_gtfs_realtime():
             )
             feed.header.timestamp = int(time.time())
 
+            # ── VehiclePosition entities ──────────────────────────────────
             for pos in positions:
                 lat = pos.get("latitude")
                 lon = pos.get("longitude")
                 if lat is None or lon is None:
                     continue
 
-                vid = str(pos.get("vehicle_id", "unknown"))
-                speed_kmh = pos.get("speed_kmh") or 0.0
+                vehicle = vehicles_by_uuid.get(pos.get("vehicle_id"))
+                if not vehicle:
+                    continue
+
+                trip = trips_by_vehicle.get(pos["vehicle_id"])
+                route_text_id = route_id_by_uuid.get(
+                    vehicle.get("assigned_route_id", ""), ""
+                )
 
                 entity = feed.entity.add()
-                entity.id = vid
-                entity.vehicle.vehicle.id = vid
+                entity.id = f"vp_{pos['vehicle_id']}"
 
-                veh_info = pos.get("vehicles") or {}
-                route_id = veh_info.get("assigned_route_id")
-                if route_id:
-                    entity.vehicle.trip.route_id = str(route_id)
+                vp = entity.vehicle
+                vp.vehicle.id = vehicle["vehicle_id"]
+                vp.vehicle.label = vehicle.get("name", "")
 
-                entity.vehicle.position.latitude = float(lat)
-                entity.vehicle.position.longitude = float(lon)
-                # GTFS-RT speed is in m/s
-                entity.vehicle.position.speed = float(speed_kmh) / 3.6
-                entity.vehicle.timestamp = int(time.time())
+                if trip:
+                    vp.trip.trip_id = trip["id"]
+                if route_text_id:
+                    vp.trip.route_id = route_text_id
+
+                vp.position.latitude = float(lat)
+                vp.position.longitude = float(lon)
+
+                if pos.get("speed_kmh") is not None:
+                    vp.position.speed = float(pos["speed_kmh"]) / 3.6
+
+                if pos.get("heading") is not None:
+                    vp.position.bearing = float(pos["heading"])
+
+                ts = _parse_iso_timestamp(pos.get("recorded_at"))
+                if ts:
+                    vp.timestamp = ts
+
+                occ = _gtfs_rt_occupancy_status(
+                    pos.get("occupancy_pct"),
+                    gtfs_realtime_pb2.VehiclePosition,
+                )
+                if occ is not None:
+                    vp.occupancy_status = occ
+
+            # ── TripUpdate entities ───────────────────────────────────────
+            for trip in (trips_raw or []):
+                vehicle = vehicles_by_uuid.get(trip["vehicle_id"])
+                route_text_id = route_id_by_uuid.get(
+                    trip.get("route_id", ""), ""
+                )
+
+                entity = feed.entity.add()
+                entity.id = f"tu_{trip['id']}"
+
+                tu = entity.trip_update
+                tu.trip.trip_id = trip["id"]
+                if route_text_id:
+                    tu.trip.route_id = route_text_id
+
+                if vehicle:
+                    tu.vehicle.id = vehicle["vehicle_id"]
+                    tu.vehicle.label = vehicle.get("name", "")
+
+                ts = _parse_iso_timestamp(trip.get("actual_start"))
+                if ts:
+                    tu.timestamp = ts
 
             return Response(
                 content=feed.SerializeToString(),
                 media_type="application/x-protobuf",
-                headers={"Content-Disposition": "inline; filename=vehiclepositions.pb"},
+                headers={"X-GTFS-RT-Version": "2.0"},
             )
 
         except ImportError:
@@ -3523,28 +3611,33 @@ async def get_gtfs_realtime():
                     "incrementality": "FULL_DATASET",
                     "timestamp": int(time.time()),
                 },
-                "entity": [
-                    {
-                        "id": str(p.get("vehicle_id", "unknown")),
-                        "vehicle": {
-                            "vehicle": {"id": str(p.get("vehicle_id", "unknown"))},
-                            "trip": {
-                                "route_id": str(
-                                    (p.get("vehicles") or {}).get("assigned_route_id", "")
-                                )
-                            },
-                            "position": {
-                                "latitude": p.get("latitude"),
-                                "longitude": p.get("longitude"),
-                                "speed": (p.get("speed_kmh") or 0.0) / 3.6,
-                            },
-                            "timestamp": int(time.time()),
-                        },
-                    }
-                    for p in positions
-                    if p.get("latitude") is not None and p.get("longitude") is not None
-                ],
+                "entity": [],
             }
+            for p in positions:
+                if p.get("latitude") is None or p.get("longitude") is None:
+                    continue
+                vehicle = vehicles_by_uuid.get(p.get("vehicle_id"))
+                if not vehicle:
+                    continue
+                route_text_id = route_id_by_uuid.get(
+                    vehicle.get("assigned_route_id", ""), ""
+                )
+                feed_json["entity"].append({
+                    "id": f"vp_{p['vehicle_id']}",
+                    "vehicle": {
+                        "vehicle": {
+                            "id": vehicle["vehicle_id"],
+                            "label": vehicle.get("name", ""),
+                        },
+                        "trip": {"route_id": route_text_id},
+                        "position": {
+                            "latitude": p.get("latitude"),
+                            "longitude": p.get("longitude"),
+                            "speed": (p.get("speed_kmh") or 0.0) / 3.6,
+                        },
+                        "timestamp": int(time.time()),
+                    },
+                })
             return JSONResponse(content=feed_json)
 
     except Exception as e:
