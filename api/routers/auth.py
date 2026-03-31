@@ -2,8 +2,6 @@ import asyncio
 import secrets
 import string
 import urllib.parse
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from api.core.auth import (

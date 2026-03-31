@@ -1,4 +1,6 @@
 import asyncio
+import csv
+import io
 import math
 import os
 import random
@@ -10,16 +12,15 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from api.core.auth import CurrentUser, hash_password, require_role
 from api.core.database import (
     _service_get,
     _service_rpc,
     _supabase_get,
-    _supabase_headers,
     _supabase_patch,
     _supabase_post,
-    _supabase_url,
 )
 from api.core.tenancy import _op_filter
 from api.models.schemas import (
@@ -954,6 +955,252 @@ async def simulate_vehicle_positions(
 ):
     """Generate simulated GPS positions (admin JWT auth)."""
     return await _run_simulation()
+
+
+# ── Data Exports ───────────────────────────────────────────────────────────────
+
+
+def _csv_response(rows: list, filename: str) -> StreamingResponse:
+    """Build a streaming CSV response from a list of dicts."""
+    if not rows:
+        output = io.StringIO()
+        output.write("")
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
+    writer.writeheader()
+    writer.writerows(rows)
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/api/admin/export/vehicles.csv", tags=["admin"])
+async def export_vehicles_csv(
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
+):
+    """Export all vehicles as CSV."""
+    try:
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+        vehicles = await _supabase_get(f"vehicles?select=*{op_suffix}")
+        rows = [
+            {
+                "vehicle_id": v.get("vehicle_id", ""),
+                "name": v.get("name", ""),
+                "name_ar": v.get("name_ar", ""),
+                "vehicle_type": v.get("vehicle_type", ""),
+                "capacity": v.get("capacity", ""),
+                "status": v.get("status", ""),
+                "assigned_route_id": v.get("assigned_route_id", ""),
+                "gps_device_id": v.get("gps_device_id", ""),
+                "is_active": v.get("is_active", ""),
+                "created_at": v.get("created_at", ""),
+            }
+            for v in (vehicles or [])
+        ]
+        return _csv_response(rows, "vehicles.csv")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/admin/export/trips.csv", tags=["admin"])
+async def export_trips_csv(
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
+):
+    """Export trips from the last 30 days as CSV."""
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+        trips = await _supabase_get(
+            f"trips?actual_start=gte.{cutoff}&select=*&order=actual_start.desc{op_suffix}"
+        )
+        rows = [
+            {
+                "id": t.get("id", ""),
+                "vehicle_id": t.get("vehicle_id", ""),
+                "driver_id": t.get("driver_id", ""),
+                "route_id": t.get("route_id", ""),
+                "status": t.get("status", ""),
+                "scheduled_start": t.get("scheduled_start", ""),
+                "actual_start": t.get("actual_start", ""),
+                "actual_end": t.get("actual_end", ""),
+                "distance_km": t.get("distance_km", ""),
+                "on_time_pct": t.get("on_time_pct", ""),
+                "passenger_count": t.get("passenger_count", ""),
+                "created_at": t.get("created_at", ""),
+            }
+            for t in (trips or [])
+        ]
+        return _csv_response(rows, "trips.csv")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/admin/export/alerts.csv", tags=["admin"])
+async def export_alerts_csv(
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
+):
+    """Export all alerts as CSV."""
+    try:
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+        alerts = await _supabase_get(
+            f"alerts?select=*&order=created_at.desc{op_suffix}"
+        )
+        rows = [
+            {
+                "id": a.get("id", ""),
+                "vehicle_id": a.get("vehicle_id", ""),
+                "alert_type": a.get("alert_type", ""),
+                "severity": a.get("severity", ""),
+                "title": a.get("title", ""),
+                "description": a.get("description", ""),
+                "is_resolved": a.get("is_resolved", ""),
+                "resolved_at": a.get("resolved_at", ""),
+                "created_at": a.get("created_at", ""),
+            }
+            for a in (alerts or [])
+        ]
+        return _csv_response(rows, "alerts.csv")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/admin/export/drivers.csv", tags=["admin"])
+async def export_drivers_csv(
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
+):
+    """Export all drivers as CSV."""
+    try:
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        drivers = await _supabase_get(
+            f"users?role=eq.driver&select=id,full_name,full_name_ar,email,phone,is_active,created_at{op_suffix}"
+        )
+        trips = await _supabase_get(
+            f"trips?status=eq.completed&actual_start=gte.{cutoff}"
+            f"&select=driver_id,on_time_pct,distance_km{op_suffix}"
+        )
+        driver_trips: dict = defaultdict(list)
+        for t in (trips or []):
+            if t.get("driver_id"):
+                driver_trips[t["driver_id"]].append(t)
+
+        rows = []
+        for d in (drivers or []):
+            dt = driver_trips.get(d["id"], [])
+            on_time_values = [t["on_time_pct"] for t in dt if t.get("on_time_pct") is not None]
+            avg_adherence = (
+                round(sum(on_time_values) / len(on_time_values), 1) if on_time_values else None
+            )
+            total_km = round(sum(t.get("distance_km") or 0 for t in dt), 1)
+            rows.append(
+                {
+                    "id": d.get("id", ""),
+                    "full_name": d.get("full_name", ""),
+                    "full_name_ar": d.get("full_name_ar", ""),
+                    "email": d.get("email", ""),
+                    "phone": d.get("phone", ""),
+                    "is_active": d.get("is_active", ""),
+                    "trips_completed_30d": len(dt),
+                    "avg_adherence_pct_30d": avg_adherence if avg_adherence is not None else "",
+                    "total_km_30d": total_km,
+                    "created_at": d.get("created_at", ""),
+                }
+            )
+        return _csv_response(rows, "drivers.csv")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/admin/export/route-performance.csv", tags=["admin"])
+async def export_route_performance_csv(
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
+):
+    """Export route performance (last 7 days) as CSV."""
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        op_suffix = (
+            f"&{_op_filter(current_user.operator_id)}"
+            if current_user.role != "super_admin" and current_user.operator_id
+            else ""
+        )
+        routes = await _supabase_get(
+            f"routes?is_active=eq.true&select=id,name,name_ar,distance_km{op_suffix}"
+        )
+        trips = await _supabase_get(
+            f"trips?status=eq.completed&actual_start=gte.{cutoff}"
+            f"&select=route_id,on_time_pct,scheduled_start,actual_start{op_suffix}"
+        )
+        route_trips: dict = defaultdict(list)
+        for t in (trips or []):
+            route_trips[t["route_id"]].append(t)
+
+        rows = []
+        for r in (routes or []):
+            rt = route_trips.get(r["id"], [])
+            on_time_values = [t["on_time_pct"] for t in rt if t.get("on_time_pct") is not None]
+            avg_on_time = (
+                round(sum(on_time_values) / len(on_time_values), 1) if on_time_values else None
+            )
+            delays = []
+            for t in rt:
+                if t.get("scheduled_start") and t.get("actual_start"):
+                    try:
+                        sched = datetime.fromisoformat(t["scheduled_start"].replace("Z", "+00:00"))
+                        actual = datetime.fromisoformat(t["actual_start"].replace("Z", "+00:00"))
+                        delays.append((actual - sched).total_seconds() / 60)
+                    except (ValueError, TypeError):
+                        pass
+            avg_delay = round(sum(delays) / len(delays), 1) if delays else None
+            rows.append(
+                {
+                    "route_id": r.get("id", ""),
+                    "name": r.get("name", ""),
+                    "name_ar": r.get("name_ar", ""),
+                    "distance_km": r.get("distance_km", ""),
+                    "trip_count_7d": len(rt),
+                    "avg_on_time_pct_7d": avg_on_time if avg_on_time is not None else "",
+                    "avg_delay_min_7d": avg_delay if avg_delay is not None else "",
+                }
+            )
+        rows.sort(key=lambda x: x["trip_count_7d"], reverse=True)
+        return _csv_response(rows, "route-performance.csv")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/api/admin/notifications/test", tags=["admin"])
