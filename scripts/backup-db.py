@@ -56,8 +56,8 @@ def export_table(client: httpx.Client, table: str, output_dir: Path) -> int:
                 "order": "created_at.asc.nullslast",
             },
         )
-        if resp.status_code == 404:
-            # Table may not have created_at; retry without ordering
+        if resp.status_code in (400, 404):
+            # Table may not have created_at or may not support ordering; retry without
             resp = client.get(
                 f"/rest/v1/{table}",
                 params={"select": "*", "limit": PAGE_SIZE, "offset": offset},
