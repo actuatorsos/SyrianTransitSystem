@@ -1,16 +1,11 @@
 title = "Gitleaks Configuration for Damascus Transit System"
 
-# Allow test fixture mock secrets (non-real values used only in CI tests)
-[[allowlist]]
-description = "Test fixture mock Supabase keys in conftest.py"
+[allowlist]
+description = "Test fixture mock secrets and historical commits"
 paths = [
     '''tests/conftest\.py''',
     '''tests/test_happy_paths\.py''',
 ]
-
-# Allow specific historical commit fingerprints flagged by gitleaks
-[[allowlist]]
-description = "Historical test fixture commits with mock JWT values"
 commits = [
     "0370857786178f2eab7c44c451361820ba2d86a0",
 ]
