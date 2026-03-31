@@ -307,10 +307,14 @@ app = FastAPI(
     title="DamascusTransit API",
     description=(
         "Real-time transit tracking and fleet management — multi-tenant SaaS edition.\n\n"
+        "## API Versioning\n\n"
+        "The current API version is **v1**. Use the `/api/v1/` prefix for all requests.\n"
+        "Legacy `/api/` paths still work but return `Deprecation` and `Sunset` headers.\n"
+        "Migrate to `/api/v1/` before the sunset date.\n\n"
         "## Authentication\n\n"
         "Most read endpoints are public but require an `?operator=<slug>` query parameter to scope data to a tenant.\n"
         "Authenticated users are automatically scoped to their operator.\n\n"
-        "1. **POST /api/auth/login** — exchange email/password for a JWT token\n"
+        "1. **POST /api/v1/auth/login** — exchange email/password for a JWT token\n"
         "2. Include the token as `Authorization: Bearer <token>` on protected endpoints\n\n"
         "Roles: `super_admin` (platform-wide) · `admin` (tenant admin) · `dispatcher` (fleet ops) · `driver` (own vehicle) · `viewer` (read-only)\n\n"
         "Tokens expire after 24 hours."
@@ -413,7 +417,10 @@ async def _api_versioning_middleware(request: Request, call_next):
     original_path = request.url.path
 
     # /api/v1/... → rewrite to /api/... for handler dispatch, tag as v1
-    if original_path.startswith(_API_V1_PREFIX + "/") or original_path == _API_V1_PREFIX:
+    if (
+        original_path.startswith(_API_V1_PREFIX + "/")
+        or original_path == _API_V1_PREFIX
+    ):
         new_path = _API_PREFIX + original_path[len(_API_V1_PREFIX) :]
         # Ensure bare /api/v1 becomes /api (not empty)
         if not new_path:
@@ -430,7 +437,7 @@ async def _api_versioning_middleware(request: Request, call_next):
         response.headers["X-API-Version"] = "v1"
         response.headers["Deprecation"] = "true"
         response.headers["Sunset"] = _SUNSET_DATE
-        response.headers["Link"] = f"<{v1_path}>; rel=\"successor-version\""
+        response.headers["Link"] = f'<{v1_path}>; rel="successor-version"'
         return response
 
     return await call_next(request)
@@ -1335,7 +1342,9 @@ async def register(request: RegisterRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/auth/forgot-password", tags=["auth"])
@@ -1357,12 +1366,15 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
         )
         if not users or not users[0].get("is_active"):
             # Return 200 regardless to prevent email enumeration
-            return {"message": "If that email is registered, a reset email has been sent."}
+            return {
+                "message": "If that email is registered, a reset email has been sent."
+            }
 
         user = users[0]
         # Generate a secure 12-char temporary password
         import secrets
         import string
+
         alphabet = string.ascii_letters + string.digits
         temp_password = "".join(secrets.choice(alphabet) for _ in range(12))
 
@@ -1384,7 +1396,9 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/auth/me", response_model=UserResponse, tags=["auth"])
@@ -1395,7 +1409,9 @@ async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
             f"users?id=eq.{current_user.user_id}&select=id,email,full_name,full_name_ar,role,phone,is_active,created_at"
         )
         if not users:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
         u = users[0]
         return UserResponse(
             id=u["id"],
@@ -1410,7 +1426,9 @@ async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.put("/api/auth/me", response_model=UserResponse, tags=["auth"])
@@ -1433,9 +1451,13 @@ async def update_my_profile(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update."
             )
 
-        result = await _supabase_patch(f"users?id=eq.{current_user.user_id}", update_dict)
+        result = await _supabase_patch(
+            f"users?id=eq.{current_user.user_id}", update_dict
+        )
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
         u = result[0]
         return UserResponse(
             id=u["id"],
@@ -1450,7 +1472,9 @@ async def update_my_profile(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.post("/api/auth/change-password", tags=["auth"])
@@ -1474,11 +1498,14 @@ async def change_password(
             f"users?id=eq.{current_user.user_id}&select=id,password_hash"
         )
         if not users:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
 
         if not verify_password(request.current_password, users[0]["password_hash"]):
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect."
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Current password is incorrect.",
             )
 
         hashed = hash_password(request.new_password)
@@ -1491,7 +1518,9 @@ async def change_password(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @app.get("/api/routes", response_model=List[RouteResponse], tags=["routes"])

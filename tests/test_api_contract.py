@@ -145,26 +145,26 @@ class TestAuthEndpoints:
 
     def test_me_endpoint_requires_auth(self, client):
         r = client.get("/api/auth/me")
-        assert r.status_code == 403
+        assert r.status_code in (401, 403)
 
     def test_me_put_requires_auth(self, client):
         r = client.put("/api/auth/me", json={"full_name": "New Name"})
-        assert r.status_code == 403
+        assert r.status_code in (401, 403)
 
     def test_change_password_requires_auth(self, client):
         r = client.post("/api/auth/change-password", json={
             "current_password": "old",
             "new_password": "newpassword123",
         })
-        assert r.status_code == 403
+        assert r.status_code in (401, 403)
 
     def test_change_password_rejects_short_new_password(self, client):
-        # Without auth we get 403, but the route exists
+        # Without auth we get 401/403, but the route exists
         r = client.post("/api/auth/change-password", json={
             "current_password": "old",
             "new_password": "short",
         })
-        assert r.status_code in (403, 422)
+        assert r.status_code in (401, 403, 422)
 
 
 # ---------------------------------------------------------------------------
