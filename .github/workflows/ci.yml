@@ -110,7 +110,7 @@ jobs:
         run: |
           docker compose up --build -d
         env:
-          SUPABASE_URL: http://mock-supabase.local
+          SUPABASE_URL: http://127.0.0.1:9999
           SUPABASE_KEY: mock-key
           SUPABASE_SERVICE_KEY: mock-service-key
           SUPABASE_ANON_KEY: mock-anon-key
@@ -145,7 +145,7 @@ jobs:
         run: |
           # Multi-tenancy requires ?operator= for unauthenticated requests.
           # Accept either SSE headers or valid JSON error.
-          status=$(curl -s -o /tmp/stream_body -w "%{http_code}" --max-time 5 "http://localhost:8000/api/stream?operator=damascus" || echo "000")
+          status=$(curl -s -o /tmp/stream_body -w "%{http_code}" --max-time 15 "http://localhost:8000/api/stream?operator=damascus" || echo "000")
           echo "Stream status: $status"
           if [ "$status" = "200" ]; then
             echo "PASS: /api/stream returned 200 (SSE)"

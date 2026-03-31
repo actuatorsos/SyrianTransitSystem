@@ -33,7 +33,7 @@ def _supabase_url(path: str) -> str:
 
 async def _supabase_get(path: str, params: Optional[dict] = None) -> list:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=3.0)) as client:
             resp = await client.get(
                 _supabase_url(path), headers=_supabase_headers(), params=params or {}
             )
@@ -46,7 +46,7 @@ async def _supabase_get(path: str, params: Optional[dict] = None) -> list:
 
 async def _supabase_post(path: str, data: dict) -> dict:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=3.0)) as client:
             resp = await client.post(
                 _supabase_url(path), headers=_supabase_headers(), json=data
             )
@@ -60,7 +60,7 @@ async def _supabase_post(path: str, data: dict) -> dict:
 
 async def _supabase_patch(path: str, data: dict) -> list:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=3.0)) as client:
             resp = await client.patch(
                 _supabase_url(path), headers=_supabase_headers(), json=data
             )
@@ -73,7 +73,7 @@ async def _supabase_patch(path: str, data: dict) -> list:
 
 async def _supabase_delete(path: str) -> None:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=3.0)) as client:
             resp = await client.delete(_supabase_url(path), headers=_supabase_headers())
             resp.raise_for_status()
     except Exception as e:
@@ -82,7 +82,7 @@ async def _supabase_delete(path: str) -> None:
 
 async def _supabase_rpc(func_name: str, params: dict):
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=3.0)) as client:
             resp = await client.post(
                 f"{os.getenv('SUPABASE_URL')}/rest/v1/rpc/{func_name}",
                 headers=_supabase_headers(),
