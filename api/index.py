@@ -7,8 +7,11 @@ LIGHTWEIGHT VERSION: Uses httpx for Supabase REST API, PyJWT for auth, bcrypt di
 All auth and database code inlined for Vercel Python serverless compatibility.
 """
 
+import math
 import os
 import json
+import random
+import sys
 import time
 import uuid
 import logging
@@ -40,13 +43,10 @@ from fastapi.responses import JSONResponse, StreamingResponse, Response
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from lib.email import send_alert_email, send_welcome_email  # noqa: E402
+
 load_dotenv()
-
-import sys
-import os as _os
-
-sys.path.insert(0, _os.path.join(_os.path.dirname(__file__), ".."))
-from lib.email import send_alert_email, send_welcome_email, send_password_reset_email
 
 # ============================================================================
 # Structured Logging (JSON format for Vercel / cloud log aggregators)
@@ -3267,9 +3267,6 @@ async def get_gps_heatmap(
 # ============================================================================
 # GPS Position Simulator (Admin-only, for demos & development)
 # ============================================================================
-
-import math
-import random
 
 
 def _interpolate_position(
