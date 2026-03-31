@@ -37,29 +37,46 @@ async def list_vehicles(
         if cached is not None:
             return cached
 
-        query = "vehicle_positions_latest?select=*,vehicles(id,vehicle_id,name,name_ar,vehicle_type,capacity,status,assigned_route_id)"
+        # Query vehicles table directly (base table) so all vehicles are
+        # returned even when the PostgREST embed on vehicle_positions_latest
+        # fails or no position data exists yet.
+        vehicles_query = (
+            "vehicles?select=id,vehicle_id,name,name_ar,vehicle_type,"
+            "capacity,status,assigned_route_id"
+            "&status=neq.decommissioned"
+        )
         if op_id:
-            query += f"&{_op_filter(op_id)}"
-        positions = await _supabase_get(query)
+            vehicles_query += f"&{_op_filter(op_id)}"
+        vehicles = await _supabase_get(vehicles_query)
+
+        # Fetch latest positions separately and merge by vehicle UUID
+        pos_query = (
+            "vehicle_positions_latest?select=vehicle_id,latitude,longitude,"
+            "speed_kmh,occupancy_pct,recorded_at"
+        )
+        if op_id:
+            pos_query += f"&{_op_filter(op_id)}"
+        positions = await _supabase_get(pos_query)
+
+        pos_by_id = {p["vehicle_id"]: p for p in (positions or [])}
 
         result = [
             VehicleResponse(
-                id=v["vehicles"]["id"],
-                vehicle_id=v["vehicles"]["vehicle_id"],
-                name=v["vehicles"]["name"],
-                name_ar=v["vehicles"]["name_ar"],
-                vehicle_type=v["vehicles"]["vehicle_type"],
-                capacity=v["vehicles"]["capacity"],
-                status=v["vehicles"]["status"],
-                assigned_route_id=v["vehicles"].get("assigned_route_id"),
-                latitude=v.get("latitude"),
-                longitude=v.get("longitude"),
-                speed_kmh=v.get("speed_kmh"),
-                occupancy_pct=v.get("occupancy_pct"),
-                recorded_at=v.get("recorded_at"),
+                id=v["id"],
+                vehicle_id=v["vehicle_id"],
+                name=v["name"],
+                name_ar=v.get("name_ar", ""),
+                vehicle_type=v["vehicle_type"],
+                capacity=v["capacity"],
+                status=v["status"],
+                assigned_route_id=v.get("assigned_route_id"),
+                latitude=pos_by_id.get(v["id"], {}).get("latitude"),
+                longitude=pos_by_id.get(v["id"], {}).get("longitude"),
+                speed_kmh=pos_by_id.get(v["id"], {}).get("speed_kmh"),
+                occupancy_pct=pos_by_id.get(v["id"], {}).get("occupancy_pct"),
+                recorded_at=pos_by_id.get(v["id"], {}).get("recorded_at"),
             )
-            for v in (positions or [])
-            if v.get("vehicles")
+            for v in (vehicles or [])
         ]
 
         await _cache_set(
@@ -94,18 +111,29 @@ async def get_vehicle_positions(
         if cached is not None:
             return cached
 
-        query = (
+        # Fetch positions and vehicle metadata separately to avoid broken
+        # PostgREST embed from vehicle_positions_latest → vehicles.
+        pos_query = (
             "vehicle_positions_latest"
             "?select=vehicle_id,latitude,longitude,speed_kmh,heading,source,"
-            "occupancy_pct,recorded_at,vehicles(vehicle_id,vehicle_type,name,name_ar,assigned_route_id)"
+            "occupancy_pct,recorded_at"
         )
         if op_id:
-            query += f"&{_op_filter(op_id)}"
-        raw = await _supabase_get(query)
+            pos_query += f"&{_op_filter(op_id)}"
+        raw = await _supabase_get(pos_query)
+
+        # Build vehicle lookup from vehicles table
+        veh_query = (
+            "vehicles?select=id,vehicle_id,vehicle_type,name,name_ar,assigned_route_id"
+        )
+        if op_id:
+            veh_query += f"&{_op_filter(op_id)}"
+        vehicles = await _supabase_get(veh_query)
+        veh_by_id = {v["id"]: v for v in (vehicles or [])}
 
         result = []
         for pos in raw or []:
-            vehicle = pos.get("vehicles") or {}
+            vehicle = veh_by_id.get(pos.get("vehicle_id"), {})
             result.append(
                 {
                     "vehicle_id": vehicle.get("vehicle_id") or pos.get("vehicle_id"),
