@@ -38,6 +38,7 @@ def _alert_recipients() -> list[str]:
 # Low-level send
 # ---------------------------------------------------------------------------
 
+
 async def _send(*, to: list[str], subject: str, html: str) -> bool:
     """
     Send an email via the Resend API.
@@ -87,6 +88,7 @@ async def _send(*, to: list[str], subject: str, html: str) -> bool:
 # ---------------------------------------------------------------------------
 # Templates
 # ---------------------------------------------------------------------------
+
 
 def _base_html(title: str, body: str) -> str:
     return f"""<!DOCTYPE html>
@@ -143,11 +145,11 @@ def _alert_html(
     description: Optional[str],
     created_at: str,
 ) -> str:
-    badge_class = f"badge-{severity}" if severity in ("high", "medium", "low") else "badge-medium"
+    badge_class = (
+        f"badge-{severity}" if severity in ("high", "medium", "low") else "badge-medium"
+    )
     desc_row = (
-        f"<tr><td>Description</td><td>{description}</td></tr>"
-        if description
-        else ""
+        f"<tr><td>Description</td><td>{description}</td></tr>" if description else ""
     )
     body = f"""
     <h2>Vehicle Alert: {title}</h2>
@@ -197,6 +199,7 @@ def _password_reset_html(full_name: str, temp_password: str) -> str:
 # ---------------------------------------------------------------------------
 # Public helpers
 # ---------------------------------------------------------------------------
+
 
 async def send_alert_email(
     *,
