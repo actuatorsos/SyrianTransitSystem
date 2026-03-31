@@ -397,6 +397,46 @@ async def _request_logging_middleware(request: Request, call_next):
 
 
 # ============================================================================
+# API Versioning Middleware
+# ============================================================================
+# /api/v1/ is the canonical versioned prefix — requests are rewritten to /api/
+# for handler routing.  Legacy /api/ paths still work but responses carry
+# deprecation + sunset headers directing callers to migrate.
+
+_API_V1_PREFIX = "/api/v1"
+_API_PREFIX = "/api"
+_SUNSET_DATE = "2026-09-30"
+
+
+@app.middleware("http")
+async def _api_versioning_middleware(request: Request, call_next):
+    original_path = request.url.path
+
+    # /api/v1/... → rewrite to /api/... for handler dispatch, tag as v1
+    if original_path.startswith(_API_V1_PREFIX + "/") or original_path == _API_V1_PREFIX:
+        new_path = _API_PREFIX + original_path[len(_API_V1_PREFIX) :]
+        # Ensure bare /api/v1 becomes /api (not empty)
+        if not new_path:
+            new_path = _API_PREFIX
+        request.scope["path"] = new_path
+        response = await call_next(request)
+        response.headers["X-API-Version"] = "v1"
+        return response
+
+    # /api/... (legacy) → serve normally but add deprecation headers
+    if original_path.startswith(_API_PREFIX + "/") or original_path == _API_PREFIX:
+        response = await call_next(request)
+        v1_path = _API_V1_PREFIX + original_path[len(_API_PREFIX) :]
+        response.headers["X-API-Version"] = "v1"
+        response.headers["Deprecation"] = "true"
+        response.headers["Sunset"] = _SUNSET_DATE
+        response.headers["Link"] = f"<{v1_path}>; rel=\"successor-version\""
+        return response
+
+    return await call_next(request)
+
+
+# ============================================================================
 # JWT Authentication (using PyJWT)
 # ============================================================================
 
@@ -895,6 +935,37 @@ class UserResponse(BaseModel):
     created_at: Optional[str] = None
 
 
+class RegisterRequest(BaseModel):
+    """Self-service user registration request."""
+
+    email: str
+    password: str
+    full_name: str
+    full_name_ar: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Initiate password reset by email."""
+
+    email: str
+
+
+class ChangePasswordRequest(BaseModel):
+    """Authenticated password change."""
+
+    current_password: str
+    new_password: str
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Current user profile update."""
+
+    full_name: Optional[str] = None
+    full_name_ar: Optional[str] = None
+    phone: Optional[str] = None
+
+
 class RouteResponse(BaseModel):
     """Route response with basic info."""
 
@@ -1199,6 +1270,228 @@ async def login(request: LoginRequest, raw_request: Request):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
+
+@app.post("/api/auth/register", response_model=UserResponse, tags=["auth"])
+async def register(request: RegisterRequest, raw_request: Request):
+    """
+    Self-service user registration. Creates a viewer-role account.
+
+    Rate limited to 5 registrations per IP per 60 seconds.
+    Sends a welcome email upon successful registration.
+    """
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    if not await _rate_limit_check(f"register:{client_ip}", 5, 60):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many registration attempts. Try again later.",
+        )
+    try:
+        if len(request.password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Password must be at least 8 characters.",
+            )
+
+        existing = await _supabase_get(
+            f"users?email=eq.{urllib.parse.quote(request.email, safe='')}&select=id"
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
+            )
+
+        hashed = hash_password(request.password)
+        new_user = {
+            "email": request.email,
+            "password_hash": hashed,
+            "full_name": request.full_name,
+            "full_name_ar": request.full_name_ar,
+            "role": "viewer",
+            "phone": request.phone,
+            "is_active": True,
+        }
+        result = await _supabase_post("users", new_user)
+        created = result if isinstance(result, dict) else (result[0] if result else {})
+
+        asyncio.create_task(
+            send_welcome_email(
+                full_name=created.get("full_name", request.full_name),
+                email=created.get("email", request.email),
+                role="viewer",
+            )
+        )
+
+        return UserResponse(
+            id=created.get("id"),
+            email=created.get("email"),
+            full_name=created.get("full_name"),
+            full_name_ar=created.get("full_name_ar"),
+            role=created.get("role", "viewer"),
+            phone=created.get("phone"),
+            is_active=created.get("is_active", True),
+            created_at=created.get("created_at"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.post("/api/auth/forgot-password", tags=["auth"])
+async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
+    """
+    Initiate a password reset. Generates a temporary password and emails it.
+
+    Always returns 200 to avoid user enumeration. Rate limited to 3/60s per IP.
+    """
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    if not await _rate_limit_check(f"forgot:{client_ip}", 3, 60):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many password reset attempts. Try again later.",
+        )
+    try:
+        users = await _supabase_get(
+            f"users?email=eq.{urllib.parse.quote(request.email, safe='')}&select=id,email,full_name,is_active"
+        )
+        if not users or not users[0].get("is_active"):
+            # Return 200 regardless to prevent email enumeration
+            return {"message": "If that email is registered, a reset email has been sent."}
+
+        user = users[0]
+        # Generate a secure 12-char temporary password
+        import secrets
+        import string
+        alphabet = string.ascii_letters + string.digits
+        temp_password = "".join(secrets.choice(alphabet) for _ in range(12))
+
+        hashed = hash_password(temp_password)
+        await _supabase_patch(
+            f"users?id=eq.{user['id']}",
+            {"password_hash": hashed, "requires_password_change": True},
+        )
+
+        asyncio.create_task(
+            send_password_reset_email(
+                full_name=user.get("full_name", ""),
+                email=user["email"],
+                temp_password=temp_password,
+            )
+        )
+
+        return {"message": "If that email is registered, a reset email has been sent."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.get("/api/auth/me", response_model=UserResponse, tags=["auth"])
+async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
+    """Return the authenticated user's profile."""
+    try:
+        users = await _supabase_get(
+            f"users?id=eq.{current_user.user_id}&select=id,email,full_name,full_name_ar,role,phone,is_active,created_at"
+        )
+        if not users:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+        u = users[0]
+        return UserResponse(
+            id=u["id"],
+            email=u["email"],
+            full_name=u["full_name"],
+            full_name_ar=u.get("full_name_ar"),
+            role=u["role"],
+            phone=u.get("phone"),
+            is_active=u["is_active"],
+            created_at=u.get("created_at"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.put("/api/auth/me", response_model=UserResponse, tags=["auth"])
+async def update_my_profile(
+    request: ProfileUpdateRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Update the authenticated user's profile (name and phone only)."""
+    try:
+        update_dict: dict = {}
+        if request.full_name is not None:
+            update_dict["full_name"] = request.full_name
+        if request.full_name_ar is not None:
+            update_dict["full_name_ar"] = request.full_name_ar
+        if request.phone is not None:
+            update_dict["phone"] = request.phone
+
+        if not update_dict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update."
+            )
+
+        result = await _supabase_patch(f"users?id=eq.{current_user.user_id}", update_dict)
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+        u = result[0]
+        return UserResponse(
+            id=u["id"],
+            email=u["email"],
+            full_name=u["full_name"],
+            full_name_ar=u.get("full_name_ar"),
+            role=u["role"],
+            phone=u.get("phone"),
+            is_active=u["is_active"],
+            created_at=u.get("created_at"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@app.post("/api/auth/change-password", tags=["auth"])
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Change the authenticated user's password.
+
+    Verifies the current password before updating.
+    """
+    try:
+        if len(request.new_password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="New password must be at least 8 characters.",
+            )
+
+        users = await _supabase_get(
+            f"users?id=eq.{current_user.user_id}&select=id,password_hash"
+        )
+        if not users:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+        if not verify_password(request.current_password, users[0]["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect."
+            )
+
+        hashed = hash_password(request.new_password)
+        await _supabase_patch(
+            f"users?id=eq.{current_user.user_id}",
+            {"password_hash": hashed, "requires_password_change": False},
+        )
+
+        return {"message": "Password changed successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @app.get("/api/routes", response_model=List[RouteResponse], tags=["routes"])

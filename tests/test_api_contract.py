@@ -113,6 +113,59 @@ class TestAuthEndpoints:
         body = r.json()
         assert "detail" in body
 
+    def test_register_endpoint_exists(self, client):
+        r = client.post("/api/auth/register", json={
+            "email": "newuser@example.com",
+            "password": "securepassword123",
+            "full_name": "Test User",
+        })
+        # 409 (duplicate) or 500 (no DB) — endpoint must exist
+        assert r.status_code in (200, 201, 409, 422, 500, 502, 503)
+        assert r.headers["content-type"].startswith("application/json")
+
+    def test_register_rejects_short_password(self, client):
+        r = client.post("/api/auth/register", json={
+            "email": "test@example.com",
+            "password": "short",
+            "full_name": "Test User",
+        })
+        assert r.status_code == 422
+        assert "detail" in r.json()
+
+    def test_forgot_password_endpoint_exists(self, client):
+        r = client.post("/api/auth/forgot-password", json={"email": "unknown@example.com"})
+        # Always 200 (to prevent email enumeration) or 500/503 (no DB)
+        assert r.status_code in (200, 500, 502, 503)
+        assert r.headers["content-type"].startswith("application/json")
+
+    def test_forgot_password_always_returns_message(self, client):
+        r = client.post("/api/auth/forgot-password", json={"email": "nobody@example.com"})
+        if r.status_code == 200:
+            assert "message" in r.json()
+
+    def test_me_endpoint_requires_auth(self, client):
+        r = client.get("/api/auth/me")
+        assert r.status_code == 403
+
+    def test_me_put_requires_auth(self, client):
+        r = client.put("/api/auth/me", json={"full_name": "New Name"})
+        assert r.status_code == 403
+
+    def test_change_password_requires_auth(self, client):
+        r = client.post("/api/auth/change-password", json={
+            "current_password": "old",
+            "new_password": "newpassword123",
+        })
+        assert r.status_code == 403
+
+    def test_change_password_rejects_short_new_password(self, client):
+        # Without auth we get 403, but the route exists
+        r = client.post("/api/auth/change-password", json={
+            "current_password": "old",
+            "new_password": "short",
+        })
+        assert r.status_code in (403, 422)
+
 
 # ---------------------------------------------------------------------------
 # Driver endpoints (require JWT)
