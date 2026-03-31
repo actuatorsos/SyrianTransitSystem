@@ -62,13 +62,17 @@ async def list_vehicles(
             if v.get("vehicles")
         ]
 
-        await _cache_set(cache_key, [r.model_dump() for r in result], CACHE_TTL_VEHICLES)
+        await _cache_set(
+            cache_key, [r.model_dump() for r in result], CACHE_TTL_VEHICLES
+        )
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/vehicles/positions", response_model=List[dict], tags=["vehicles"])
@@ -102,4 +106,6 @@ async def get_vehicle_positions(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

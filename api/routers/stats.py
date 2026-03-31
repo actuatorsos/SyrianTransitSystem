@@ -4,7 +4,13 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from api.core.auth import CurrentUser, optional_auth
-from api.core.cache import CACHE_KEY_STATS, CACHE_TTL_STATS, _cache_get, _cache_set, _tenant_cache_key
+from api.core.cache import (
+    CACHE_KEY_STATS,
+    CACHE_TTL_STATS,
+    _cache_get,
+    _cache_set,
+    _tenant_cache_key,
+)
 from api.core.database import _supabase_get
 from api.core.tenancy import _op_filter, _resolve_operator_id
 
@@ -32,19 +38,39 @@ async def get_fleet_stats(
 
         op_suffix = f"&{_op_filter(op_id)}" if op_id else ""
 
-        vehicles = await _supabase_get(f"vehicles?is_active=eq.true&select=id,status{op_suffix}")
-        active_count = len([v for v in vehicles if v.get("status") == "active"]) if vehicles else 0
-        idle_count = len([v for v in vehicles if v.get("status") == "idle"]) if vehicles else 0
-        maintenance_count = len([v for v in vehicles if v.get("status") == "maintenance"]) if vehicles else 0
+        vehicles = await _supabase_get(
+            f"vehicles?is_active=eq.true&select=id,status{op_suffix}"
+        )
+        active_count = (
+            len([v for v in vehicles if v.get("status") == "active"]) if vehicles else 0
+        )
+        idle_count = (
+            len([v for v in vehicles if v.get("status") == "idle"]) if vehicles else 0
+        )
+        maintenance_count = (
+            len([v for v in vehicles if v.get("status") == "maintenance"])
+            if vehicles
+            else 0
+        )
 
         routes = await _supabase_get(f"routes?is_active=eq.true&select=id{op_suffix}")
         stops = await _supabase_get(f"stops?is_active=eq.true&select=id{op_suffix}")
-        drivers = await _supabase_get(f"users?role=eq.driver&select=id,is_active{op_suffix}")
-        active_drivers = len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        drivers = await _supabase_get(
+            f"users?role=eq.driver&select=id,is_active{op_suffix}"
+        )
+        active_drivers = (
+            len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        )
 
-        positions = await _supabase_get(f"vehicle_positions_latest?select=occupancy_pct{op_suffix}")
-        occupancy_values = [p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None]
-        avg_occupancy = sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        positions = await _supabase_get(
+            f"vehicle_positions_latest?select=occupancy_pct{op_suffix}"
+        )
+        occupancy_values = [
+            p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
+        ]
+        avg_occupancy = (
+            sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        )
 
         result = {
             "total_vehicles": len(vehicles),
@@ -65,4 +91,6 @@ async def get_fleet_stats(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

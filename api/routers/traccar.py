@@ -14,6 +14,7 @@ from api.models.schemas import TraccarEvent, TraccarPosition
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 try:
     from lib.email import send_alert_email as _send_alert_email  # noqa: E402
+
     _email_available = True
 except ImportError:
     _email_available = False
@@ -138,6 +139,7 @@ async def traccar_event_webhook(
 
             if _email_available:
                 import asyncio
+
                 asyncio.create_task(
                     _send_alert_email(
                         alert_type=alert_type,

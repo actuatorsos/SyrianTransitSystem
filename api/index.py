@@ -46,21 +46,60 @@ else:
 
 # ── OpenAPI tag metadata ─────────────────────────────────────────────────────
 _OPENAPI_TAGS = [
-    {"name": "health", "description": "Service health and status checks. No authentication required."},
+    {
+        "name": "health",
+        "description": "Service health and status checks. No authentication required.",
+    },
     {"name": "auth", "description": "User authentication. Returns a JWT bearer token."},
-    {"name": "routes", "description": "Transit route data. Public read access; no authentication required."},
-    {"name": "stops", "description": "Bus stop locations and nearest-stop lookup. Public read access."},
-    {"name": "vehicles", "description": "Real-time vehicle positions and fleet list. Public read access."},
-    {"name": "stream", "description": "Server-Sent Events (SSE) stream for live vehicle updates. Public."},
-    {"name": "websocket", "description": "WebSocket real-time vehicle tracking with route subscriptions."},
+    {
+        "name": "routes",
+        "description": "Transit route data. Public read access; no authentication required.",
+    },
+    {
+        "name": "stops",
+        "description": "Bus stop locations and nearest-stop lookup. Public read access.",
+    },
+    {
+        "name": "vehicles",
+        "description": "Real-time vehicle positions and fleet list. Public read access.",
+    },
+    {
+        "name": "stream",
+        "description": "Server-Sent Events (SSE) stream for live vehicle updates. Public.",
+    },
+    {
+        "name": "websocket",
+        "description": "WebSocket real-time vehicle tracking with route subscriptions.",
+    },
     {"name": "stats", "description": "Aggregate fleet statistics. Public read access."},
-    {"name": "schedules", "description": "Route schedules and timetables. Public read access."},
-    {"name": "alerts", "description": "Passenger-facing service alerts. Public read access."},
-    {"name": "driver", "description": "Driver-only endpoints. Requires `driver` role JWT."},
-    {"name": "admin", "description": "Admin and dispatcher endpoints. Requires `admin` or `dispatcher` role JWT."},
-    {"name": "traccar", "description": "Traccar GPS device webhooks. Secured by HMAC signature header."},
-    {"name": "gtfs", "description": "GTFS static and realtime feeds for Google Maps / transit apps."},
-    {"name": "operators", "description": "Fleet operator (tenant) management. super_admin role required for most operations."},
+    {
+        "name": "schedules",
+        "description": "Route schedules and timetables. Public read access.",
+    },
+    {
+        "name": "alerts",
+        "description": "Passenger-facing service alerts. Public read access.",
+    },
+    {
+        "name": "driver",
+        "description": "Driver-only endpoints. Requires `driver` role JWT.",
+    },
+    {
+        "name": "admin",
+        "description": "Admin and dispatcher endpoints. Requires `admin` or `dispatcher` role JWT.",
+    },
+    {
+        "name": "traccar",
+        "description": "Traccar GPS device webhooks. Secured by HMAC signature header.",
+    },
+    {
+        "name": "gtfs",
+        "description": "GTFS static and realtime feeds for Google Maps / transit apps.",
+    },
+    {
+        "name": "operators",
+        "description": "Fleet operator (tenant) management. super_admin role required for most operations.",
+    },
     {"name": "push", "description": "Web Push notification subscriptions."},
     {"name": "cron", "description": "Scheduled background jobs. Bearer-token secured."},
 ]
@@ -108,7 +147,9 @@ app.add_middleware(
 # ── Middleware ────────────────────────────────────────────────────────────────
 from api.core.cache import RATE_LIMIT_GLOBAL, _get_client_ip, _rate_limit_check  # noqa: E402
 
-_GLOBAL_RATE_LIMIT_SKIP = frozenset({"/api/health", "/", "/docs", "/openapi.json", "/redoc"})
+_GLOBAL_RATE_LIMIT_SKIP = frozenset(
+    {"/api/health", "/", "/docs", "/openapi.json", "/redoc"}
+)
 
 _API_V1_PREFIX = "/api/v1"
 _API_PREFIX = "/api"
@@ -160,8 +201,11 @@ async def _request_logging_middleware(request: Request, call_next):
 @app.middleware("http")
 async def _api_versioning_middleware(request: Request, call_next):
     original_path = request.url.path
-    if original_path.startswith(_API_V1_PREFIX + "/") or original_path == _API_V1_PREFIX:
-        new_path = _API_PREFIX + original_path[len(_API_V1_PREFIX):]
+    if (
+        original_path.startswith(_API_V1_PREFIX + "/")
+        or original_path == _API_V1_PREFIX
+    ):
+        new_path = _API_PREFIX + original_path[len(_API_V1_PREFIX) :]
         if not new_path:
             new_path = _API_PREFIX
         request.scope["path"] = new_path
@@ -170,7 +214,7 @@ async def _api_versioning_middleware(request: Request, call_next):
         return response
     if original_path.startswith(_API_PREFIX + "/") or original_path == _API_PREFIX:
         response = await call_next(request)
-        v1_path = _API_V1_PREFIX + original_path[len(_API_PREFIX):]
+        v1_path = _API_V1_PREFIX + original_path[len(_API_PREFIX) :]
         response.headers["X-API-Version"] = "v1"
         response.headers["Deprecation"] = "true"
         response.headers["Sunset"] = _SUNSET_DATE
@@ -244,7 +288,10 @@ async def http_exception_handler(request, exc):
 async def generic_exception_handler(request, exc):
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error", "timestamp": datetime.utcnow().isoformat()},
+        content={
+            "detail": "Internal server error",
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
@@ -255,4 +302,5 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

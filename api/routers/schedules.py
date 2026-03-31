@@ -10,7 +10,11 @@ from api.models.schemas import ScheduleResponse
 router = APIRouter()
 
 
-@router.get("/api/schedules/{route_id}", response_model=List[ScheduleResponse], tags=["schedules"])
+@router.get(
+    "/api/schedules/{route_id}",
+    response_model=List[ScheduleResponse],
+    tags=["schedules"],
+)
 async def get_route_schedule(
     route_id: str,
     operator: Optional[str] = Query(None, description="Operator slug"),
@@ -45,4 +49,6 @@ async def get_route_schedule(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

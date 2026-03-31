@@ -19,7 +19,9 @@ router = APIRouter()
 
 @router.get("/api/routes", response_model=List[RouteResponse], tags=["routes"])
 async def list_routes(
-    operator: Optional[str] = Query(None, description="Operator slug (e.g. 'damascus')"),
+    operator: Optional[str] = Query(
+        None, description="Operator slug (e.g. 'damascus')"
+    ),
     current_user: Optional[CurrentUser] = Depends(optional_auth),
 ):
     """List all active routes with stop counts."""
@@ -43,7 +45,9 @@ async def list_routes(
 
         enriched_routes = []
         for route in routes:
-            stops = await _supabase_get(f"route_stops?route_id=eq.{route['id']}&select=id")
+            stops = await _supabase_get(
+                f"route_stops?route_id=eq.{route['id']}&select=id"
+            )
             enriched_routes.append(
                 RouteResponse(
                     id=route["id"],
@@ -67,7 +71,9 @@ async def list_routes(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/routes/{route_id}", response_model=RouteResponse, tags=["routes"])
@@ -96,7 +102,9 @@ async def get_route(
         routes = await _supabase_get(query)
 
         if not routes:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Route not found"
+            )
 
         route = routes[0]
         stops = await _supabase_get(f"route_stops?route_id=eq.{route_id}&select=id")
@@ -120,4 +128,6 @@ async def get_route(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

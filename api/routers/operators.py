@@ -31,7 +31,9 @@ async def list_operators(
             for o in operators
         ]
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/operators/me", response_model=OperatorResponse, tags=["operators"])
@@ -66,7 +68,9 @@ async def get_my_operator(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/operators", response_model=OperatorResponse, tags=["operators"])
@@ -111,10 +115,14 @@ async def create_operator(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
-@router.put("/api/operators/{operator_id}", response_model=OperatorResponse, tags=["operators"])
+@router.put(
+    "/api/operators/{operator_id}", response_model=OperatorResponse, tags=["operators"]
+)
 async def update_operator(
     operator_id: str,
     data: OperatorUpdate,
@@ -159,4 +167,6 @@ async def update_operator(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

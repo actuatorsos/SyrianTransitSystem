@@ -273,7 +273,9 @@ class PushSubscription(BaseModel):
 class PushSubscribeRequest(BaseModel):
     subscription: PushSubscription
     stopIds: Optional[list] = None
-    role: Optional[str] = None  # "passenger" | "driver" — overridden by JWT role if present
+    role: Optional[str] = (
+        None  # "passenger" | "driver" — overridden by JWT role if present
+    )
 
 
 class PushBroadcastRequest(BaseModel):

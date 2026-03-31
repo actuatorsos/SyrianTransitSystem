@@ -81,7 +81,9 @@ async def login(request: LoginRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/auth/register", response_model=UserResponse, tags=["auth"])
@@ -124,8 +126,12 @@ async def register(request: RegisterRequest, raw_request: Request):
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+            sys.path.insert(
+                0, os.path.join(os.path.dirname(__file__), "..", "..", "..")
+            )
             from lib.email import send_welcome_email
+
             asyncio.create_task(
                 send_welcome_email(
                     full_name=created.get("full_name", request.full_name),
@@ -149,7 +155,9 @@ async def register(request: RegisterRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/auth/forgot-password", tags=["auth"])
@@ -166,7 +174,9 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
             f"users?email=eq.{urllib.parse.quote(request.email, safe='')}&select=id,email,full_name,is_active"
         )
         if not users or not users[0].get("is_active"):
-            return {"message": "If that email is registered, a reset email has been sent."}
+            return {
+                "message": "If that email is registered, a reset email has been sent."
+            }
 
         user = users[0]
         alphabet = string.ascii_letters + string.digits
@@ -181,8 +191,12 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
         try:
             import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+
+            sys.path.insert(
+                0, os.path.join(os.path.dirname(__file__), "..", "..", "..")
+            )
             from lib.email import send_password_reset_email
+
             asyncio.create_task(
                 send_password_reset_email(
                     full_name=user.get("full_name", ""),
@@ -197,7 +211,9 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/auth/me", response_model=UserResponse, tags=["auth"])
@@ -208,7 +224,9 @@ async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
             f"users?id=eq.{current_user.user_id}&select=id,email,full_name,full_name_ar,role,phone,is_active,created_at"
         )
         if not users:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
         u = users[0]
         return UserResponse(
             id=u["id"],
@@ -223,7 +241,9 @@ async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.put("/api/auth/me", response_model=UserResponse, tags=["auth"])
@@ -246,9 +266,13 @@ async def update_my_profile(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update."
             )
 
-        result = await _supabase_patch(f"users?id=eq.{current_user.user_id}", update_dict)
+        result = await _supabase_patch(
+            f"users?id=eq.{current_user.user_id}", update_dict
+        )
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
         u = result[0]
         return UserResponse(
             id=u["id"],
@@ -263,7 +287,9 @@ async def update_my_profile(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/auth/change-password", tags=["auth"])
@@ -283,7 +309,9 @@ async def change_password(
             f"users?id=eq.{current_user.user_id}&select=id,password_hash"
         )
         if not users:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
 
         if not verify_password(request.current_password, users[0]["password_hash"]):
             raise HTTPException(
@@ -301,4 +329,6 @@ async def change_password(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

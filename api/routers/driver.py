@@ -12,7 +12,12 @@ from api.core.cache import (
     _rate_limit_check,
     _tenant_cache_key,
 )
-from api.core.database import _supabase_get, _supabase_patch, _supabase_post, _supabase_rpc
+from api.core.database import (
+    _supabase_get,
+    _supabase_patch,
+    _supabase_post,
+    _supabase_rpc,
+)
 from api.models.schemas import PassengerCountUpdate, PositionUpdate, TripEnd, TripStart
 
 router = APIRouter()
@@ -73,7 +78,9 @@ async def report_driver_position(
         if current_user.operator_id:
             await _cache_delete(
                 _tenant_cache_key(CACHE_KEY_VEHICLES_LIST, current_user.operator_id),
-                _tenant_cache_key(CACHE_KEY_VEHICLES_POSITIONS, current_user.operator_id),
+                _tenant_cache_key(
+                    CACHE_KEY_VEHICLES_POSITIONS, current_user.operator_id
+                ),
             )
         else:
             await _cache_delete(CACHE_KEY_VEHICLES_LIST, CACHE_KEY_VEHICLES_POSITIONS)
@@ -83,7 +90,9 @@ async def report_driver_position(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/driver/trip/start", tags=["driver"])
@@ -128,7 +137,9 @@ async def start_trip(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/driver/trip/end", tags=["driver"])
@@ -142,7 +153,9 @@ async def end_trip(
             f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id"
         )
         if not trips:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active trip")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No active trip"
+            )
 
         trip_id = trips[0]["id"]
         update_data = {
@@ -161,7 +174,9 @@ async def end_trip(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/driver/trip/passenger-count", tags=["driver"])
@@ -175,14 +190,20 @@ async def update_passenger_count(
             f"trips?driver_id=eq.{current_user.user_id}&status=eq.in_progress&select=id"
         )
         if not trips:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active trip")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="No active trip"
+            )
 
         trip_id = trips[0]["id"]
-        await _supabase_patch(f"trips?id=eq.{trip_id}", {"passenger_count": data.passenger_count})
+        await _supabase_patch(
+            f"trips?id=eq.{trip_id}", {"passenger_count": data.passenger_count}
+        )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

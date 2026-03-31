@@ -9,11 +9,15 @@ def _supabase_headers(use_service_key: bool = False) -> dict:
     if use_service_key:
         key = os.getenv("SUPABASE_SERVICE_KEY", "")
         if not key:
-            raise HTTPException(status_code=500, detail="SUPABASE_SERVICE_KEY not configured")
+            raise HTTPException(
+                status_code=500, detail="SUPABASE_SERVICE_KEY not configured"
+            )
     else:
         key = os.getenv("SUPABASE_ANON_KEY", os.getenv("SUPABASE_KEY", ""))
         if not key:
-            raise HTTPException(status_code=500, detail="SUPABASE_ANON_KEY not configured")
+            raise HTTPException(
+                status_code=500, detail="SUPABASE_ANON_KEY not configured"
+            )
     return {
         "apikey": key,
         "Authorization": f"Bearer {key}",
@@ -49,7 +53,9 @@ async def _supabase_post(path: str, data: dict) -> dict:
             resp.raise_for_status()
             return resp.json() if resp.content else {}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database operation failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Database operation failed: {str(e)}"
+        )
 
 
 async def _supabase_patch(path: str, data: dict) -> list:
@@ -133,7 +139,9 @@ async def _last_position_update() -> Optional[str]:
 
 async def _active_vehicle_count() -> Optional[int]:
     try:
-        rows = await _supabase_get("vehicles?is_active=eq.true&status=eq.active&select=id")
+        rows = await _supabase_get(
+            "vehicles?is_active=eq.true&status=eq.active&select=id"
+        )
         return len(rows) if rows is not None else None
     except Exception:
         return None

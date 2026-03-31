@@ -31,6 +31,7 @@ def _get_redis_client():
         return None
     try:
         from upstash_redis.asyncio import Redis
+
         return Redis(url=url, token=token)
     except Exception:
         return None
@@ -80,7 +81,9 @@ async def _redis_health_check() -> bool:
         return False
 
 
-async def _rate_limit_check(identifier: str, max_requests: int, window_seconds: int) -> bool:
+async def _rate_limit_check(
+    identifier: str, max_requests: int, window_seconds: int
+) -> bool:
     client = _get_redis_client()
     if client is None:
         return True

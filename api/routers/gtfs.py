@@ -43,8 +43,13 @@ def _parse_iso_timestamp(iso_str: Optional[str]) -> Optional[int]:
 async def get_gtfs_static_file(filename: str):
     """Serve individual GTFS static feed files."""
     allowed = {
-        "agency.txt", "stops.txt", "routes.txt", "trips.txt",
-        "stop_times.txt", "calendar.txt", "feed_info.txt",
+        "agency.txt",
+        "stops.txt",
+        "routes.txt",
+        "trips.txt",
+        "stop_times.txt",
+        "calendar.txt",
+        "feed_info.txt",
     }
     if filename not in allowed:
         raise HTTPException(status_code=404, detail="File not found")
@@ -106,7 +111,9 @@ async def get_gtfs_realtime():
                     continue
 
                 trip = trips_by_vehicle.get(pos["vehicle_id"])
-                route_text_id = route_id_by_uuid.get(vehicle.get("assigned_route_id", ""), "")
+                route_text_id = route_id_by_uuid.get(
+                    vehicle.get("assigned_route_id", ""), ""
+                )
 
                 entity = feed.entity.add()
                 entity.id = f"vp_{pos['vehicle_id']}"
@@ -138,7 +145,7 @@ async def get_gtfs_realtime():
                 if occ is not None:
                     vp.occupancy_status = occ
 
-            for trip in (trips_raw or []):
+            for trip in trips_raw or []:
                 vehicle = vehicles_by_uuid.get(trip["vehicle_id"])
                 route_text_id = route_id_by_uuid.get(trip.get("route_id", ""), "")
 
@@ -179,21 +186,30 @@ async def get_gtfs_realtime():
                 vehicle = vehicles_by_uuid.get(p.get("vehicle_id"))
                 if not vehicle:
                     continue
-                route_text_id = route_id_by_uuid.get(vehicle.get("assigned_route_id", ""), "")
-                feed_json["entity"].append({
-                    "id": f"vp_{p['vehicle_id']}",
-                    "vehicle": {
-                        "vehicle": {"id": vehicle["vehicle_id"], "label": vehicle.get("name", "")},
-                        "trip": {"route_id": route_text_id},
-                        "position": {
-                            "latitude": p.get("latitude"),
-                            "longitude": p.get("longitude"),
-                            "speed": (p.get("speed_kmh") or 0.0) / 3.6,
+                route_text_id = route_id_by_uuid.get(
+                    vehicle.get("assigned_route_id", ""), ""
+                )
+                feed_json["entity"].append(
+                    {
+                        "id": f"vp_{p['vehicle_id']}",
+                        "vehicle": {
+                            "vehicle": {
+                                "id": vehicle["vehicle_id"],
+                                "label": vehicle.get("name", ""),
+                            },
+                            "trip": {"route_id": route_text_id},
+                            "position": {
+                                "latitude": p.get("latitude"),
+                                "longitude": p.get("longitude"),
+                                "speed": (p.get("speed_kmh") or 0.0) / 3.6,
+                            },
+                            "timestamp": int(time.time()),
                         },
-                        "timestamp": int(time.time()),
-                    },
-                })
+                    }
+                )
             return JSONResponse(content=feed_json)
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

@@ -55,13 +55,17 @@ async def list_stops(
             for stop in stops
         ]
 
-        await _cache_set(cache_key, [r.model_dump() for r in result], CACHE_TTL_ROUTES_STOPS)
+        await _cache_set(
+            cache_key, [r.model_dump() for r in result], CACHE_TTL_ROUTES_STOPS
+        )
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/stops/nearest", response_model=List[NearestStop], tags=["stops"])
@@ -95,4 +99,6 @@ async def find_nearest_stops(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

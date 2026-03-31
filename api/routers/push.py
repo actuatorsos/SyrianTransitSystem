@@ -6,12 +6,20 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from api.core.auth import CurrentUser, optional_auth, require_role
-from api.core.cache import RATE_LIMIT_PUSH_SUB, _cache_delete, _cache_set, _get_client_ip, _get_redis_client, _rate_limit_check
+from api.core.cache import (
+    RATE_LIMIT_PUSH_SUB,
+    _cache_delete,
+    _cache_set,
+    _get_client_ip,
+    _get_redis_client,
+    _rate_limit_check,
+)
 from api.core.logging import logger
 from api.models.schemas import PushBroadcastRequest, PushSubscribeRequest
 
 try:
     from pywebpush import webpush, WebPushException
+
     _webpush_available = True
 except ImportError:
     _webpush_available = False
@@ -54,12 +62,14 @@ async def send_push_notification(
         logger.warning("VAPID keys not configured — push notification skipped")
         return False
 
-    payload = json.dumps({
-        "title": title,
-        "body": body,
-        "icon": icon,
-        "data": data or {},
-    })
+    payload = json.dumps(
+        {
+            "title": title,
+            "body": body,
+            "icon": icon,
+            "data": data or {},
+        }
+    )
 
     try:
         webpush(
@@ -84,7 +94,9 @@ async def send_push_notification(
                         pass
             logger.info("Removed expired push subscription", extra={"endpoint": ep})
         else:
-            logger.warning("WebPush send failed", extra={"error": str(e), "status": status_code})
+            logger.warning(
+                "WebPush send failed", extra={"error": str(e), "status": status_code}
+            )
         return False
     except Exception as e:
         logger.warning("Push notification error", extra={"error": str(e)})
@@ -213,11 +225,15 @@ async def test_push_self(
         )
 
     admin_subs = [
-        (ep, rec) for ep, rec in _push_subscriptions.items()
+        (ep, rec)
+        for ep, rec in _push_subscriptions.items()
         if rec.get("userId") == current_user.user_id
     ]
     if not admin_subs:
-        return {"status": "no_subscriptions", "message": "No push subscriptions found for your account."}
+        return {
+            "status": "no_subscriptions",
+            "message": "No push subscriptions found for your account.",
+        }
 
     sent = 0
     for ep, record in admin_subs:

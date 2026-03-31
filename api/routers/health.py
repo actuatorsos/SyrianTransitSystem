@@ -4,7 +4,11 @@ from datetime import datetime
 from fastapi import APIRouter
 
 from api.core.cache import _redis_health_check
-from api.core.database import _active_vehicle_count, _health_check, _last_position_update
+from api.core.database import (
+    _active_vehicle_count,
+    _health_check,
+    _last_position_update,
+)
 from api.models.schemas import HealthResponse
 
 router = APIRouter()

@@ -39,6 +39,7 @@ from api.models.schemas import (
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 try:
     from lib.email import _alert_html, _send, send_alert_email, send_welcome_email  # noqa: E402
+
     _email_available = True
 except ImportError:
     _email_available = False
@@ -48,9 +49,12 @@ router = APIRouter()
 
 # ── Users ──────────────────────────────────────────────────────────────────────
 
+
 @router.get("/api/admin/users", response_model=List[UserResponse], tags=["admin"])
 async def list_users(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """List all users scoped to the current operator."""
     try:
@@ -74,7 +78,9 @@ async def list_users(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/admin/users", response_model=UserResponse, tags=["admin"])
@@ -88,7 +94,9 @@ async def create_user(
             f"users?email=eq.{urllib.parse.quote(user_data.email, safe='')}&select=id"
         )
         if existing:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Email already exists"
+            )
 
         new_user = {
             "email": user_data.email,
@@ -108,7 +116,9 @@ async def create_user(
                 detail="Failed to create user",
             )
 
-        created_user = result if isinstance(result, dict) else result[0] if result else {}
+        created_user = (
+            result if isinstance(result, dict) else result[0] if result else {}
+        )
 
         if _email_available:
             asyncio.create_task(
@@ -132,7 +142,9 @@ async def create_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.put("/api/admin/users/{user_id}", response_model=UserResponse, tags=["admin"])
@@ -160,7 +172,9 @@ async def update_user(
 
         result = await _supabase_patch(f"users?id=eq.{user_id}", update_dict)
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
 
         updated_user = result[0] if result else {}
         return UserResponse(
@@ -176,14 +190,19 @@ async def update_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ── Vehicles ───────────────────────────────────────────────────────────────────
 
+
 @router.get("/api/admin/vehicles", response_model=List[VehicleResponse], tags=["admin"])
 async def list_all_vehicles(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """List all vehicles including inactive ones, scoped to current operator."""
     try:
@@ -213,7 +232,9 @@ async def list_all_vehicles(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/admin/vehicles", response_model=VehicleResponse, tags=["admin"])
@@ -257,10 +278,14 @@ async def create_vehicle(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
-@router.put("/api/admin/vehicles/{vehicle_id}", response_model=VehicleResponse, tags=["admin"])
+@router.put(
+    "/api/admin/vehicles/{vehicle_id}", response_model=VehicleResponse, tags=["admin"]
+)
 async def update_vehicle(
     vehicle_id: str,
     vehicle_data: VehicleUpdate,
@@ -285,7 +310,9 @@ async def update_vehicle(
 
         result = await _supabase_patch(f"vehicles?id=eq.{vehicle_id}", update_dict)
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found"
+            )
 
         updated = result[0] if result else {}
         return VehicleResponse(
@@ -301,7 +328,9 @@ async def update_vehicle(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post("/api/admin/vehicles/{vehicle_id}/assign", tags=["admin"])
@@ -318,7 +347,9 @@ async def assign_vehicle(
         }
         result = await _supabase_patch(f"vehicles?id=eq.{vehicle_id}", update_data)
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found"
+            )
 
         audit_entry = {
             "admin_id": current_user.user_id,
@@ -332,14 +363,19 @@ async def assign_vehicle(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ── Alerts ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("/api/admin/alerts", response_model=List[AlertResponse], tags=["admin"])
 async def list_all_alerts(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """Get all alerts (resolved and unresolved), scoped to current operator."""
     try:
@@ -364,7 +400,9 @@ async def list_all_alerts(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.put("/api/admin/alerts/{alert_id}/resolve", tags=["admin"])
@@ -377,28 +415,37 @@ async def resolve_alert(
     try:
         update_data = {
             "is_resolved": alert_data.resolved,
-            "resolved_at": datetime.utcnow().isoformat() if alert_data.resolved else None,
+            "resolved_at": datetime.utcnow().isoformat()
+            if alert_data.resolved
+            else None,
         }
         result = await _supabase_patch(f"alerts?id=eq.{alert_id}", update_data)
         if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found"
+            )
 
         return {"status": "success", "timestamp": datetime.utcnow().isoformat()}
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ── Trips ──────────────────────────────────────────────────────────────────────
+
 
 @router.get("/api/admin/trips", response_model=List[dict], tags=["admin"])
 async def list_trips(
     vehicle_id: Optional[str] = None,
     driver_id: Optional[str] = None,
     status_filter: Optional[str] = None,
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """List trips with optional filtering, scoped to current operator."""
     try:
@@ -420,14 +467,21 @@ async def list_trips(
         return result or []
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ── Analytics ──────────────────────────────────────────────────────────────────
 
-@router.get("/api/admin/analytics/overview", response_model=AnalyticsOverview, tags=["admin"])
+
+@router.get(
+    "/api/admin/analytics/overview", response_model=AnalyticsOverview, tags=["admin"]
+)
 async def get_analytics_overview(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """Get fleet analytics overview for dashboard."""
     try:
@@ -440,16 +494,28 @@ async def get_analytics_overview(
         vehicles = await _supabase_get(f"vehicles?select=status{op_suffix}")
         active_vehicles = len([v for v in vehicles if v.get("status") == "active"])
         idle_vehicles = len([v for v in vehicles if v.get("status") == "idle"])
-        maintenance_vehicles = len([v for v in vehicles if v.get("status") == "maintenance"])
+        maintenance_vehicles = len(
+            [v for v in vehicles if v.get("status") == "maintenance"]
+        )
 
         routes = await _supabase_get(f"routes?is_active=eq.true&select=id{op_suffix}")
         stops = await _supabase_get(f"stops?is_active=eq.true&select=id{op_suffix}")
-        drivers = await _supabase_get(f"users?role=eq.driver&select=is_active{op_suffix}")
-        active_drivers = len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        drivers = await _supabase_get(
+            f"users?role=eq.driver&select=is_active{op_suffix}"
+        )
+        active_drivers = (
+            len([d for d in drivers if d.get("is_active")]) if drivers else 0
+        )
 
-        positions = await _supabase_get(f"vehicle_positions_latest?select=occupancy_pct{op_suffix}")
-        occupancy_values = [p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None]
-        avg_occupancy = sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        positions = await _supabase_get(
+            f"vehicle_positions_latest?select=occupancy_pct{op_suffix}"
+        )
+        occupancy_values = [
+            p["occupancy_pct"] for p in positions if p.get("occupancy_pct") is not None
+        ]
+        avg_occupancy = (
+            sum(occupancy_values) / len(occupancy_values) if occupancy_values else None
+        )
 
         return AnalyticsOverview(
             total_vehicles=len(vehicles),
@@ -465,12 +531,16 @@ async def get_analytics_overview(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/admin/analytics/fleet-utilization", tags=["admin"])
 async def get_fleet_utilization(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """Get fleet utilization over the last 24 hours, bucketed by hour."""
     try:
@@ -521,12 +591,16 @@ async def get_fleet_utilization(
         return {"hours": hours, "total": total_vehicles}
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/admin/analytics/route-performance", tags=["admin"])
 async def get_route_performance(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """Get per-route performance based on completed trips in the last 7 days."""
     try:
@@ -555,42 +629,56 @@ async def get_route_performance(
             rt = route_trips.get(r["id"], [])
             trip_count = len(rt)
 
-            on_time_values = [t["on_time_pct"] for t in rt if t.get("on_time_pct") is not None]
+            on_time_values = [
+                t["on_time_pct"] for t in rt if t.get("on_time_pct") is not None
+            ]
             avg_on_time = (
-                round(sum(on_time_values) / len(on_time_values), 1) if on_time_values else None
+                round(sum(on_time_values) / len(on_time_values), 1)
+                if on_time_values
+                else None
             )
 
             delays = []
             for t in rt:
                 if t.get("scheduled_start") and t.get("actual_start"):
                     try:
-                        sched = datetime.fromisoformat(t["scheduled_start"].replace("Z", "+00:00"))
-                        actual = datetime.fromisoformat(t["actual_start"].replace("Z", "+00:00"))
+                        sched = datetime.fromisoformat(
+                            t["scheduled_start"].replace("Z", "+00:00")
+                        )
+                        actual = datetime.fromisoformat(
+                            t["actual_start"].replace("Z", "+00:00")
+                        )
                         delays.append((actual - sched).total_seconds() / 60)
                     except (ValueError, TypeError):
                         pass
 
             avg_delay = round(sum(delays) / len(delays), 1) if delays else None
 
-            result.append({
-                "route_id": r["id"],
-                "name": r.get("name_ar") or r.get("name"),
-                "trip_count": trip_count,
-                "on_time_pct": avg_on_time,
-                "avg_delay_min": avg_delay,
-                "distance_km": r.get("distance_km"),
-            })
+            result.append(
+                {
+                    "route_id": r["id"],
+                    "name": r.get("name_ar") or r.get("name"),
+                    "trip_count": trip_count,
+                    "on_time_pct": avg_on_time,
+                    "avg_delay_min": avg_delay,
+                    "distance_km": r.get("distance_km"),
+                }
+            )
 
         result.sort(key=lambda x: x["trip_count"], reverse=True)
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/admin/analytics/driver-scoreboard", tags=["admin"])
 async def get_driver_scoreboard(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """Get driver scoreboard based on completed trips in the last 30 days."""
     try:
@@ -618,31 +706,41 @@ async def get_driver_scoreboard(
         result = []
         for d in drivers:
             dt = driver_trips.get(d["id"], [])
-            on_time_values = [t["on_time_pct"] for t in dt if t.get("on_time_pct") is not None]
+            on_time_values = [
+                t["on_time_pct"] for t in dt if t.get("on_time_pct") is not None
+            ]
             avg_adherence = (
-                round(sum(on_time_values) / len(on_time_values), 1) if on_time_values else None
+                round(sum(on_time_values) / len(on_time_values), 1)
+                if on_time_values
+                else None
             )
             total_km = round(sum(t.get("distance_km") or 0 for t in dt), 1)
 
-            result.append({
-                "driver_id": d["id"],
-                "name": d.get("full_name_ar") or d.get("full_name"),
-                "is_active": d.get("is_active", False),
-                "trips_completed": len(dt),
-                "avg_adherence_pct": avg_adherence,
-                "total_km": total_km,
-            })
+            result.append(
+                {
+                    "driver_id": d["id"],
+                    "name": d.get("full_name_ar") or d.get("full_name"),
+                    "is_active": d.get("is_active", False),
+                    "trips_completed": len(dt),
+                    "avg_adherence_pct": avg_adherence,
+                    "total_km": total_km,
+                }
+            )
 
         result.sort(key=lambda x: x["trips_completed"], reverse=True)
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/admin/analytics/gps-heatmap", tags=["admin"])
 async def get_gps_heatmap(
-    current_user: CurrentUser = Depends(require_role("admin", "dispatcher", "super_admin")),
+    current_user: CurrentUser = Depends(
+        require_role("admin", "dispatcher", "super_admin")
+    ),
 ):
     """Get GPS position data for heatmap visualization."""
     try:
@@ -665,12 +763,26 @@ async def get_gps_heatmap(
             if isinstance(loc, dict):
                 coords = loc.get("coordinates", [])
                 if len(coords) >= 2:
-                    return {"type": "Feature", "geometry": {"type": "Point", "coordinates": [coords[0], coords[1]]}, "properties": {"weight": weight}}
+                    return {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [coords[0], coords[1]],
+                        },
+                        "properties": {"weight": weight},
+                    }
             elif isinstance(loc, str) and loc.startswith("POINT"):
                 inner = loc.replace("POINT(", "").replace(")", "").strip()
                 parts = inner.split()
                 if len(parts) == 2:
-                    return {"type": "Feature", "geometry": {"type": "Point", "coordinates": [float(parts[0]), float(parts[1])]}, "properties": {"weight": weight}}
+                    return {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [float(parts[0]), float(parts[1])],
+                        },
+                        "properties": {"weight": weight},
+                    }
             return None
 
         for p in positions:
@@ -684,7 +796,9 @@ async def get_gps_heatmap(
             except (ValueError, TypeError, AttributeError):
                 continue
 
-        latest = await _supabase_get(f"vehicle_positions_latest?select=location,speed_kmh{op_suffix}")
+        latest = await _supabase_get(
+            f"vehicle_positions_latest?select=location,speed_kmh{op_suffix}"
+        )
         for p in latest:
             loc = p.get("location")
             if not loc:
@@ -696,13 +810,20 @@ async def get_gps_heatmap(
             except (ValueError, TypeError, AttributeError):
                 continue
 
-        return {"type": "FeatureCollection", "features": features, "count": len(features)}
+        return {
+            "type": "FeatureCollection",
+            "features": features,
+            "count": len(features),
+        }
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 # ── Simulator ──────────────────────────────────────────────────────────────────
+
 
 def _interpolate_position(stops: list, progress: float) -> tuple:
     """Interpolate lat/lon/heading along a sequence of stop coordinates."""
@@ -809,13 +930,15 @@ async def _run_simulation() -> dict:
             },
         )
 
-        updated.append({
-            "vehicle_id": vehicle["vehicle_id"],
-            "lat": lat,
-            "lon": lon,
-            "speed_kmh": speed,
-            "heading": heading,
-        })
+        updated.append(
+            {
+                "vehicle_id": vehicle["vehicle_id"],
+                "lat": lat,
+                "lon": lon,
+                "speed_kmh": speed,
+                "heading": heading,
+            }
+        )
 
     return {
         "status": "success",

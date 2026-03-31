@@ -38,7 +38,7 @@ async def stream_positions(
                     query += f"&{_op_filter(op_id)}"
                 positions = await _supabase_get(query)
 
-                for pos in (positions or []):
+                for pos in positions or []:
                     vehicle = pos.get("vehicles", {})
                     data = PositionData(
                         vehicle_id=pos.get("vehicle_id"),
