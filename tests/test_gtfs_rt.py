@@ -130,7 +130,7 @@ class TestGTFSRealtime:
     def test_returns_protobuf(self, client):
         """Endpoint returns binary protobuf with correct Content-Type."""
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get(
                 SAMPLE_POSITIONS, SAMPLE_VEHICLES, SAMPLE_ROUTES, SAMPLE_TRIPS
@@ -145,7 +145,7 @@ class TestGTFSRealtime:
     def test_public_alias(self, client):
         """The /api/public/gtfs-rt alias returns the same feed."""
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get(
                 SAMPLE_POSITIONS, SAMPLE_VEHICLES, SAMPLE_ROUTES, SAMPLE_TRIPS
@@ -159,7 +159,7 @@ class TestGTFSRealtime:
     def test_valid_feed_message(self, client):
         """Response body is a parseable GTFS-RT FeedMessage."""
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get(
                 SAMPLE_POSITIONS, SAMPLE_VEHICLES, SAMPLE_ROUTES, SAMPLE_TRIPS
@@ -174,7 +174,7 @@ class TestGTFSRealtime:
     def test_vehicle_position_entity(self, client):
         """VehiclePosition entity contains position, speed, bearing, occupancy."""
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get(
                 SAMPLE_POSITIONS, SAMPLE_VEHICLES, SAMPLE_ROUTES, SAMPLE_TRIPS
@@ -201,7 +201,7 @@ class TestGTFSRealtime:
     def test_trip_update_entity(self, client):
         """TripUpdate entity is present for in-progress trips."""
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get(
                 SAMPLE_POSITIONS, SAMPLE_VEHICLES, SAMPLE_ROUTES, SAMPLE_TRIPS
@@ -221,7 +221,7 @@ class TestGTFSRealtime:
     def test_empty_data_returns_valid_feed(self, client):
         """With no data the feed is still valid protobuf."""
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get([], [], [], []),
         ):
@@ -244,7 +244,7 @@ class TestGTFSRealtime:
             "recorded_at": None,
         }]
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get(
                 bad_pos, SAMPLE_VEHICLES, SAMPLE_ROUTES, []
@@ -258,7 +258,7 @@ class TestGTFSRealtime:
     def test_no_trip_when_vehicle_not_on_trip(self, client):
         """Vehicle with position but no active trip still emits VehiclePosition."""
         with patch(
-            "api.index._supabase_get",
+            "api.routers.gtfs._supabase_get",
             new_callable=AsyncMock,
             side_effect=_mock_supabase_get(
                 SAMPLE_POSITIONS, SAMPLE_VEHICLES, SAMPLE_ROUTES, []
@@ -285,7 +285,7 @@ class TestGTFSRealtime:
         for pct, expected_status in cases:
             pos = [{**SAMPLE_POSITIONS[0], "occupancy_pct": pct}]
             with patch(
-                "api.index._supabase_get",
+                "api.routers.gtfs._supabase_get",
                 new_callable=AsyncMock,
                 side_effect=_mock_supabase_get(
                     pos, SAMPLE_VEHICLES, SAMPLE_ROUTES, []

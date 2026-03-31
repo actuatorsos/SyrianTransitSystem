@@ -6,7 +6,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from api.index import ConnectionManager
+from api.routers.websocket import ConnectionManager
 
 
 class TestConnectionManager:
