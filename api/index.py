@@ -328,6 +328,7 @@ JWT_EXPIRATION_HOURS = 24
 
 # HTTP Bearer security scheme
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 UserRole = Literal["admin", "dispatcher", "driver", "viewer", "super_admin"]
 
@@ -519,7 +520,7 @@ def require_role(*allowed_roles: UserRole):
 
 
 def optional_auth(
-    credentials: Optional[HTTPAuthCredentials] = Depends(security),
+    credentials: Optional[HTTPAuthCredentials] = Depends(optional_security),
 ) -> Optional[CurrentUser]:
     """
     FastAPI dependency: Optional authentication (returns None if no token).
