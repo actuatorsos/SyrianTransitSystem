@@ -227,6 +227,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
   <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span>الخطوط</button>
   <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span>المحطات</button>
   <button class="nav-item" onclick="switchTab('alerts')"><span class="nav-icon">🔔</span>التنبيهات</button>
+  <button id="pushToggleBtn" class="nav-item" onclick="togglePushNotifications()" title="تفعيل الإشعارات — Enable notifications" style="font-size:18px;min-width:44px;">🔔</button>
 </div>
 
 <script>
@@ -622,13 +623,78 @@ function switchTab(tab) {
   else collapseSheet();
 }
 
-// ─── Service Worker Registration ───
+// ─── Service Worker + Web Push ───
+let _swReg = null;
+
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/passenger/service-worker.js')
-      .then(reg => console.log('SW registered:', reg.scope))
-      .catch(err => console.log('SW registration failed:', err));
+  window.addEventListener('load', async () => {
+    try {
+      _swReg = await navigator.serviceWorker.register('/passenger/service-worker.js');
+      console.log('SW registered:', _swReg.scope);
+
+      // Listen for stop-focus messages from push notification clicks
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'FOCUS_STOP') {
+          const stop = STOPS.find(s => s.name === event.data.stopId || s.nameAr === event.data.stopId);
+          if (stop && map) map.flyTo({ center: [stop.lon, stop.lat], zoom: 16 });
+        }
+      });
+    } catch (err) {
+      console.warn('SW registration failed:', err);
+    }
   });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function togglePushNotifications() {
+  if (!('PushManager' in window) || !_swReg) {
+    alert('إشعارات الدفع غير مدعومة في هذا المتصفح — Push notifications not supported in this browser.');
+    return;
+  }
+  const btn = document.getElementById('pushToggleBtn');
+  const existing = await _swReg.pushManager.getSubscription();
+  if (existing) {
+    // Unsubscribe
+    await existing.unsubscribe();
+    await fetch(`${API_BASE}/api/push/subscribe`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: existing.endpoint }),
+    }).catch(() => {});
+    if (btn) { btn.textContent = '🔔'; btn.title = 'تفعيل الإشعارات — Enable notifications'; }
+    return;
+  }
+  // Subscribe
+  try {
+    const keyRes = await fetch(`${API_BASE}/api/push/vapid-public-key`);
+    const { publicKey, enabled } = await keyRes.json();
+    if (!enabled || !publicKey) { alert('Push notifications are not configured on this server.'); return; }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const sub = await _swReg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+
+    await fetch(`${API_BASE}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), role: 'passenger' }),
+    });
+
+    if (btn) { btn.textContent = '🔕'; btn.title = 'إيقاف الإشعارات — Disable notifications'; }
+  } catch (err) {
+    console.warn('Push subscribe failed:', err);
+    alert('فشل تفعيل الإشعارات — Failed to enable push notifications.');
+  }
 }
 
 // ─── Init ───

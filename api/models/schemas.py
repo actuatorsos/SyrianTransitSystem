@@ -273,6 +273,15 @@ class PushSubscription(BaseModel):
 class PushSubscribeRequest(BaseModel):
     subscription: PushSubscription
     stopIds: Optional[list] = None
+    role: Optional[str] = None  # "passenger" | "driver" — overridden by JWT role if present
+
+
+class PushBroadcastRequest(BaseModel):
+    title: str
+    body: str
+    icon: Optional[str] = None
+    role: Optional[str] = None  # broadcast only to this role; None = all
+    data: Optional[Dict[str, Any]] = None
 
 
 class NotificationTestRequest(BaseModel):
