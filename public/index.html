@@ -628,6 +628,10 @@
             ? 'http://localhost:3000/api'
             : `${window.location.origin}/api`;
 
+        const WS_BASE = window.location.origin === 'file://'
+            ? 'ws://localhost:3000'
+            : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
+
         // State Management
         const state = {
             vehicles: new Map(),
@@ -638,7 +642,7 @@
             mapInstance: null,
             markers: new Map(),
             polylines: new Map(),
-            sseConnection: null,
+            wsConnection: null,
             isConnected: false,
             reconnectAttempts: 0,
             maxReconnectAttempts: 5,
@@ -650,7 +654,7 @@
             initializeMap();
             await loadInitialData();
             setupEventListeners();
-            connectSSE();
+            connectWebSocket();
             setInterval(updateVehicleList, 1000);
         }
 
@@ -750,27 +754,27 @@
             });
         }
 
-        // Connect to SSE Stream
-        function connectSSE() {
-            if (state.sseConnection) {
-                state.sseConnection.close();
+        // Connect to WebSocket for real-time vehicle tracking
+        function connectWebSocket() {
+            if (state.wsConnection) {
+                state.wsConnection.close();
             }
 
-            const eventSource = new EventSource(`${API_BASE}/stream`);
-            state.sseConnection = eventSource;
+            const ws = new WebSocket(`${WS_BASE}/api/ws/track`);
+            state.wsConnection = ws;
 
-            eventSource.onopen = () => {
+            ws.onopen = () => {
                 state.isConnected = true;
                 state.reconnectAttempts = 0;
                 updateConnectionStatus();
-                console.log('SSE connected');
+                console.log('WebSocket connected');
             };
 
-            eventSource.onmessage = (event) => {
+            ws.onmessage = (event) => {
                 try {
-                    const positions = JSON.parse(event.data);
-                    if (Array.isArray(positions)) {
-                        positions.forEach(pos => {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'positions' && Array.isArray(msg.data)) {
+                        msg.data.forEach(pos => {
                             state.vehicles.set(pos.vehicle_id, {
                                 ...pos,
                                 lastUpdate: Date.now()
@@ -778,22 +782,28 @@
                         });
                         renderVehicles();
                         updateStats();
+                    } else if (msg.type === 'ping') {
+                        ws.send(JSON.stringify({ type: 'pong' }));
                     }
                 } catch (error) {
-                    console.error('Error parsing SSE data:', error);
+                    console.error('Error parsing WebSocket message:', error);
                 }
             };
 
-            eventSource.onerror = () => {
+            ws.onerror = () => {
                 state.isConnected = false;
                 updateConnectionStatus();
-                eventSource.close();
+            };
+
+            ws.onclose = () => {
+                state.isConnected = false;
+                updateConnectionStatus();
 
                 if (state.reconnectAttempts < state.maxReconnectAttempts) {
                     state.reconnectAttempts++;
                     setTimeout(() => {
-                        console.log(`Reconnecting SSE (attempt ${state.reconnectAttempts})`);
-                        connectSSE();
+                        console.log(`Reconnecting WebSocket (attempt ${state.reconnectAttempts})`);
+                        connectWebSocket();
                     }, state.reconnectDelay);
                 } else {
                     showError('فقدان الاتصال بالخادم');
