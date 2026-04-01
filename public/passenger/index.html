@@ -369,6 +369,7 @@ function initMap() {
 
   map.on('load', () => {
     document.getElementById('loading').classList.add('hidden');
+    updateRouteCards();
     fetchVehicles();
     pollInterval = setInterval(fetchVehicles, 5000);
   });
@@ -392,6 +393,7 @@ async function fetchVehicles() {
     console.log('Fetch error:', e);
     const isTimeout = e.isTimeout || e.name === 'AbortError';
     document.getElementById('connectionBar').classList.add('disconnected');
+    updateRouteCards();
     if (window.DT) {
       DT.toast(
         isTimeout ? 'انتهت مهلة التحميل — جارٍ إعادة المحاولة' : 'انقطع الاتصال — جارٍ إعادة المحاولة...',
