@@ -170,7 +170,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
   align-items:center; justify-content:center; gap:16px;
   transition:opacity 0.5s;
 }
-.loading-overlay.hidden { opacity:0; pointer-events:none; }
+.loading-overlay.hidden { opacity:0; pointer-events:none; display:none !important; }
 .loading-overlay h2 { color:var(--white); font-size:24px; }
 .loading-overlay p { color:var(--gold); font-size:14px; }
 .spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
@@ -367,12 +367,23 @@ function initMap() {
     stopMarkers.push(marker);
   });
 
+  // Start data loading immediately — don't wait for map tiles
+  updateRouteCards();
+  fetchVehicles();
+  pollInterval = setInterval(fetchVehicles, 5000);
+
+  let mapLoaded = false;
   map.on('load', () => {
+    mapLoaded = true;
     document.getElementById('loading').classList.add('hidden');
-    updateRouteCards();
-    fetchVehicles();
-    pollInterval = setInterval(fetchVehicles, 5000);
   });
+
+  // Fallback: dismiss spinner after 5s even if map tiles never fire 'load'
+  setTimeout(() => {
+    if (!mapLoaded) {
+      document.getElementById('loading').classList.add('hidden');
+    }
+  }, 5000);
 }
 
 // ─── Fetch all vehicles ───
