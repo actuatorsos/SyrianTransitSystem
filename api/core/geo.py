@@ -42,9 +42,7 @@ def parse_location(loc) -> Tuple[Optional[float], Optional[float]]:
             pass
 
         # Try WKT: "POINT(lon lat)" or "SRID=4326;POINT(lon lat)"
-        m = re.search(
-            r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)", loc, re.IGNORECASE
-        )
+        m = re.search(r"POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)", loc, re.IGNORECASE)
         if m:
             return float(m.group(2)), float(m.group(1))
 

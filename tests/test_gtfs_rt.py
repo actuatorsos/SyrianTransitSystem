@@ -58,8 +58,7 @@ TRIP_UUID = "trip-uuid-001"
 SAMPLE_POSITIONS = [
     {
         "vehicle_id": VEHICLE_UUID,
-        "latitude": 33.5138,
-        "longitude": 36.2920,
+        "location": {"type": "Point", "coordinates": [36.2920, 33.5138]},
         "speed_kmh": 36.0,
         "heading": 90.0,
         "occupancy_pct": 60.0,
@@ -240,8 +239,7 @@ class TestGTFSRealtime:
         bad_pos = [
             {
                 "vehicle_id": VEHICLE_UUID,
-                "latitude": None,
-                "longitude": 36.2920,
+                "location": None,
                 "speed_kmh": None,
                 "heading": None,
                 "occupancy_pct": None,

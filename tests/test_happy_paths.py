@@ -283,7 +283,7 @@ class TestStopsHappyPath:
         assert data[0]["stop_id"] == "S-1"
 
     def test_nearest_stops_returns_200(self, client):
-        mock_stop = {**MOCK_STOP, "distance_m": 250}
+        mock_stop = {**MOCK_STOP, "lat": 33.51, "lon": 36.29, "distance_m": 250}
         with (
             patch(
                 "api.routers.stops._supabase_rpc", new_callable=AsyncMock
