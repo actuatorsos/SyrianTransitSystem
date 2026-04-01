@@ -308,6 +308,23 @@ class TestStopsHappyPath:
 
 class TestVehiclesHappyPath:
     def test_list_vehicles_returns_200(self, client):
+        mock_vehicle = {
+            "id": "v-001",
+            "vehicle_id": "VH-001",
+            "name": "Bus 1",
+            "name_ar": "حافلة 1",
+            "vehicle_type": "bus",
+            "capacity": 50,
+            "status": "active",
+            "assigned_route_id": "route-001",
+        }
+        mock_position = {
+            "vehicle_id": "v-001",
+            "location": {"type": "Point", "coordinates": [36.3, 33.5]},
+            "speed_kmh": 40.0,
+            "occupancy_pct": 60,
+            "recorded_at": "2026-03-30T07:00:00",
+        }
         with (
             patch(
                 "api.routers.vehicles._supabase_get", new_callable=AsyncMock
@@ -318,7 +335,7 @@ class TestVehiclesHappyPath:
                 return_value="op-001",
             ),
         ):
-            mock_get.return_value = [MOCK_VEHICLE_POS]
+            mock_get.side_effect = [[mock_vehicle], [mock_position]]
             r = client.get("/api/vehicles?operator=damascus")
         assert r.status_code == 200
         data = r.json()
@@ -343,11 +360,20 @@ class TestVehiclesHappyPath:
     def test_vehicle_positions_returns_200(self, client):
         mock_pos = {
             "vehicle_id": "v-001",
-            "latitude": 33.5,
-            "longitude": 36.3,
+            "location": {"type": "Point", "coordinates": [36.3, 33.5]},
             "speed_kmh": 40,
+            "heading": 90,
+            "source": "gps",
             "occupancy_pct": 50,
             "recorded_at": "2026-03-30T07:00:00",
+        }
+        mock_vehicle = {
+            "id": "v-001",
+            "vehicle_id": "VH-001",
+            "vehicle_type": "bus",
+            "name": "Bus 1",
+            "name_ar": "حافلة 1",
+            "assigned_route_id": "route-001",
         }
         with (
             patch(
@@ -359,7 +385,7 @@ class TestVehiclesHappyPath:
                 return_value="op-001",
             ),
         ):
-            mock_get.return_value = [mock_pos]
+            mock_get.side_effect = [[mock_pos], [mock_vehicle]]
             r = client.get("/api/vehicles/positions?operator=damascus")
         assert r.status_code == 200
         assert isinstance(r.json(), list)
