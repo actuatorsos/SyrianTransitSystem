@@ -325,8 +325,8 @@ function haversine(lat1, lon1, lat2, lon2) {
 // ─── ETA calculation based on vehicle speed and distance to stop ───
 // Returns minutes. Falls back to a city-average estimate when speed is unavailable.
 function calcETA(vehicle, stopLat, stopLon) {
-  const distKm = haversine(vehicle.lat, vehicle.lon, stopLat, stopLon);
-  const speedKmh = vehicle.speed && vehicle.speed > 3 ? vehicle.speed : 25; // 25 km/h city average
+  const distKm = haversine(vehicle.latitude, vehicle.longitude, stopLat, stopLon);
+  const speedKmh = vehicle.speed_kmh && vehicle.speed_kmh > 3 ? vehicle.speed_kmh : 25; // 25 km/h city average
   const rawMin = (distKm / speedKmh) * 60;
   return Math.max(1, Math.round(rawMin));
 }
@@ -385,7 +385,7 @@ async function fetchVehicles() {
     // Hide connection error if it was shown
     document.getElementById('connectionBar').classList.remove('disconnected');
     data.forEach(v => {
-      vehicles[v.device_id] = v;
+      vehicles[v.vehicle_id] = v;
       updateMarker(v);
     });
     updateRouteCards();
@@ -412,10 +412,10 @@ function updateMarker(v) {
   if (!map) return;
   const isReal = v.source === 'traccar';
 
-  if (markers[v.device_id]) {
-    markers[v.device_id].setLngLat([v.lon, v.lat]);
+  if (markers[v.vehicle_id]) {
+    markers[v.vehicle_id].setLngLat([v.longitude, v.latitude]);
     // Refresh popup with latest speed/status
-    markers[v.device_id].getPopup().setHTML(markerPopupHTML(v, isReal));
+    markers[v.vehicle_id].getPopup().setHTML(markerPopupHTML(v, isReal));
     return;
   }
 
@@ -427,8 +427,8 @@ function updateMarker(v) {
 
   const popup = new maplibregl.Popup({ offset: 15 }).setHTML(markerPopupHTML(v, isReal));
 
-  markers[v.device_id] = new maplibregl.Marker({ element: el })
-    .setLngLat([v.lon, v.lat])
+  markers[v.vehicle_id] = new maplibregl.Marker({ element: el })
+    .setLngLat([v.longitude, v.latitude])
     .setPopup(popup)
     .addTo(map);
 }
@@ -436,10 +436,10 @@ function updateMarker(v) {
 function markerPopupHTML(v, isReal) {
   return `
     <div style="font-family:'IBM Plex Sans Arabic';padding:4px;">
-      <strong>${v.device_id}</strong>
+      <strong>${v.vehicle_id}</strong>
       ${isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;margin-right:4px;">GPS حقيقي</span>' : ''}
-      <br><span style="color:#888;font-size:12px;">${v.route_name || 'خط غير معروف'}</span>
-      <br><span style="font-size:12px;">${v.speed || 0} km/h · ${v.status}</span>
+      <br><span style="color:#888;font-size:12px;">${v.route_name || v.assigned_route_id || 'خط غير معروف'}</span>
+      <br><span style="font-size:12px;">${v.speed_kmh || 0} km/h · ${v.status || ''}</span>
     </div>
   `;
 }
@@ -455,7 +455,7 @@ function updateRouteCards() {
   const routeETAs = {};
 
   Object.values(vehicles).forEach(v => {
-    const rname = v.route_name || '';
+    const rname = v.route_name || v.assigned_route_id || '';
     ROUTES.forEach(r => {
       const matched = rname.toLowerCase().includes(r.id.replace(/_/g,' ')) ||
                       rname.includes(r.name.split('→')[0].trim()) ||
@@ -475,7 +475,7 @@ function updateRouteCards() {
 
   // Assign unmatched vehicles round-robin with real ETA
   const unmatched = Object.values(vehicles).filter(v => {
-    const rname = v.route_name || '';
+    const rname = v.route_name || v.assigned_route_id || '';
     return !ROUTES.some(r => rname.toLowerCase().includes(r.id.replace(/_/g,' ')));
   });
   unmatched.forEach((v, i) => {
@@ -512,8 +512,8 @@ function updateRouteCards() {
       <div class="eta-row">
         <div class="eta-badge ${etaClass}">${eta}<small>د</small></div>
         <div class="eta-info">
-          <div class="vehicle-name">أقرب وصول${etaInfo ? ': ' + etaInfo.vehicle.device_id : ''}</div>
-          <div class="vehicle-detail">${r.distance} · ${etaInfo && etaInfo.vehicle ? etaInfo.vehicle.speed + ' km/h' : ''}</div>
+          <div class="vehicle-name">أقرب وصول${etaInfo ? ': ' + etaInfo.vehicle.vehicle_id : ''}</div>
+          <div class="vehicle-detail">${r.distance} · ${etaInfo && etaInfo.vehicle ? (etaInfo.vehicle.speed_kmh || 0) + ' km/h' : ''}</div>
         </div>
         <span class="eta-source ${isReal ? 'real' : 'sim'}">${isReal ? 'GPS' : 'تقدير'}</span>
       </div>
@@ -535,7 +535,7 @@ function showStopDetail(stop) {
 
     // Find nearest vehicle on this route
     const routeVehicles = Object.values(vehicles).filter(v =>
-      (v.route_name || '').toLowerCase().includes(rid.replace(/_/g,' '))
+      (v.route_name || v.assigned_route_id || '').toLowerCase().includes(rid.replace(/_/g,' '))
     );
 
     let bestVehicle = null;
@@ -568,7 +568,7 @@ function showStopDetail(stop) {
       <div class="arrival-eta">${a.eta}<small>د</small></div>
       <div class="arrival-info">
         <div class="name">${a.route.nameAr} ${a.isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 5px;border-radius:6px;font-size:9px;">GPS</span>' : ''}</div>
-        <div class="detail">${a.vehicle ? a.vehicle.device_id + ' · ' + a.vehicle.speed + ' km/h' : 'تقدير'}</div>
+        <div class="detail">${a.vehicle ? a.vehicle.vehicle_id + ' · ' + (a.vehicle.speed_kmh || 0) + ' km/h' : 'تقدير'}</div>
       </div>
     </div>
   `).join('');
