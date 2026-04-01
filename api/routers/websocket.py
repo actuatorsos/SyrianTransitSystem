@@ -7,6 +7,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from api.core.database import _supabase_get
+from api.core.geo import parse_location
 
 router = APIRouter()
 
@@ -66,13 +67,14 @@ async def _fetch_ws_positions() -> list:
     try:
         query = (
             "vehicle_positions_latest"
-            "?select=vehicle_id,latitude,longitude,speed_kmh,heading,source,"
+            "?select=vehicle_id,location,speed_kmh,heading,source,"
             "occupancy_pct,recorded_at,vehicles(vehicle_id,vehicle_type,name,name_ar,assigned_route_id)"
         )
         positions = await _supabase_get(query)
         result = []
         for pos in positions or []:
             vehicle = pos.get("vehicles") or {}
+            lat, lon = parse_location(pos.get("location"))
             result.append(
                 {
                     "vehicle_id": vehicle.get("vehicle_id") or pos.get("vehicle_id"),
@@ -81,8 +83,8 @@ async def _fetch_ws_positions() -> list:
                     "route_name": vehicle.get("assigned_route_id"),
                     "vehicle_name": vehicle.get("name", ""),
                     "vehicle_name_ar": vehicle.get("name_ar", ""),
-                    "lat": pos.get("latitude"),
-                    "lon": pos.get("longitude"),
+                    "lat": lat,
+                    "lon": lon,
                     "heading": pos.get("heading", 0),
                     "source": pos.get("source", "simulator"),
                     "speed_kmh": pos.get("speed_kmh"),

@@ -12,6 +12,7 @@ from api.core.cache import (
     _tenant_cache_key,
 )
 from api.core.database import _supabase_get
+from api.core.geo import parse_location
 from api.core.tenancy import _op_filter, _resolve_operator_id
 from api.models.schemas import VehicleResponse
 
@@ -49,9 +50,11 @@ async def list_vehicles(
             vehicles_query += f"&{_op_filter(op_id)}"
         vehicles = await _supabase_get(vehicles_query)
 
-        # Fetch latest positions separately and merge by vehicle UUID
+        # Fetch latest positions separately and merge by vehicle UUID.
+        # The table stores coords as PostGIS geometry(Point,4326) in
+        # a "location" column — parse it to extract lat/lon.
         pos_query = (
-            "vehicle_positions_latest?select=vehicle_id,latitude,longitude,"
+            "vehicle_positions_latest?select=vehicle_id,location,"
             "speed_kmh,occupancy_pct,recorded_at"
         )
         if op_id:
@@ -60,24 +63,27 @@ async def list_vehicles(
 
         pos_by_id = {p["vehicle_id"]: p for p in (positions or [])}
 
-        result = [
-            VehicleResponse(
-                id=v["id"],
-                vehicle_id=v["vehicle_id"],
-                name=v["name"],
-                name_ar=v.get("name_ar", ""),
-                vehicle_type=v["vehicle_type"],
-                capacity=v["capacity"],
-                status=v["status"],
-                assigned_route_id=v.get("assigned_route_id"),
-                latitude=pos_by_id.get(v["id"], {}).get("latitude"),
-                longitude=pos_by_id.get(v["id"], {}).get("longitude"),
-                speed_kmh=pos_by_id.get(v["id"], {}).get("speed_kmh"),
-                occupancy_pct=pos_by_id.get(v["id"], {}).get("occupancy_pct"),
-                recorded_at=pos_by_id.get(v["id"], {}).get("recorded_at"),
+        result = []
+        for v in vehicles or []:
+            pos = pos_by_id.get(v["id"], {})
+            lat, lon = parse_location(pos.get("location"))
+            result.append(
+                VehicleResponse(
+                    id=v["id"],
+                    vehicle_id=v["vehicle_id"],
+                    name=v["name"],
+                    name_ar=v.get("name_ar", ""),
+                    vehicle_type=v["vehicle_type"],
+                    capacity=v["capacity"],
+                    status=v["status"],
+                    assigned_route_id=v.get("assigned_route_id"),
+                    latitude=lat,
+                    longitude=lon,
+                    speed_kmh=pos.get("speed_kmh"),
+                    occupancy_pct=pos.get("occupancy_pct"),
+                    recorded_at=pos.get("recorded_at"),
+                )
             )
-            for v in (vehicles or [])
-        ]
 
         await _cache_set(
             cache_key, [r.model_dump() for r in result], CACHE_TTL_VEHICLES
@@ -113,9 +119,10 @@ async def get_vehicle_positions(
 
         # Fetch positions and vehicle metadata separately to avoid broken
         # PostgREST embed from vehicle_positions_latest → vehicles.
+        # Query the PostGIS "location" column and parse coords in Python.
         pos_query = (
             "vehicle_positions_latest"
-            "?select=vehicle_id,latitude,longitude,speed_kmh,heading,source,"
+            "?select=vehicle_id,location,speed_kmh,heading,source,"
             "occupancy_pct,recorded_at"
         )
         if op_id:
@@ -134,6 +141,7 @@ async def get_vehicle_positions(
         result = []
         for pos in raw or []:
             vehicle = veh_by_id.get(pos.get("vehicle_id"), {})
+            lat, lon = parse_location(pos.get("location"))
             result.append(
                 {
                     "vehicle_id": vehicle.get("vehicle_id") or pos.get("vehicle_id"),
@@ -141,8 +149,8 @@ async def get_vehicle_positions(
                     "vehicle_name": vehicle.get("name", ""),
                     "vehicle_name_ar": vehicle.get("name_ar", ""),
                     "route_name": vehicle.get("assigned_route_id"),
-                    "lat": pos.get("latitude"),
-                    "lon": pos.get("longitude"),
+                    "lat": lat,
+                    "lon": lon,
                     "heading": pos.get("heading", 0),
                     "source": pos.get("source", "simulator"),
                     "speed_kmh": pos.get("speed_kmh"),

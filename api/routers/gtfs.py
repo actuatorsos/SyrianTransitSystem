@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse, Response
 
 from api.core.database import _supabase_get
+from api.core.geo import parse_location
 
 router = APIRouter()
 
@@ -74,7 +75,7 @@ async def get_gtfs_realtime():
     try:
         positions = await _supabase_get(
             "vehicle_positions_latest"
-            "?select=vehicle_id,latitude,longitude,speed_kmh,heading,"
+            "?select=vehicle_id,location,speed_kmh,heading,"
             "occupancy_pct,recorded_at"
         )
         positions = positions or []
@@ -101,8 +102,7 @@ async def get_gtfs_realtime():
             feed.header.timestamp = int(time.time())
 
             for pos in positions:
-                lat = pos.get("latitude")
-                lon = pos.get("longitude")
+                lat, lon = parse_location(pos.get("location"))
                 if lat is None or lon is None:
                     continue
 
@@ -181,7 +181,8 @@ async def get_gtfs_realtime():
                 "entity": [],
             }
             for p in positions:
-                if p.get("latitude") is None or p.get("longitude") is None:
+                p_lat, p_lon = parse_location(p.get("location"))
+                if p_lat is None or p_lon is None:
                     continue
                 vehicle = vehicles_by_uuid.get(p.get("vehicle_id"))
                 if not vehicle:
@@ -199,8 +200,8 @@ async def get_gtfs_realtime():
                             },
                             "trip": {"route_id": route_text_id},
                             "position": {
-                                "latitude": p.get("latitude"),
-                                "longitude": p.get("longitude"),
+                                "latitude": p_lat,
+                                "longitude": p_lon,
                                 "speed": (p.get("speed_kmh") or 0.0) / 3.6,
                             },
                             "timestamp": int(time.time()),

@@ -22,6 +22,7 @@ from api.core.database import (
     _supabase_patch,
     _supabase_post,
 )
+from api.core.geo import parse_location
 from api.core.tenancy import _op_filter
 from api.models.schemas import (
     AlertResponse,
@@ -212,25 +213,29 @@ async def list_all_vehicles(
             query += f"&{_op_filter(current_user.operator_id)}"
         positions = await _supabase_get(query)
 
-        return [
-            VehicleResponse(
-                id=v["vehicles"]["id"],
-                vehicle_id=v["vehicles"]["vehicle_id"],
-                name=v["vehicles"]["name"],
-                name_ar=v["vehicles"]["name_ar"],
-                vehicle_type=v["vehicles"]["vehicle_type"],
-                capacity=v["vehicles"]["capacity"],
-                status=v["vehicles"]["status"],
-                assigned_route_id=v["vehicles"].get("assigned_route_id"),
-                latitude=v.get("latitude"),
-                longitude=v.get("longitude"),
-                speed_kmh=v.get("speed_kmh"),
-                occupancy_pct=v.get("occupancy_pct"),
-                recorded_at=v.get("recorded_at"),
+        result = []
+        for v in positions or []:
+            if not v.get("vehicles"):
+                continue
+            lat, lon = parse_location(v.get("location"))
+            result.append(
+                VehicleResponse(
+                    id=v["vehicles"]["id"],
+                    vehicle_id=v["vehicles"]["vehicle_id"],
+                    name=v["vehicles"]["name"],
+                    name_ar=v["vehicles"]["name_ar"],
+                    vehicle_type=v["vehicles"]["vehicle_type"],
+                    capacity=v["vehicles"]["capacity"],
+                    status=v["vehicles"]["status"],
+                    assigned_route_id=v["vehicles"].get("assigned_route_id"),
+                    latitude=lat,
+                    longitude=lon,
+                    speed_kmh=v.get("speed_kmh"),
+                    occupancy_pct=v.get("occupancy_pct"),
+                    recorded_at=v.get("recorded_at"),
+                )
             )
-            for v in (positions or [])
-            if v.get("vehicles")
-        ]
+        return result
 
     except Exception as e:
         raise HTTPException(

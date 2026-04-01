@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from api.core.auth import CurrentUser, optional_auth
 from api.core.database import _supabase_get
+from api.core.geo import parse_location
 from api.core.tenancy import _op_filter, _resolve_operator_id
 from api.models.schemas import PositionData
 
@@ -40,12 +41,13 @@ async def stream_positions(
 
                 for pos in positions or []:
                     vehicle = pos.get("vehicles", {})
+                    lat, lon = parse_location(pos.get("location"))
                     data = PositionData(
                         vehicle_id=pos.get("vehicle_id"),
                         vehicle_name=vehicle.get("name", ""),
                         vehicle_name_ar=vehicle.get("name_ar", ""),
-                        latitude=pos.get("latitude", 0),
-                        longitude=pos.get("longitude", 0),
+                        latitude=lat or 0,
+                        longitude=lon or 0,
                         speed_kmh=pos.get("speed_kmh"),
                         occupancy_pct=pos.get("occupancy_pct"),
                         timestamp=pos.get("recorded_at", datetime.utcnow().isoformat()),

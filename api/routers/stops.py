@@ -11,6 +11,7 @@ from api.core.cache import (
     _tenant_cache_key,
 )
 from api.core.database import _supabase_get, _supabase_rpc
+from api.core.geo import parse_location
 from api.core.tenancy import _op_filter, _resolve_operator_id
 from api.models.schemas import NearestStop, StopResponse
 
@@ -41,19 +42,21 @@ async def list_stops(
             query += f"&{_op_filter(op_id)}"
         stops = await _supabase_get(query)
 
-        result = [
-            StopResponse(
-                id=stop["id"],
-                stop_id=stop["stop_id"],
-                name=stop["name"],
-                name_ar=stop["name_ar"],
-                latitude=stop.get("latitude"),
-                longitude=stop.get("longitude"),
-                has_shelter=stop.get("has_shelter", False),
-                is_active=stop["is_active"],
+        result = []
+        for stop in stops:
+            lat, lon = parse_location(stop.get("location"))
+            result.append(
+                StopResponse(
+                    id=stop["id"],
+                    stop_id=stop["stop_id"],
+                    name=stop["name"],
+                    name_ar=stop["name_ar"],
+                    latitude=lat,
+                    longitude=lon,
+                    has_shelter=stop.get("has_shelter", False),
+                    is_active=stop["is_active"],
+                )
             )
-            for stop in stops
-        ]
 
         await _cache_set(
             cache_key, [r.model_dump() for r in result], CACHE_TTL_ROUTES_STOPS
@@ -86,12 +89,12 @@ async def find_nearest_stops(
 
         return [
             NearestStop(
-                id=stop["id"],
+                id=stop.get("id"),
                 stop_id=stop["stop_id"],
                 name=stop["name"],
                 name_ar=stop["name_ar"],
-                latitude=stop.get("latitude"),
-                longitude=stop.get("longitude"),
+                latitude=stop.get("lat"),
+                longitude=stop.get("lon"),
                 distance_m=stop.get("distance_m"),
                 has_shelter=stop.get("has_shelter", False),
             )
