@@ -675,7 +675,7 @@
     <!-- Footer -->
     <footer>
         <div class="footer-brand" id="footer-brand">
-            © 2025 DamascusTransit — هيئة النقل في دمشق
+            © <span id="footer-year"></span> DamascusTransit — هيئة النقل في دمشق
         </div>
         <div class="footer-powered" id="footer-powered">
             مدعوم من هيئة النقل في دمشق | Powered by Damascus Transit Authority
@@ -707,7 +707,7 @@
                 'app2-ar': 'تطبيق السائق',
                 'app3-ar': 'لوحة الإدارة',
                 'app4-ar': 'تطبيق الراكب',
-                'footer-brand': '© 2025 DamascusTransit — هيئة النقل في دمشق',
+                'footer-brand': '© ' + new Date().getFullYear() + ' DamascusTransit — هيئة النقل في دمشق',
                 'footer-powered': 'مدعوم من هيئة النقل في دمشق | Powered by Damascus Transit Authority',
             },
             en: {
@@ -732,7 +732,7 @@
                 'app2-ar': 'Driver App',
                 'app3-ar': 'Admin Panel',
                 'app4-ar': 'Passenger App',
-                'footer-brand': '© 2025 DamascusTransit — Damascus Transit Authority',
+                'footer-brand': '© ' + new Date().getFullYear() + ' DamascusTransit — Damascus Transit Authority',
                 'footer-powered': 'Powered by Damascus Transit Authority | مدعوم من هيئة النقل في دمشق',
             }
         };
@@ -871,6 +871,10 @@
         }
 
         loadStats();
+
+        // Set dynamic copyright year
+        const yearEl = document.getElementById('footer-year');
+        if (yearEl) yearEl.textContent = new Date().getFullYear();
     </script>
 </body>
 </html>
