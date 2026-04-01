@@ -1,6 +1,6 @@
 -- ============================================================
 -- DamascusTransit Seed Data
--- 8 routes, 42 stops, 24 vehicles, 1 admin user
+-- 8 routes (with polylines), 54 stops, 24 vehicles, 20 users
 -- ============================================================
 
 -- Seed users: generate a bcrypt hash before running this seed:
@@ -30,7 +30,7 @@ INSERT INTO users (email, password_hash, full_name, full_name_ar, role, phone) V
 ('driver18@damascustransit.sy', 'CHANGE_ME_HASH', 'Ziad Farah', 'زياد فرح', 'driver', '+963110000018');
 
 -- ============================================================
--- STOPS (42 real Damascus locations)
+-- STOPS (54 real Damascus locations)
 -- ============================================================
 
 INSERT INTO stops (stop_id, name, name_ar, location, has_shelter) VALUES
@@ -75,103 +75,131 @@ INSERT INTO stops (stop_id, name, name_ar, location, has_shelter) VALUES
 ('S039', 'Dummar', 'دمر', ST_SetSRID(ST_MakePoint(36.2300, 33.5150), 4326), true),
 ('S040', 'Qudsaya Entrance', 'مدخل قدسيا', ST_SetSRID(ST_MakePoint(36.2150, 33.5200), 4326), false),
 ('S041', 'Rabweh', 'الربوة', ST_SetSRID(ST_MakePoint(36.2700, 33.5180), 4326), true),
-('S042', 'Muhajireen Heights', 'أعالي المهاجرين', ST_SetSRID(ST_MakePoint(36.2860, 33.5250), 4326), false);
+('S042', 'Muhajireen Heights', 'أعالي المهاجرين', ST_SetSRID(ST_MakePoint(36.2860, 33.5250), 4326), false),
+-- Additional stops (S043-S054)
+('S043', 'Tabbaleh', 'الطبالة', ST_SetSRID(ST_MakePoint(36.3050, 33.4980), 4326), false),
+('S044', 'Shaghour', 'الشاغور', ST_SetSRID(ST_MakePoint(36.3120, 33.5050), 4326), true),
+('S045', 'Bab Mousalla', 'باب مصلى', ST_SetSRID(ST_MakePoint(36.3080, 33.4920), 4326), true),
+('S046', 'Qadam', 'القدم', ST_SetSRID(ST_MakePoint(36.3050, 33.4870), 4326), false),
+('S047', 'Salhiyeh', 'الصالحية', ST_SetSRID(ST_MakePoint(36.2920, 33.5190), 4326), true),
+('S048', 'Mezzeh Villas', 'فيلات المزة', ST_SetSRID(ST_MakePoint(36.2550, 33.5080), 4326), false),
+('S049', 'Barada Bridge', 'جسر بردى', ST_SetSRID(ST_MakePoint(36.2980, 33.5120), 4326), true),
+('S050', 'Arnous Square', 'ساحة الأرنؤوس', ST_SetSRID(ST_MakePoint(36.2930, 33.5110), 4326), true),
+('S051', 'Yusuf al-Azmeh Square', 'ساحة يوسف العظمة', ST_SetSRID(ST_MakePoint(36.2870, 33.5140), 4326), true),
+('S052', 'Jisr al-Raees', 'جسر الرئيس', ST_SetSRID(ST_MakePoint(36.2810, 33.5100), 4326), false),
+('S053', 'Mazze Military Hospital', 'مشفى المزة العسكري', ST_SetSRID(ST_MakePoint(36.2650, 33.5060), 4326), true),
+('S054', 'Kafar Souseh Flyover', 'جسر كفرسوسة', ST_SetSRID(ST_MakePoint(36.2780, 33.5040), 4326), false);
 
 -- ============================================================
 -- ROUTES (8 Damascus corridors)
 -- ============================================================
 
-INSERT INTO routes (route_id, name, name_ar, route_type, color, distance_km, avg_duration_min, fare_syp) VALUES
-('R001', 'Marjeh → Mezzeh Highway', 'المرجة → أوتوستراد المزة', 'bus', '#428177', 8.5, 35, 2000),
-('R002', 'Baramkeh → Barzeh', 'البرامكة → برزة', 'bus', '#054239', 12.0, 45, 2500),
-('R003', 'Umayyad → Qaboun', 'الأمويين → القابون', 'bus', '#002623', 10.5, 40, 2000),
-('R004', 'Old City → Jaramana', 'المدينة القديمة → جرمانا', 'microbus', '#b9a779', 9.0, 35, 3000),
-('R005', 'Marjeh → Sayyidah Zaynab', 'المرجة → السيدة زينب', 'bus', '#988561', 18.0, 55, 3500),
-('R006', 'Muhajirin → Kafar Souseh', 'المهاجرين → كفرسوسة', 'microbus', '#6b1f2a', 6.5, 25, 2500),
-('R007', 'Abbasiyyin → Harasta', 'العباسيين → حرستا', 'bus', '#4a151e', 8.0, 30, 2000),
-('R008', 'Mezzeh → Dummar', 'المزة → دمر', 'microbus', '#3d3a3b', 11.0, 40, 3000);
+INSERT INTO routes (route_id, name, name_ar, route_type, color, distance_km, avg_duration_min, fare_syp, geometry) VALUES
+('R001', 'Marjeh → Mezzeh Highway', 'المرجة → أوتوستراد المزة', 'bus', '#428177', 8.5, 35, 2000,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.3025 33.5105, 36.299 33.51, 36.295 33.51, 36.294 33.506, 36.29 33.504, 36.283 33.503, 36.275 33.502, 36.265 33.506, 36.26 33.505, 36.25 33.503, 36.245 33.501)'), 4326)),
+('R002', 'Baramkeh → Barzeh', 'البرامكة → برزة', 'bus', '#054239', 12.0, 45, 2500,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.294 33.506, 36.293 33.509, 36.292 33.513, 36.295 33.516, 36.305 33.518, 36.308 33.52, 36.31 33.525, 36.315 33.522, 36.32 33.5175, 36.319 33.53, 36.318 33.545, 36.335 33.548, 36.355 33.55)'), 4326)),
+('R003', 'Umayyad → Qaboun', 'الأمويين → القابون', 'bus', '#002623', 10.5, 40, 2000,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.292 33.513, 36.296 33.514, 36.3 33.516, 36.305 33.518, 36.31 33.518, 36.32 33.5175, 36.328 33.52, 36.335 33.522, 36.338 33.528, 36.34 33.535, 36.348 33.542, 36.355 33.55)'), 4326)),
+('R004', 'Old City → Jaramana', 'المدينة القديمة → جرمانا', 'microbus', '#b9a779', 9.0, 35, 3000,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.31 33.511, 36.315 33.5115, 36.32 33.512, 36.315 33.513, 36.318 33.516, 36.322 33.51, 36.325 33.498, 36.325 33.485, 36.328 33.488, 36.33 33.49, 36.335 33.47, 36.34 33.45)'), 4326)),
+('R005', 'Marjeh → Sayyidah Zaynab', 'المرجة → السيدة زينب', 'bus', '#988561', 18.0, 55, 3500,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.3025 33.5105, 36.302 33.505, 36.301 33.5, 36.3 33.495, 36.297 33.497, 36.305 33.492, 36.31 33.488, 36.325 33.485, 36.33 33.49, 36.34 33.48, 36.35 33.47, 36.345 33.46, 36.34 33.45)'), 4326)),
+('R006', 'Muhajirin → Kafar Souseh', 'المهاجرين → كفرسوسة', 'microbus', '#6b1f2a', 6.5, 25, 2500,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.288 33.521, 36.286 33.519, 36.285 33.516, 36.282 33.517, 36.28 33.517, 36.285 33.5155, 36.29 33.5155, 36.288 33.513, 36.285 33.508, 36.283 33.503, 36.278 33.502, 36.275 33.502)'), 4326)),
+('R007', 'Abbasiyyin → Harasta', 'العباسيين → حرستا', 'bus', '#4a151e', 8.0, 30, 2000,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.32 33.5175, 36.328 33.52, 36.335 33.522, 36.338 33.529, 36.34 33.535, 36.335 33.54, 36.318 33.545, 36.33 33.547, 36.355 33.55, 36.368 33.555, 36.38 33.56)'), 4326)),
+('R008', 'Mezzeh → Dummar', 'المزة → دمر', 'microbus', '#3d3a3b', 11.0, 40, 3000,
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.26 33.505, 36.255 33.504, 36.25 33.503, 36.255 33.508, 36.26 33.512, 36.27 33.518, 36.255 33.516, 36.24 33.515, 36.23 33.515, 36.22 33.518, 36.215 33.52, 36.235 33.5)'), 4326));
 
 -- ============================================================
 -- ROUTE-STOP ASSIGNMENTS
 -- ============================================================
 
--- R001: Marjeh → Mezzeh Highway
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S001'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S037'), 2, 5),
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S004'), 3, 10),
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S007'), 4, 18),
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S038'), 5, 25),
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S005'), 6, 30),
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S006'), 7, 35);
+-- R001: Marjeh → Mezzeh Highway (9 stops)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S001'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S037'), 2, 1.2, 5),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S004'), 3, 2.5, 10),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S054'), 4, 3.8, 14),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S007'), 5, 4.8, 18),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S053'), 6, 5.8, 22),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S005'), 7, 6.8, 28),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S038'), 8, 7.5, 30),
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S006'), 9, 8.5, 35);
 
--- R002: Baramkeh → Barzeh
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S004'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S003'), 2, 8),
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S011'), 3, 15),
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S017'), 4, 22),
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S013'), 5, 30),
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S016'), 6, 40),
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 45);
+-- R002: Baramkeh → Barzeh (7 stops)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S004'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S003'), 2, 1.8, 8),
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S011'), 3, 3.5, 15),
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S017'), 4, 5.0, 22),
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S013'), 5, 7.0, 30),
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S016'), 6, 9.5, 40),
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 12.0, 45);
 
--- R003: Umayyad → Qaboun
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S003'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S019'), 2, 6),
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S011'), 3, 12),
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S013'), 4, 20),
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S014'), 5, 28),
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S015'), 6, 36),
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 40);
+-- R003: Umayyad → Qaboun (7 stops)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S003'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S019'), 2, 1.0, 6),
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S011'), 3, 2.5, 12),
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S013'), 4, 4.5, 20),
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S014'), 5, 6.5, 28),
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S015'), 6, 8.5, 36),
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 10.5, 40);
 
--- R004: Old City → Jaramana
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S035'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S034'), 2, 5),
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S033'), 3, 10),
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S036'), 4, 15),
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S030'), 5, 22),
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S027'), 6, 30),
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S028'), 7, 35);
+-- R004: Old City → Jaramana (8 stops, added Shaghour)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S035'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S034'), 2, 0.8, 5),
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S033'), 3, 1.5, 10),
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S036'), 4, 2.5, 15),
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S044'), 5, 3.8, 19),
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S030'), 6, 5.0, 22),
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S027'), 7, 7.0, 30),
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S028'), 8, 9.0, 35);
 
--- R005: Marjeh → Sayyidah Zaynab
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S001'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S031'), 2, 10),
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S032'), 3, 15),
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S030'), 4, 25),
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S027'), 5, 35),
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S029'), 6, 45),
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S028'), 7, 55);
+-- R005: Marjeh → Sayyidah Zaynab (9 stops, added Tabbaleh & Bab Mousalla)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S001'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S043'), 2, 2.0, 8),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S031'), 3, 3.5, 12),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S032'), 4, 4.0, 15),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S045'), 5, 5.5, 20),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S030'), 6, 8.0, 28),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S027'), 7, 10.0, 35),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S029'), 8, 14.0, 45),
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S028'), 9, 18.0, 55);
 
--- R006: Muhajirin → Kafar Souseh
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S010'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S009'), 2, 4),
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S008'), 3, 8),
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S020'), 4, 12),
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S018'), 5, 16),
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S021'), 6, 20),
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S007'), 7, 25);
+-- R006: Muhajirin → Kafar Souseh (8 stops, added Kafar Souseh Flyover)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S010'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S009'), 2, 0.8, 4),
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S008'), 3, 1.5, 8),
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S020'), 4, 2.5, 12),
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S018'), 5, 3.5, 16),
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S021'), 6, 4.8, 20),
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S054'), 7, 5.5, 22),
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S007'), 8, 6.5, 25);
 
--- R007: Abbasiyyin → Harasta
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S013'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S014'), 2, 8),
-((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S015'), 3, 16),
-((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S016'), 4, 22),
-((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S025'), 5, 28),
-((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S026'), 6, 30);
+-- R007: Abbasiyyin → Harasta (6 stops)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S013'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S014'), 2, 1.5, 8),
+((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S015'), 3, 3.5, 16),
+((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S016'), 4, 5.0, 22),
+((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S025'), 5, 6.5, 28),
+((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S026'), 6, 8.0, 30);
 
--- R008: Mezzeh → Dummar
-INSERT INTO route_stops (route_id, stop_id, stop_sequence, typical_arrival_offset_min) VALUES
-((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S005'), 1, 0),
-((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S038'), 2, 6),
-((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S041'), 3, 14),
-((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S039'), 4, 28),
-((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S040'), 5, 36),
-((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S022'), 6, 40);
+-- R008: Mezzeh → Dummar (7 stops, added Mezzeh Villas)
+INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S005'), 1, 0.0, 0),
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S038'), 2, 1.5, 6),
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S048'), 3, 2.5, 10),
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S041'), 4, 4.0, 14),
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S039'), 5, 7.0, 28),
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S040'), 6, 9.0, 36),
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S022'), 7, 11.0, 40);
 
 -- ============================================================
 -- VEHICLES (24 vehicles across fleet)
@@ -210,28 +238,35 @@ INSERT INTO vehicles (vehicle_id, name, name_ar, vehicle_type, capacity, status,
 -- SCHEDULES (daily service)
 -- ============================================================
 
--- Weekdays (Sunday=0 to Thursday=4 in Syria)
+-- Weekdays (Sunday=0 to Thursday=4) — peak (15min) / off-peak (30min)
+-- Morning peak: 06:00-09:00
 INSERT INTO schedules (route_id, day_of_week, first_departure, last_departure, frequency_min)
-SELECT r.id, d.dow, '05:30'::TIME, '23:00'::TIME,
-    CASE r.route_type
-        WHEN 'bus' THEN 12
-        WHEN 'microbus' THEN 8
-        ELSE 15
-    END
-FROM routes r
-CROSS JOIN (VALUES (0),(1),(2),(3),(4)) AS d(dow)
+SELECT r.id, d.dow, '06:00'::TIME, '09:00'::TIME, 15
+FROM routes r CROSS JOIN (VALUES (0),(1),(2),(3),(4)) AS d(dow)
 WHERE r.is_active = true;
 
--- Friday & Saturday (reduced service)
+-- Midday off-peak: 09:00-16:00
 INSERT INTO schedules (route_id, day_of_week, first_departure, last_departure, frequency_min)
-SELECT r.id, d.dow, '06:00'::TIME, '22:00'::TIME,
-    CASE r.route_type
-        WHEN 'bus' THEN 20
-        WHEN 'microbus' THEN 12
-        ELSE 20
-    END
-FROM routes r
-CROSS JOIN (VALUES (5),(6)) AS d(dow)
+SELECT r.id, d.dow, '09:00'::TIME, '16:00'::TIME, 30
+FROM routes r CROSS JOIN (VALUES (0),(1),(2),(3),(4)) AS d(dow)
+WHERE r.is_active = true;
+
+-- Evening peak: 16:00-19:00
+INSERT INTO schedules (route_id, day_of_week, first_departure, last_departure, frequency_min)
+SELECT r.id, d.dow, '16:00'::TIME, '19:00'::TIME, 15
+FROM routes r CROSS JOIN (VALUES (0),(1),(2),(3),(4)) AS d(dow)
+WHERE r.is_active = true;
+
+-- Night off-peak: 19:00-23:00
+INSERT INTO schedules (route_id, day_of_week, first_departure, last_departure, frequency_min)
+SELECT r.id, d.dow, '19:00'::TIME, '23:00'::TIME, 30
+FROM routes r CROSS JOIN (VALUES (0),(1),(2),(3),(4)) AS d(dow)
+WHERE r.is_active = true;
+
+-- Friday & Saturday (reduced service, flat 25min)
+INSERT INTO schedules (route_id, day_of_week, first_departure, last_departure, frequency_min)
+SELECT r.id, d.dow, '07:00'::TIME, '22:00'::TIME, 25
+FROM routes r CROSS JOIN (VALUES (5),(6)) AS d(dow)
 WHERE r.is_active = true;
 
 -- ============================================================

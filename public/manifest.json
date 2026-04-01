@@ -1,15 +1,26 @@
 {
-  "name": "Damascus Transit",
+  "name": "Damascus Transit System",
   "short_name": "DamTransit",
-  "description": "تتبع حافلات دمشق في الوقت الفعلي | Real-time bus tracking for Damascus passengers.",
-  "start_url": "/passenger/",
+  "description": "نظام النقل الذكي لمدينة دمشق — تتبع الحافلات في الوقت الفعلي | Real-time bus tracking and route management for Damascus.",
+  "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#054239",
   "theme_color": "#428177",
   "lang": "ar",
   "dir": "rtl",
+  "orientation": "portrait-primary",
+  "categories": ["transportation", "utilities"],
   "icons": [
+    {
+      "src": "/favicon-16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
     {
       "src": "/apple-touch-icon.png",
       "sizes": "180x180",

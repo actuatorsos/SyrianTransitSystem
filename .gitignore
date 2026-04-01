@@ -30,3 +30,6 @@ damascus-transit-platform/
 # Test cache artifacts
 pytest-cache-files-*/
 .pytest_cache/
+.coverage
+htmlcov/
+.vercel
