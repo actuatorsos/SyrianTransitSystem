@@ -839,7 +839,7 @@
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
 
-                const total = (data.active_vehicles || 0) + (data.idle_vehicles || 0) + (data.maintenance_vehicles || 0);
+                const total = data.total_vehicles || 0;
                 const routes = data.total_routes || 0;
                 const stops = data.total_stops || 0;
 
@@ -847,10 +847,11 @@
                 animateCount('stat-routes', routes);
                 animateCount('stat-stops', stops);
             } catch (e) {
-                // Show placeholders if API is unavailable
-                document.getElementById('stat-vehicles').innerHTML = '120<span class="unit">+</span>';
-                document.getElementById('stat-routes').innerHTML = '24<span class="unit">+</span>';
-                document.getElementById('stat-stops').innerHTML = '380<span class="unit">+</span>';
+                // API unavailable — show unknown state rather than stale hardcoded values
+                ['stat-vehicles', 'stat-routes', 'stat-stops'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = '—';
+                });
             }
         }
 
