@@ -245,7 +245,6 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? `http://${window.location.hostname}:8080`
   : window.location.origin;
-const SSE_URL = `${API_BASE}/api/stream`;
 const DAMASCUS_CENTER = [36.2913, 33.5138];
 
 // ─── Damascus Routes Data ───
@@ -284,7 +283,7 @@ let markers = {};
 let stopMarkers = [];
 let map;
 let sheetExpanded = false;
-let eventSource = null;
+let pollInterval = null;
 
 // ─── Arabic search normalization ───
 // Strips diacritics (tashkeel) and normalizes alef/hamza/teh-marbuta variants
@@ -370,32 +369,9 @@ function initMap() {
 
   map.on('load', () => {
     document.getElementById('loading').classList.add('hidden');
-    connectSSE();
     fetchVehicles();
+    pollInterval = setInterval(fetchVehicles, 5000);
   });
-}
-
-// ─── SSE Connection ───
-function connectSSE() {
-  if (eventSource) eventSource.close();
-  eventSource = new EventSource(SSE_URL);
-
-  eventSource.onmessage = (event) => {
-    document.getElementById('connectionBar').classList.remove('disconnected');
-    try {
-      const positions = JSON.parse(event.data);
-      positions.forEach(pos => {
-        vehicles[pos.device_id] = pos;
-        updateMarker(pos);
-      });
-      updateRouteCards();
-    } catch(e) {}
-  };
-
-  eventSource.onerror = () => {
-    document.getElementById('connectionBar').classList.add('disconnected');
-    setTimeout(connectSSE, 5000);
-  };
 }
 
 // ─── Fetch all vehicles ───
@@ -424,7 +400,6 @@ async function fetchVehicles() {
         8000
       );
     }
-    setTimeout(fetchVehicles, 10000);
   }
 }
 
