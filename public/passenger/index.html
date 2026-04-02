@@ -64,6 +64,9 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 .search-bar input::placeholder { color:#999; }
 .search-icon { font-size:20px; opacity:0.35; }
 
+/* ─── Push map controls below top bar ─── */
+.maplibregl-ctrl-top-left { margin-top:110px !important; }
+
 /* ─── Bottom Sheet ─── */
 .bottom-sheet {
   position:absolute; bottom:0; left:0; right:0; z-index:200;
@@ -349,6 +352,18 @@ function initMap() {
     attributionControl: false,
   });
 
+  // Dismiss loading overlay on map load or after 5s fallback
+  let mapLoaded = false;
+  map.on('load', () => {
+    mapLoaded = true;
+    document.getElementById('loading').classList.add('hidden');
+  });
+  setTimeout(() => {
+    if (!mapLoaded) {
+      document.getElementById('loading').classList.add('hidden');
+    }
+  }, 5000);
+
   map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
   map.addControl(new maplibregl.GeolocateControl({
@@ -380,18 +395,6 @@ function initMap() {
   fetchVehicles();
   pollInterval = setInterval(fetchVehicles, 5000);
 
-  let mapLoaded = false;
-  map.on('load', () => {
-    mapLoaded = true;
-    document.getElementById('loading').classList.add('hidden');
-  });
-
-  // Fallback: dismiss spinner after 5s even if map tiles never fire 'load'
-  setTimeout(() => {
-    if (!mapLoaded) {
-      document.getElementById('loading').classList.add('hidden');
-    }
-  }, 5000);
 }
 
 // ─── Fetch all vehicles ───
@@ -405,7 +408,7 @@ async function fetchVehicles() {
     document.getElementById('connectionBar').classList.remove('disconnected');
     data.forEach(v => {
       vehicles[v.vehicle_id] = v;
-      updateMarker(v);
+      if (v.latitude != null && v.longitude != null) updateMarker(v);
     });
     updateRouteCards();
   } catch(e) {
@@ -428,7 +431,7 @@ async function fetchVehicles() {
 const typeColors = { bus:'#3B82F6', microbus:'#10B981', taxi:'#F59E0B' };
 
 function updateMarker(v) {
-  if (!map) return;
+  if (!map || v.latitude == null || v.longitude == null) return;
   const isReal = v.source === 'traccar';
 
   if (markers[v.vehicle_id]) {
