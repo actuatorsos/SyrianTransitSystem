@@ -50,21 +50,25 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 
 /* ─── Search Bar ─── */
 .search-bar {
-  margin-top:12px; background:var(--white); border-radius:14px; padding:12px 16px;
-  display:flex; align-items:center; gap:10px; box-shadow:0 4px 20px rgba(0,0,0,0.15);
+  margin-top:12px; background:var(--white); border-radius:16px; padding:14px 18px;
+  display:flex; align-items:center; gap:12px; box-shadow:0 4px 24px rgba(0,0,0,0.12);
+  min-height:52px; transition:box-shadow 0.2s;
+}
+.search-bar:focus-within {
+  box-shadow:0 4px 28px rgba(66,129,119,0.25);
 }
 .search-bar input {
-  flex:1; border:none; outline:none; font-size:15px; font-family:inherit;
-  background:transparent; color:var(--charcoal);
+  flex:1; border:none; outline:none; font-size:16px; font-family:inherit;
+  background:transparent; color:var(--charcoal); min-height:24px;
 }
-.search-bar input::placeholder { color:#aaa; }
-.search-icon { font-size:18px; opacity:0.4; }
+.search-bar input::placeholder { color:#999; }
+.search-icon { font-size:20px; opacity:0.35; }
 
 /* ─── Bottom Sheet ─── */
 .bottom-sheet {
   position:absolute; bottom:0; left:0; right:0; z-index:200;
-  background:var(--white); border-radius:20px 20px 0 0;
-  box-shadow:0 -4px 30px rgba(0,0,0,0.15);
+  background:#fafaf8; border-radius:22px 22px 0 0;
+  box-shadow:0 -4px 30px rgba(0,0,0,0.1);
   transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
   max-height:70vh; overflow:hidden;
   padding-bottom:var(--safe-bottom);
@@ -73,8 +77,8 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 .bottom-sheet.expanded { transform:translateY(0); }
 
 .sheet-handle {
-  width:36px; height:4px; background:#ddd; border-radius:2px;
-  margin:10px auto; cursor:grab;
+  width:40px; height:5px; background:#d4d4d4; border-radius:3px;
+  margin:12px auto; cursor:grab;
 }
 
 .sheet-header {
@@ -87,30 +91,32 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 .routes-scroll { overflow-y:auto; max-height:calc(70vh - 100px); padding:0 16px 20px; }
 
 .route-card {
-  background:var(--gold-light); border-radius:14px; padding:16px;
+  background:var(--gold-light); border-radius:16px; padding:16px;
   margin-bottom:12px; position:relative; overflow:hidden;
-  transition:transform 0.15s, box-shadow 0.15s;
+  transition:transform 0.15s, box-shadow 0.2s;
   cursor:pointer;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
 }
-.route-card:active { transform:scale(0.98); }
+.route-card:active { transform:scale(0.98); box-shadow:0 1px 8px rgba(0,0,0,0.08); }
 .route-card::before {
   content:''; position:absolute; right:0; top:0; bottom:0; width:4px;
-  background:var(--green-mid);
+  background:var(--green-light);
+  border-radius:0 4px 4px 0;
 }
 
 .route-card .route-name { font-size:16px; font-weight:700; color:var(--green-dark); margin-bottom:4px; }
 .route-card .route-meta { display:flex; gap:12px; font-size:12px; color:var(--charcoal); opacity:0.7; }
 
 .route-card .eta-row {
-  display:flex; align-items:center; gap:8px; margin-top:10px;
-  background:var(--white); border-radius:10px; padding:10px 12px;
+  display:flex; align-items:center; gap:10px; margin-top:10px;
+  background:var(--white); border-radius:12px; padding:10px 14px;
 }
 .eta-badge {
-  background:var(--green-mid); color:var(--white); padding:4px 10px;
-  border-radius:8px; font-size:14px; font-weight:700; min-width:44px; text-align:center;
+  background:var(--green-light); color:var(--white); padding:5px 12px;
+  border-radius:10px; font-size:14px; font-weight:700; min-width:48px; text-align:center;
 }
-.eta-badge.arriving { background:var(--umber); animation:urgentPulse 1s infinite; }
-@keyframes urgentPulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+.eta-badge.arriving { background:#c0392b; animation:urgentPulse 1.5s ease-in-out infinite; }
+@keyframes urgentPulse { 0%,100%{opacity:1} 50%{opacity:0.75} }
 
 .eta-info { flex:1; }
 .eta-info .vehicle-name { font-size:13px; font-weight:600; color:var(--charcoal); }
@@ -131,35 +137,37 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 .stop-detail .stop-address { font-size:13px; color:#888; padding:0 20px 16px; }
 .arrival-list { padding:0 16px 20px; }
 .arrival-item {
-  display:flex; align-items:center; gap:12px; padding:14px;
-  background:var(--gold-light); border-radius:12px; margin-bottom:8px;
+  display:flex; align-items:center; gap:14px; padding:14px 16px;
+  background:var(--gold-light); border-radius:14px; margin-bottom:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
 }
-.arrival-eta { font-size:22px; font-weight:700; color:var(--green-mid); min-width:50px; text-align:center; }
-.arrival-eta small { font-size:11px; font-weight:400; display:block; }
+.arrival-eta { font-size:22px; font-weight:700; color:var(--green-light); min-width:50px; text-align:center; }
+.arrival-eta small { font-size:11px; font-weight:400; display:block; color:#888; }
 .arrival-info { flex:1; }
 .arrival-info .name { font-size:14px; font-weight:600; color:var(--charcoal); }
-.arrival-info .detail { font-size:12px; color:#888; }
+.arrival-info .detail { font-size:12px; color:#999; }
 
 /* ─── Nav Bar ─── */
 .nav-bar {
   position:absolute; bottom:0; left:0; right:0; z-index:300;
-  background:var(--white); border-top:1px solid #eee;
+  background:rgba(255,255,255,0.97); backdrop-filter:blur(10px);
+  border-top:1px solid rgba(0,0,0,0.06);
   display:flex; padding:8px 0 calc(var(--safe-bottom) + 4px);
 }
 .nav-item {
-  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
-  font-size:10px; color:#999; cursor:pointer; border:none; background:none; padding:8px 4px;
-  min-height:44px;
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+  font-size:10px; color:#aaa; cursor:pointer; border:none; background:none; padding:8px 4px;
+  min-height:44px; transition:color 0.2s;
 }
-.nav-item.active { color:var(--green-mid); }
+.nav-item.active { color:var(--green-light); }
 .nav-item .nav-icon { font-size:22px; }
 
 /* ─── Status Bar (connection) ─── */
 .connection-bar {
-  position:absolute; top:calc(var(--safe-top) + 82px); left:16px; right:16px; z-index:100;
-  background:var(--umber); color:var(--white); text-align:center;
-  padding:6px; border-radius:8px; font-size:12px; font-weight:600;
-  display:none;
+  position:absolute; top:calc(var(--safe-top) + 90px); left:16px; right:16px; z-index:100;
+  background:rgba(107,31,42,0.92); color:var(--white); text-align:center;
+  padding:8px 12px; border-radius:10px; font-size:12px; font-weight:600;
+  display:none; backdrop-filter:blur(6px);
 }
 .connection-bar.disconnected { display:block; }
 
