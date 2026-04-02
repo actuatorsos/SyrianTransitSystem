@@ -20,7 +20,26 @@
     { "src": "/dashboard", "dest": "/public/index.html" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ],
-  "headers": [],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" }
+      ]
+    },
+    {
+      "source": "/dashboard",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.openstreetmap.fr; connect-src 'self' https://syrian-transit-system.vercel.app wss://syrian-transit-system.vercel.app; font-src 'self' data:; frame-ancestors 'none'"
+        }
+      ]
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/simulate",
