@@ -3,31 +3,29 @@
 -- 8 routes (with polylines), 54 stops, 24 vehicles, 20 users
 -- ============================================================
 
--- Seed users: generate a bcrypt hash before running this seed:
---   python3 -c "import bcrypt; print(bcrypt.hashpw(b'YOUR_STRONG_PASSWORD', bcrypt.gensalt()).decode())"
--- Replace CHANGE_ME_HASH with the generated hash. Never commit real passwords or hashes of known passwords.
+-- Seed users (demo password: damascus2025 — CHANGE IN PRODUCTION)
 INSERT INTO users (email, password_hash, full_name, full_name_ar, role, phone) VALUES
-('admin@damascustransit.sy', 'CHANGE_ME_HASH', 'System Admin', 'مدير النظام', 'admin', '+963000000001'),
-('dispatcher@damascustransit.sy', 'CHANGE_ME_HASH', 'Operations Center', 'مركز العمليات', 'dispatcher', '+963000000002'),
+('admin@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'System Admin', 'مدير النظام', 'admin', '+963000000001'),
+('dispatcher@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Operations Center', 'مركز العمليات', 'dispatcher', '+963000000002'),
 -- Drivers (one per active vehicle — assign via UPDATE below)
-('driver01@damascustransit.sy', 'CHANGE_ME_HASH', 'Ahmad Khalil', 'أحمد خليل', 'driver', '+963110000001'),
-('driver02@damascustransit.sy', 'CHANGE_ME_HASH', 'Omar Sayed', 'عمر سيد', 'driver', '+963110000002'),
-('driver03@damascustransit.sy', 'CHANGE_ME_HASH', 'Hassan Nouri', 'حسن نوري', 'driver', '+963110000003'),
-('driver04@damascustransit.sy', 'CHANGE_ME_HASH', 'Sami Darwish', 'سامي درويش', 'driver', '+963110000004'),
-('driver05@damascustransit.sy', 'CHANGE_ME_HASH', 'Fadi Haddad', 'فادي حداد', 'driver', '+963110000005'),
-('driver06@damascustransit.sy', 'CHANGE_ME_HASH', 'Khaled Mansour', 'خالد منصور', 'driver', '+963110000006'),
-('driver07@damascustransit.sy', 'CHANGE_ME_HASH', 'Youssef Amin', 'يوسف أمين', 'driver', '+963110000007'),
-('driver08@damascustransit.sy', 'CHANGE_ME_HASH', 'Rami Jabr', 'رامي جبر', 'driver', '+963110000008'),
-('driver09@damascustransit.sy', 'CHANGE_ME_HASH', 'Nizar Shami', 'نزار شامي', 'driver', '+963110000009'),
-('driver10@damascustransit.sy', 'CHANGE_ME_HASH', 'Tariq Bazzi', 'طارق بزي', 'driver', '+963110000010'),
-('driver11@damascustransit.sy', 'CHANGE_ME_HASH', 'Bilal Hamdi', 'بلال حمدي', 'driver', '+963110000011'),
-('driver12@damascustransit.sy', 'CHANGE_ME_HASH', 'Wael Khoury', 'وائل خوري', 'driver', '+963110000012'),
-('driver13@damascustransit.sy', 'CHANGE_ME_HASH', 'Mazen Rida', 'مازن رضا', 'driver', '+963110000013'),
-('driver14@damascustransit.sy', 'CHANGE_ME_HASH', 'Adel Fayad', 'عادل فياض', 'driver', '+963110000014'),
-('driver15@damascustransit.sy', 'CHANGE_ME_HASH', 'Samir Qasim', 'سمير قاسم', 'driver', '+963110000015'),
-('driver16@damascustransit.sy', 'CHANGE_ME_HASH', 'Jamil Sabbagh', 'جميل صباغ', 'driver', '+963110000016'),
-('driver17@damascustransit.sy', 'CHANGE_ME_HASH', 'Hani Tlass', 'هاني طلاس', 'driver', '+963110000017'),
-('driver18@damascustransit.sy', 'CHANGE_ME_HASH', 'Ziad Farah', 'زياد فرح', 'driver', '+963110000018');
+('driver01@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Ahmad Khalil', 'أحمد خليل', 'driver', '+963110000001'),
+('driver02@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Omar Sayed', 'عمر سيد', 'driver', '+963110000002'),
+('driver03@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Hassan Nouri', 'حسن نوري', 'driver', '+963110000003'),
+('driver04@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Sami Darwish', 'سامي درويش', 'driver', '+963110000004'),
+('driver05@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Fadi Haddad', 'فادي حداد', 'driver', '+963110000005'),
+('driver06@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Khaled Mansour', 'خالد منصور', 'driver', '+963110000006'),
+('driver07@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Youssef Amin', 'يوسف أمين', 'driver', '+963110000007'),
+('driver08@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Rami Jabr', 'رامي جبر', 'driver', '+963110000008'),
+('driver09@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Nizar Shami', 'نزار شامي', 'driver', '+963110000009'),
+('driver10@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Tariq Bazzi', 'طارق بزي', 'driver', '+963110000010'),
+('driver11@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Bilal Hamdi', 'بلال حمدي', 'driver', '+963110000011'),
+('driver12@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Wael Khoury', 'وائل خوري', 'driver', '+963110000012'),
+('driver13@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Mazen Rida', 'مازن رضا', 'driver', '+963110000013'),
+('driver14@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Adel Fayad', 'عادل فياض', 'driver', '+963110000014'),
+('driver15@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Samir Qasim', 'سمير قاسم', 'driver', '+963110000015'),
+('driver16@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Jamil Sabbagh', 'جميل صباغ', 'driver', '+963110000016'),
+('driver17@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Hani Tlass', 'هاني طلاس', 'driver', '+963110000017'),
+('driver18@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Ziad Farah', 'زياد فرح', 'driver', '+963110000018');
 
 -- ============================================================
 -- STOPS (54 real Damascus locations)
