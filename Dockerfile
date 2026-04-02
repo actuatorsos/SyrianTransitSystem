@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt uvicorn
 
 COPY api/ ./api/
 COPY lib/ ./lib/
+COPY db/ ./db/
 
 ENV PYTHONPATH=/app
 

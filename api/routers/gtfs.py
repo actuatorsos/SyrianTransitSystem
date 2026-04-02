@@ -1,5 +1,7 @@
+import io
 import os
 import time
+import zipfile
 from datetime import datetime
 from typing import Optional
 
@@ -62,6 +64,37 @@ async def get_gtfs_static_file(filename: str):
         return Response(content=content, media_type="text/plain; charset=utf-8")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"{filename} not found")
+
+
+@router.get("/api/gtfs/feed.zip", tags=["gtfs"])
+async def get_gtfs_zip():
+    """Download full GTFS static feed as a ZIP archive (Google Maps compatible)."""
+    files = [
+        "agency.txt",
+        "stops.txt",
+        "routes.txt",
+        "trips.txt",
+        "stop_times.txt",
+        "calendar.txt",
+        "feed_info.txt",
+    ]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in files:
+            filepath = os.path.join(GTFS_DIR, name)
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    zf.writestr(name, f.read())
+            except FileNotFoundError:
+                raise HTTPException(
+                    status_code=500, detail=f"GTFS file missing: {name}"
+                )
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=gtfs_feed.zip"},
+    )
 
 
 @router.get("/api/gtfs/realtime", tags=["gtfs"])
