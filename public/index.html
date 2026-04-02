@@ -79,17 +79,12 @@
 
         /* ── Language Toggle ── */
         .lang-toggle {
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-            z-index: 1000;
             display: flex;
             gap: 0.25rem;
             background: rgba(5, 66, 57, 0.85);
             border: 1px solid rgba(66, 129, 119, 0.4);
             border-radius: 2rem;
             padding: 0.25rem;
-            backdrop-filter: blur(8px);
         }
 
         .lang-btn {
@@ -158,6 +153,7 @@
 
         .nav-links {
             display: flex;
+            align-items: center;
             gap: 0.5rem;
         }
 
@@ -563,18 +559,11 @@
         }
 
         html[dir="ltr"] .lang-toggle {
-            left: auto;
-            right: 1rem;
+            /* No position overrides needed — toggle is inside nav flex layout */
         }
     </style>
 </head>
 <body>
-
-    <!-- Language Toggle -->
-    <div class="lang-toggle">
-        <button class="lang-btn active" id="btn-ar" onclick="setLang('ar')">ع</button>
-        <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
-    </div>
 
     <!-- Nav -->
     <nav>
@@ -586,10 +575,15 @@
             </div>
         </a>
         <div class="nav-links">
-            <a href="/dashboard" class="nav-link" id="nav-dashboard">لوحة التحكم</a>
+            <a href="/" class="nav-link" id="nav-dashboard">لوحة التحكم</a>
             <a href="/driver" class="nav-link" id="nav-driver">السائق</a>
             <a href="/admin" class="nav-link" id="nav-admin">الإدارة</a>
             <a href="/passenger" class="nav-link primary" id="nav-passenger">تتبع الحافلات</a>
+            <!-- Language Toggle -->
+            <div class="lang-toggle">
+                <button class="lang-btn active" id="btn-ar" onclick="setLang('ar')">ع</button>
+                <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+            </div>
         </div>
     </nav>
 
@@ -604,7 +598,7 @@
                 مصممة لهيئة نقل دمشق لتحسين الخدمة وتوفير تجربة سفر سلسة لجميع المواطنين.
             </p>
             <div class="hero-cta">
-                <a href="/dashboard" class="btn btn-primary" id="cta-dashboard">
+                <a href="/" class="btn btn-primary" id="cta-dashboard">
                     <span>→</span>
                     <span id="cta-dashboard-text">لوحة تتبع المركبات</span>
                 </a>
@@ -649,7 +643,7 @@
             <div class="section-subtitle" id="apps-subtitle">Quick Links</div>
         </div>
         <div class="apps-grid">
-            <a href="/dashboard" class="app-card">
+            <a href="/" class="app-card">
                 <div class="app-icon">🗺️</div>
                 <div class="app-name-ar" id="app1-ar">لوحة التحكم</div>
                 <div class="app-name-en">Dashboard</div>
