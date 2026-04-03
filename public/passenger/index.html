@@ -295,6 +295,7 @@ let stopMarkers = [];
 let map;
 let sheetExpanded = false;
 let pollInterval = null;
+const connectionBar = document.getElementById('connectionBar');
 
 // ─── Arabic search normalization ───
 // Strips diacritics (tashkeel) and normalizes alef/hamza/teh-marbuta variants
@@ -391,10 +392,34 @@ function initMap() {
   });
 
   // Start data loading immediately — don't wait for map tiles
+  connectSSE();
   updateRouteCards();
   fetchVehicles();
   pollInterval = setInterval(fetchVehicles, 5000);
 
+}
+
+// ─── SSE Live Vehicle Tracking ───
+const SSE_URL = "/api/stream";
+let eventSource = null;
+
+function connectSSE() {
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(SSE_URL);
+  eventSource.onmessage = (event) => {
+    const vehicles_data = JSON.parse(event.data);
+    vehicles_data.forEach(v => {
+      const id = v.vehicle_id || v.device_id;
+      vehicles[id] = v;
+      if (v.latitude != null && v.longitude != null) updateMarker({ ...v, vehicle_id: id });
+    });
+    updateRouteCards();
+    connectionBar.classList.remove('disconnected');
+  };
+  eventSource.onerror = () => {
+    connectionBar.classList.add('disconnected');
+    setTimeout(connectSSE, 5000);
+  };
 }
 
 // ─── Fetch all vehicles ───
