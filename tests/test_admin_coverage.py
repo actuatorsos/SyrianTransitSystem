@@ -536,3 +536,278 @@ class TestAdminUnauthenticated:
     def test_admin_vehicles_requires_auth(self, client):
         r = client.get("/api/admin/vehicles")
         assert r.status_code in (401, 403)
+
+
+# ---------------------------------------------------------------------------
+# Admin: list users / vehicles (authenticated)
+# ---------------------------------------------------------------------------
+
+
+class TestAdminListAuthenticated:
+    def test_list_users_success(self, client, admin_token):
+        mock_users = [
+            {
+                "id": "u-001",
+                "email": "admin@transit.sy",
+                "full_name": "Admin",
+                "full_name_ar": None,
+                "role": "admin",
+                "phone": None,
+                "is_active": True,
+                "created_at": None,
+            }
+        ]
+        with patch(
+            "api.routers.admin._supabase_get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_users
+            r = client.get(
+                "/api/admin/users",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+    def test_list_vehicles_success(self, client, admin_token):
+        mock_vehicles = [
+            {
+                "id": "v-001",
+                "vehicle_id": "VH-001",
+                "name": "Bus 1",
+                "name_ar": "حافلة 1",
+                "vehicle_type": "bus",
+                "capacity": 40,
+                "status": "idle",
+                "is_active": True,
+            }
+        ]
+        with patch(
+            "api.routers.admin._supabase_get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = mock_vehicles
+            r = client.get(
+                "/api/admin/vehicles",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+    def test_list_trips_success(self, client, admin_token):
+        with patch(
+            "api.routers.admin._supabase_get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = []
+            r = client.get(
+                "/api/admin/trips",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        assert r.status_code == 200
+
+    def test_list_alerts_success(self, client, admin_token):
+        with patch(
+            "api.routers.admin._supabase_get", new_callable=AsyncMock
+        ) as mock_get:
+            mock_get.return_value = []
+            r = client.get(
+                "/api/admin/alerts",
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+        assert r.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Routes: list and get (read-only endpoints)
+# ---------------------------------------------------------------------------
+
+
+class TestRoutesList:
+    def test_list_routes_returns_list(self, client):
+        mock_routes = [
+            {
+                "id": "r-001",
+                "route_id": "RT-01",
+                "name": "Route 1",
+                "name_ar": "خط 1",
+                "route_type": "bus",
+                "color": "#FF0000",
+                "distance_km": 12.5,
+                "avg_duration_min": 45,
+                "fare_syp": 500,
+                "is_active": True,
+            }
+        ]
+        with patch(
+            "api.routers.routes._supabase_get", new_callable=AsyncMock
+        ) as mock_get, patch(
+            "api.routers.routes._cache_get", new_callable=AsyncMock
+        ) as mock_cache_get, patch(
+            "api.routers.routes._cache_set", new_callable=AsyncMock
+        ):
+            mock_cache_get.return_value = None
+            mock_get.side_effect = [mock_routes, []]  # routes then stops
+            r = client.get("/api/routes")
+        assert r.status_code == 200
+        data = r.json()
+        assert isinstance(data, list)
+
+    def test_get_route_not_found(self, client):
+        with patch(
+            "api.routers.routes._supabase_get", new_callable=AsyncMock
+        ) as mock_get, patch(
+            "api.routers.routes._cache_get", new_callable=AsyncMock
+        ) as mock_cache_get:
+            mock_cache_get.return_value = None
+            mock_get.return_value = []
+            r = client.get("/api/routes/nonexistent-id")
+        assert r.status_code == 404
+
+    def test_get_route_success(self, client):
+        mock_route = {
+            "id": "r-001",
+            "route_id": "RT-01",
+            "name": "Route 1",
+            "name_ar": "خط 1",
+            "route_type": "bus",
+            "color": "#FF0000",
+            "distance_km": 12.5,
+            "avg_duration_min": 45,
+            "fare_syp": 500,
+            "is_active": True,
+        }
+        with patch(
+            "api.routers.routes._supabase_get", new_callable=AsyncMock
+        ) as mock_get, patch(
+            "api.routers.routes._cache_get", new_callable=AsyncMock
+        ) as mock_cache_get, patch(
+            "api.routers.routes._cache_set", new_callable=AsyncMock
+        ):
+            mock_cache_get.return_value = None
+            mock_get.side_effect = [[mock_route], []]  # route then stops
+            r = client.get("/api/routes/r-001")
+        assert r.status_code == 200
+        assert r.json()["route_id"] == "RT-01"
+
+
+# ---------------------------------------------------------------------------
+# Driver: position and passenger count
+# ---------------------------------------------------------------------------
+
+
+class TestDriverOperations:
+    @pytest.fixture(scope="class")
+    def driver_token(self):
+        from api.core.auth import create_access_token
+
+        return create_access_token(
+            user_id="driver-002",
+            email="driver2@transit.sy",
+            role="driver",
+            operator_id="op-001",
+            expires_delta=timedelta(hours=1),
+        )
+
+    def test_report_position_success(self, client, driver_token):
+        with patch(
+            "api.routers.driver._supabase_get", new_callable=AsyncMock
+        ) as mock_get, patch(
+            "api.routers.driver._supabase_rpc", new_callable=AsyncMock
+        ) as mock_rpc, patch(
+            "api.routers.driver._rate_limit_check", new_callable=AsyncMock
+        ) as mock_rl, patch(
+            "api.routers.driver._cache_delete", new_callable=AsyncMock
+        ):
+            mock_rl.return_value = True
+            mock_get.return_value = [{"id": "v-001", "assigned_route_id": "r-001"}]
+            mock_rpc.return_value = None
+            r = client.post(
+                "/api/driver/position",
+                json={"latitude": 33.51, "longitude": 36.29, "speed_kmh": 30.0},
+                headers={"Authorization": f"Bearer {driver_token}"},
+            )
+        assert r.status_code == 200
+
+    def test_report_position_no_vehicle(self, client, driver_token):
+        with patch(
+            "api.routers.driver._supabase_get", new_callable=AsyncMock
+        ) as mock_get, patch(
+            "api.routers.driver._rate_limit_check", new_callable=AsyncMock
+        ) as mock_rl:
+            mock_rl.return_value = True
+            mock_get.return_value = []
+            r = client.post(
+                "/api/driver/position",
+                json={"latitude": 33.51, "longitude": 36.29},
+                headers={"Authorization": f"Bearer {driver_token}"},
+            )
+        assert r.status_code == 404
+
+    def test_report_position_requires_auth(self, client):
+        r = client.post(
+            "/api/driver/position",
+            json={"latitude": 33.51, "longitude": 36.29},
+        )
+        assert r.status_code in (401, 403)
+
+
+# ---------------------------------------------------------------------------
+# Form validation: required fields and format checks
+# ---------------------------------------------------------------------------
+
+
+class TestFormValidation:
+    def test_create_user_missing_email(self, client, admin_token):
+        r = client.post(
+            "/api/admin/users",
+            json={"password": "securepass123", "full_name": "Test", "role": "driver"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert r.status_code == 422
+
+    def test_create_user_missing_password(self, client, admin_token):
+        r = client.post(
+            "/api/admin/users",
+            json={"email": "test@transit.sy", "full_name": "Test", "role": "driver"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert r.status_code == 422
+
+    def test_create_vehicle_missing_vehicle_id(self, client, admin_token):
+        r = client.post(
+            "/api/admin/vehicles",
+            json={"name": "Bus", "name_ar": "حافلة", "vehicle_type": "bus", "capacity": 40},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert r.status_code == 422
+
+    def test_create_vehicle_missing_name(self, client, admin_token):
+        r = client.post(
+            "/api/admin/vehicles",
+            json={"vehicle_id": "BUS-X", "name_ar": "حافلة", "vehicle_type": "bus", "capacity": 40},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert r.status_code == 422
+
+    def test_assign_vehicle_missing_route(self, client, admin_token):
+        r = client.post(
+            "/api/admin/vehicles/v-001/assign",
+            json={"driver_id": "driver-001"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert r.status_code == 422
+
+    def test_driver_trip_start_missing_route(self, client):
+        from api.core.auth import create_access_token
+
+        driver_token = create_access_token(
+            user_id="driver-003",
+            email="driver3@transit.sy",
+            role="driver",
+            operator_id="op-001",
+            expires_delta=timedelta(hours=1),
+        )
+        r = client.post(
+            "/api/driver/trip/start",
+            json={},
+            headers={"Authorization": f"Bearer {driver_token}"},
+        )
+        assert r.status_code == 422

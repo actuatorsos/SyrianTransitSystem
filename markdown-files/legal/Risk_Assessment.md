@@ -1,8 +1,9 @@
 # Legal & Regulatory Risk Assessment — Damascus Transit Technologies Ltd.
-**Document Version:** 1.0
-**Date:** March 30, 2026
+**Document Version:** 1.1
+**Date:** April 2, 2026 (Updated from v1.0: March 30, 2026)
 **Author:** Legal Advisor, DAM
 **Review Cycle:** Quarterly
+**Change Summary (v1.1):** Added Risk 13 (Data Residency Non-Compliance), Risk 14 (Re-Consent Failure on Policy Update), Risk 15 (Government IT Procurement Disqualification). Updated Risk 3 mitigations to reference new Data Privacy Policy. Updated Risk 5 to reference Regulatory Compliance Report.
 
 ---
 
@@ -24,6 +25,9 @@ This assessment identifies 12 legal and regulatory risks across sanctions compli
 | 10 | Competitor IP claim | 2 | 3 | 6 | Medium |
 | 11 | Force majeure / civil disruption | 3 | 4 | 12 | High |
 | 12 | Regulatory capture / corruption risk | 2 | 4 | 8 | Medium |
+| 13 | Data residency non-compliance | 2 | 4 | 8 | Medium |
+| 14 | Re-consent failure on policy update | 2 | 3 | 6 | Medium |
+| 15 | Government IT procurement disqualification | 2 | 4 | 8 | Medium |
 
 ---
 
@@ -82,8 +86,9 @@ This assessment identifies 12 legal and regulatory risks across sanctions compli
 2. **Access controls:** Driver identity data restricted to Admin role only; no export feature for raw driver data.
 3. **Breach response plan:** Document incident response procedure (detection → internal notification within 24h → Ministry notification within 72h → subject notification within 7 days).
 4. **Penetration testing:** Quarterly automated scanning; annual manual penetration test before any major new deployment.
-5. **Data minimization:** Collect only the minimum necessary; passenger GPS tracking disabled by default (opt-in only).
+5. **Data minimization:** Collect only the minimum necessary; passenger GPS tracking disabled by default (opt-in only). See `legal/Data_Privacy_Policy.md` §3 for full data inventory.
 6. **DPAs with processors:** Execute Supabase and Vercel Data Processing Agreements to ensure processor liability coverage.
+7. **Privacy policy:** Published Data Privacy Policy (`legal/Data_Privacy_Policy.md`) establishes clear consent framework and reduces ambiguity about data handling, limiting basis for regulatory sanction.
 
 **Residual Risk After Mitigations:** Low (score: 4)
 
@@ -117,11 +122,12 @@ This assessment identifies 12 legal and regulatory risks across sanctions compli
 **Impact:** 4/5 — License suspension would halt operations; management criminal liability is a serious deterrent for key personnel.
 
 **Mitigations:**
-1. **Compliance register:** Maintain a live compliance register cross-referencing all Law 12/2024 Articles with DAM's technical implementation (see `legal/Legal_Framework.md`, §2.2).
+1. **Compliance register:** Maintain a live compliance register cross-referencing all Law 12/2024 Articles with DAM's technical implementation (see `legal/Legal_Framework.md`, §2.2 and `legal/Regulatory_Compliance_Report.md`).
 2. **Legal review on new features:** Any new data processing capability requires Legal Advisor sign-off before deployment.
 3. **Training:** Annual compliance training for all agents with data access.
 4. **Regulatory dialogue:** Proactively engage Ministry of Transport for interpretive guidance on unclear provisions.
 5. **Self-reporting:** If a violation is discovered, self-report to Ministry before external discovery — Syria's Personal Data Protection Decree treats voluntary disclosure as a mitigating factor.
+6. **Compliance documentation:** Regulatory Compliance Report (`legal/Regulatory_Compliance_Report.md`) provides a structured compliance gap analysis that can be presented to Ministry as evidence of good-faith compliance.
 
 **Residual Risk After Mitigations:** Low-Medium (score: 6)
 
@@ -260,6 +266,64 @@ This assessment identifies 12 legal and regulatory risks across sanctions compli
 
 ---
 
+### Risk 13: Data Residency Non-Compliance
+
+**Description:** Syrian Personal Data Protection Decree 2023 requires personal data to reside on servers in Syria or a jurisdiction with adequacy recognition. DAM currently relies on a Ministry of Transport derogation for Supabase (EU-hosted) during the reconstruction phase. If the derogation is revoked or expires, or if the Ministry changes its interpretation, DAM would face immediate data residency non-compliance.
+
+**Likelihood:** 2/5 — Ministry derogation is in place; Syrian data center infrastructure is limited in the near term, making enforcement of strict residency challenging.
+
+**Impact:** 4/5 — Non-compliance would require urgent migration of all data to a compliant host; failure to migrate could result in platform shutdown order or license suspension.
+
+**Mitigations:**
+1. **Document derogation:** Obtain written confirmation of the Ministry of Transport data residency derogation; include reference and expiry date in compliance register.
+2. **Residency roadmap:** Develop a Syria-hosted data migration plan (self-hosted PostgreSQL or a Syria-licensed hosting provider as the market develops) as part of the technology sovereignty roadmap.
+3. **EU hosting adequacy:** Supabase EU-hosted infrastructure is in a jurisdiction with strong data protection standards; this supports the adequacy argument if challenged.
+4. **DPA execution:** Execute Supabase DPA as a compensating control that contractually binds the processor to Syrian law requirements.
+5. **Monitor Syrian data center development:** As Syrian IT infrastructure recovers, evaluate when in-country hosting becomes viable and plan migration accordingly.
+
+**Residual Risk After Mitigations:** Low-Medium (score: 6)
+
+---
+
+### Risk 14: Re-Consent Failure on Privacy Policy Update
+
+**Description:** If DAM updates its privacy policy or introduces new data processing features without obtaining renewed consent from existing users, it risks non-compliance with the Syrian Personal Data Protection Decree 2023 consent requirements and user trust damage.
+
+**Likelihood:** 2/5 — A conscious internal process failure, mitigable with proper release management.
+
+**Impact:** 3/5 — Regulatory sanction for processing without valid consent; potential mass data deletion requests; user trust damage that affects adoption.
+
+**Mitigations:**
+1. **Policy versioning:** Maintain a version number and effective date in the Data Privacy Policy (`legal/Data_Privacy_Policy.md`); increment on any material change.
+2. **Re-consent trigger:** Implement a technical mechanism in the App that displays an updated consent screen on first login after a material policy change; gate App use on re-consent.
+3. **Legal review gate:** Legal Advisor must review and approve any feature that changes the data processing basis before development begins.
+4. **Change log:** Maintain a policy change log summarizing what changed and why, linked from the privacy policy, so users can understand material changes.
+5. **Grandfathering protocol:** For existing users at policy update, send push notification + email summary of changes; require in-app acknowledgment within 30 days or account is paused (not deleted).
+
+**Residual Risk After Mitigations:** Low (score: 3)
+
+---
+
+### Risk 15: Government IT Procurement Disqualification
+
+**Description:** When DAM bids for paid government contracts (beyond the initial MoU), it may be disqualified from procurement processes if it cannot satisfy government IT procurement requirements — such as source code escrow, local infrastructure mandates, competitive tender compliance, or security certification requirements that apply to critical infrastructure.
+
+**Likelihood:** 2/5 — Ministry of Transport has signaled interest in the platform; MoU pre-qualifies DAM. However, formal procurement rules apply for any paid contract.
+
+**Impact:** 4/5 — Disqualification from government procurement would eliminate DAM's primary revenue stream (government contracts) and destroy the reference customer strategy.
+
+**Mitigations:**
+1. **Critical infrastructure classification:** Proactively seek Ministry confirmation on whether GPS transit platform is classified as critical infrastructure — this determines source code escrow and security audit requirements.
+2. **Procurement compliance pack:** Prepare a government procurement compliance dossier (technical specification, security attestation, financial accounts, insurance certificates) ready for any tender submission.
+3. **Interim period:** Use MoU period to build track record of Ministry satisfaction — a strong operational reference from within the Ministry is the strongest procurement qualification.
+4. **Source code escrow readiness:** Prepare source code escrow agreement template; identify a Syrian law firm or Ministry-approved escrow agent if required.
+5. **Local content:** Where possible, demonstrate Syrian content (local developers, local operations) to satisfy any local content procurement preferences.
+6. **Legal counsel:** Engage a Damascus-based government procurement specialist before first competitive tender.
+
+**Residual Risk After Mitigations:** Low-Medium (score: 6)
+
+---
+
 ## Risk Register Summary
 
 | # | Risk | Raw Score | Mitigated Score | Rating Change |
@@ -276,6 +340,9 @@ This assessment identifies 12 legal and regulatory risks across sanctions compli
 | 10 | Competitor IP claim | 6 | 4 | Medium → Low |
 | 11 | Force majeure / civil disruption | 12 | 8 | High → Medium |
 | 12 | Regulatory capture / corruption | 8 | 6 | Medium → Medium |
+| 13 | Data residency non-compliance | 8 | 6 | Medium → Medium |
+| 14 | Re-consent failure on policy update | 6 | 3 | Medium → Low |
+| 15 | Government IT procurement disqualification | 8 | 6 | Medium → Medium |
 
 ---
 
@@ -297,3 +364,7 @@ This assessment identifies 12 legal and regulatory risks across sanctions compli
 ---
 
 *This assessment is a living document. Update when: (i) new legal risks are identified, (ii) political or regulatory changes occur, (iii) a new funding agreement is signed. Next scheduled review: June 30, 2026.*
+
+---
+
+*v1.1 update (April 2, 2026): Added Risks 13–15 following regulatory compliance review (`legal/Regulatory_Compliance_Report.md`) and drafting of passenger Data Privacy Policy (`legal/Data_Privacy_Policy.md`). Existing Risk 3 and Risk 5 mitigations updated to cross-reference new documents.*

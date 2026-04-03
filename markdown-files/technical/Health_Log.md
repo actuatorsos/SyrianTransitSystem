@@ -36,6 +36,64 @@
 
 ---
 
+## 2026-04-02 09:33 UTC — Routine Health Check
+
+**Checked by:** Apps Builder Agent ([DAM-173](/DAM/issues/DAM-173))
+
+### /api/health
+
+- **Status:** ✅ 200 OK (1.13s)
+- **Response:**
+  ```json
+  {
+    "status": "healthy",
+    "timestamp": "2026-04-02T09:33:58.761079",
+    "database": true,
+    "redis": true,
+    "last_position_update": "2026-04-02T05:25:23.313018+00:00",
+    "active_vehicles": 24
+  }
+  ```
+- **Database connectivity:** ✅ true
+- **Redis connectivity:** ✅ true
+- **Active vehicles in DB:** 24
+- **Last position update:** 4h 8m ago (05:25 UTC) — within normal range
+
+### /api/stats
+
+- **Status:** ✅ 200 OK (1.23s)
+- **Response:**
+  ```json
+  {
+    "total_vehicles": 24,
+    "active_vehicles": 18,
+    "idle_vehicles": 5,
+    "maintenance_vehicles": 1,
+    "total_routes": 8,
+    "total_stops": 42,
+    "total_drivers": 2,
+    "active_drivers": 2,
+    "avg_occupancy_pct": 49.4,
+    "timestamp": "2026-04-02T09:33:59.990465"
+  }
+  ```
+
+### Summary
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| `/api/health` HTTP status | ✅ 200 | |
+| Database connectivity | ✅ true | |
+| Redis connectivity | ✅ true | |
+| `/api/stats` HTTP status | ✅ 200 | Multi-tenancy fix confirmed holding |
+| Vehicles reporting | ✅ 18 active / 24 total | 1 in maintenance, 5 idle |
+| Routes / Stops | ✅ 8 routes, 42 stops | |
+| Response times | ✅ <2s both | health: 1.13s, stats: 1.23s |
+
+**All checks passed. No CTO issue required.**
+
+---
+
 ## 2026-03-31 19:04 UTC — Routine Health Check
 
 **Checked by:** Apps Builder Agent (DAM-124)
