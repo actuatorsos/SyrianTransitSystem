@@ -36,6 +36,65 @@
 
 ---
 
+## 2026-04-03 07:03 UTC — Routine Health Check
+
+**Checked by:** Apps Builder Agent ([DAM-220](/DAM/issues/DAM-220))
+
+### /api/health
+
+- **Status:** ✅ 200 OK (5.52s — cold start)
+- **Response:**
+  ```json
+  {
+    "status": "healthy",
+    "timestamp": "2026-04-03T07:03:00.927772",
+    "database": true,
+    "redis": true,
+    "last_position_update": "2026-04-03T05:45:35.402509+00:00",
+    "active_vehicles": 24
+  }
+  ```
+- **Database connectivity:** ✅ true
+- **Redis connectivity:** ✅ true
+- **Active vehicles in DB:** 24
+- **Last position update:** 1h 17m ago (05:45 UTC) — within normal range
+- **Response time:** ⚠️ 5.52s (above 3s cold start threshold — isolated cold start, not persistent)
+
+### /api/stats
+
+- **Status:** ✅ 200 OK (2.26s)
+- **Response:**
+  ```json
+  {
+    "total_vehicles": 24,
+    "active_vehicles": 18,
+    "idle_vehicles": 5,
+    "maintenance_vehicles": 1,
+    "total_routes": 8,
+    "total_stops": 42,
+    "total_drivers": 2,
+    "active_drivers": 2,
+    "avg_occupancy_pct": 44.9,
+    "timestamp": "2026-04-03T07:03:08.377134"
+  }
+  ```
+
+### Summary
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| `/api/health` HTTP status | ✅ 200 | |
+| Database connectivity | ✅ true | |
+| Redis connectivity | ✅ true | |
+| `/api/stats` HTTP status | ✅ 200 | |
+| Vehicles reporting | ✅ 18 active / 24 total | 1 in maintenance, 5 idle |
+| Routes / Stops | ✅ 8 routes, 42 stops | |
+| Response times | ⚠️ health: 5.52s (cold start), stats: 2.26s | Single cold start, not persistent |
+
+**All core checks passed. Response time elevated due to cold start — no CTO issue required.**
+
+---
+
 ## 2026-04-02 09:33 UTC — Routine Health Check
 
 **Checked by:** Apps Builder Agent ([DAM-173](/DAM/issues/DAM-173))
