@@ -25,7 +25,8 @@ INSERT INTO users (email, password_hash, full_name, full_name_ar, role, phone) V
 ('driver15@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Samir Qasim', 'سمير قاسم', 'driver', '+963110000015'),
 ('driver16@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Jamil Sabbagh', 'جميل صباغ', 'driver', '+963110000016'),
 ('driver17@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Hani Tlass', 'هاني طلاس', 'driver', '+963110000017'),
-('driver18@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Ziad Farah', 'زياد فرح', 'driver', '+963110000018');
+('driver18@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'Ziad Farah', 'زياد فرح', 'driver', '+963110000018')
+ON CONFLICT (email) DO NOTHING;
 
 -- ============================================================
 -- STOPS (54 real Damascus locations)
@@ -86,7 +87,8 @@ INSERT INTO stops (stop_id, name, name_ar, location, has_shelter) VALUES
 ('S051', 'Yusuf al-Azmeh Square', 'ساحة يوسف العظمة', ST_SetSRID(ST_MakePoint(36.2870, 33.5140), 4326), true),
 ('S052', 'Jisr al-Raees', 'جسر الرئيس', ST_SetSRID(ST_MakePoint(36.2810, 33.5100), 4326), false),
 ('S053', 'Mazze Military Hospital', 'مشفى المزة العسكري', ST_SetSRID(ST_MakePoint(36.2650, 33.5060), 4326), true),
-('S054', 'Kafar Souseh Flyover', 'جسر كفرسوسة', ST_SetSRID(ST_MakePoint(36.2780, 33.5040), 4326), false);
+('S054', 'Kafar Souseh Flyover', 'جسر كفرسوسة', ST_SetSRID(ST_MakePoint(36.2780, 33.5040), 4326), false)
+ON CONFLICT (stop_id) DO NOTHING;
 
 -- ============================================================
 -- ROUTES (8 Damascus corridors)
@@ -108,7 +110,8 @@ INSERT INTO routes (route_id, name, name_ar, route_type, color, distance_km, avg
 ('R007', 'Abbasiyyin → Harasta', 'العباسيين → حرستا', 'bus', '#4a151e', 8.0, 30, 2000,
     ST_SetSRID(ST_GeomFromText('LINESTRING(36.32 33.5175, 36.328 33.52, 36.335 33.522, 36.338 33.529, 36.34 33.535, 36.335 33.54, 36.318 33.545, 36.33 33.547, 36.355 33.55, 36.368 33.555, 36.38 33.56)'), 4326)),
 ('R008', 'Mezzeh → Dummar', 'المزة → دمر', 'microbus', '#3d3a3b', 11.0, 40, 3000,
-    ST_SetSRID(ST_GeomFromText('LINESTRING(36.26 33.505, 36.255 33.504, 36.25 33.503, 36.255 33.508, 36.26 33.512, 36.27 33.518, 36.255 33.516, 36.24 33.515, 36.23 33.515, 36.22 33.518, 36.215 33.52, 36.235 33.5)'), 4326));
+    ST_SetSRID(ST_GeomFromText('LINESTRING(36.26 33.505, 36.255 33.504, 36.25 33.503, 36.255 33.508, 36.26 33.512, 36.27 33.518, 36.255 33.516, 36.24 33.515, 36.23 33.515, 36.22 33.518, 36.215 33.52, 36.235 33.5)'), 4326))
+ON CONFLICT (route_id) DO NOTHING;
 
 -- ============================================================
 -- ROUTE-STOP ASSIGNMENTS
@@ -124,7 +127,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S053'), 6, 5.8, 22),
 ((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S005'), 7, 6.8, 28),
 ((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S038'), 8, 7.5, 30),
-((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S006'), 9, 8.5, 35);
+((SELECT id FROM routes WHERE route_id='R001'), (SELECT id FROM stops WHERE stop_id='S006'), 9, 8.5, 35)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- R002: Baramkeh → Barzeh (7 stops)
 INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
@@ -134,7 +138,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S017'), 4, 5.0, 22),
 ((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S013'), 5, 7.0, 30),
 ((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S016'), 6, 9.5, 40),
-((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 12.0, 45);
+((SELECT id FROM routes WHERE route_id='R002'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 12.0, 45)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- R003: Umayyad → Qaboun (7 stops)
 INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
@@ -144,7 +149,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S013'), 4, 4.5, 20),
 ((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S014'), 5, 6.5, 28),
 ((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S015'), 6, 8.5, 36),
-((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 10.5, 40);
+((SELECT id FROM routes WHERE route_id='R003'), (SELECT id FROM stops WHERE stop_id='S025'), 7, 10.5, 40)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- R004: Old City → Jaramana (8 stops, added Shaghour)
 INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
@@ -155,7 +161,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S044'), 5, 3.8, 19),
 ((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S030'), 6, 5.0, 22),
 ((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S027'), 7, 7.0, 30),
-((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S028'), 8, 9.0, 35);
+((SELECT id FROM routes WHERE route_id='R004'), (SELECT id FROM stops WHERE stop_id='S028'), 8, 9.0, 35)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- R005: Marjeh → Sayyidah Zaynab (9 stops, added Tabbaleh & Bab Mousalla)
 INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
@@ -167,7 +174,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S030'), 6, 8.0, 28),
 ((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S027'), 7, 10.0, 35),
 ((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S029'), 8, 14.0, 45),
-((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S028'), 9, 18.0, 55);
+((SELECT id FROM routes WHERE route_id='R005'), (SELECT id FROM stops WHERE stop_id='S028'), 9, 18.0, 55)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- R006: Muhajirin → Kafar Souseh (8 stops, added Kafar Souseh Flyover)
 INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
@@ -178,7 +186,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S018'), 5, 3.5, 16),
 ((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S021'), 6, 4.8, 20),
 ((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S054'), 7, 5.5, 22),
-((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S007'), 8, 6.5, 25);
+((SELECT id FROM routes WHERE route_id='R006'), (SELECT id FROM stops WHERE stop_id='S007'), 8, 6.5, 25)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- R007: Abbasiyyin → Harasta (6 stops)
 INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
@@ -187,7 +196,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S015'), 3, 3.5, 16),
 ((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S016'), 4, 5.0, 22),
 ((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S025'), 5, 6.5, 28),
-((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S026'), 6, 8.0, 30);
+((SELECT id FROM routes WHERE route_id='R007'), (SELECT id FROM stops WHERE stop_id='S026'), 6, 8.0, 30)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- R008: Mezzeh → Dummar (7 stops, added Mezzeh Villas)
 INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_km, typical_arrival_offset_min) VALUES
@@ -197,7 +207,8 @@ INSERT INTO route_stops (route_id, stop_id, stop_sequence, distance_from_start_k
 ((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S041'), 4, 4.0, 14),
 ((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S039'), 5, 7.0, 28),
 ((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S040'), 6, 9.0, 36),
-((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S022'), 7, 11.0, 40);
+((SELECT id FROM routes WHERE route_id='R008'), (SELECT id FROM stops WHERE stop_id='S022'), 7, 11.0, 40)
+ON CONFLICT (route_id, stop_sequence) DO NOTHING;
 
 -- ============================================================
 -- VEHICLES (24 vehicles across fleet)
@@ -230,7 +241,8 @@ INSERT INTO vehicles (vehicle_id, name, name_ar, vehicle_type, capacity, status,
 ('TAX-001', 'Taxi 001', 'تاكسي 001', 'taxi', 4, 'active', NULL),
 ('TAX-002', 'Taxi 002', 'تاكسي 002', 'taxi', 4, 'active', NULL),
 ('TAX-003', 'Taxi 003', 'تاكسي 003', 'taxi', 4, 'active', NULL),
-('TAX-004', 'Taxi 004', 'تاكسي 004', 'taxi', 4, 'idle', NULL);
+('TAX-004', 'Taxi 004', 'تاكسي 004', 'taxi', 4, 'idle', NULL)
+ON CONFLICT (vehicle_id) DO NOTHING;
 
 -- ============================================================
 -- SCHEDULES (daily service)
