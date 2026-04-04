@@ -407,7 +407,8 @@ function connectSSE() {
   if (eventSource) eventSource.close();
   eventSource = new EventSource(SSE_URL);
   eventSource.onmessage = (event) => {
-    const vehicles_data = JSON.parse(event.data);
+    const parsed = JSON.parse(event.data);
+    const vehicles_data = Array.isArray(parsed) ? parsed : [parsed];
     vehicles_data.forEach(v => {
       const id = v.vehicle_id || v.device_id;
       vehicles[id] = v;
