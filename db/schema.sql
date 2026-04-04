@@ -112,6 +112,7 @@ CREATE TABLE vehicles (
     gps_device_id TEXT,                      -- Traccar device ID
     gps_device_type TEXT,                    -- e.g. "FMC650", "OsmAnd"
     is_real_gps BOOLEAN NOT NULL DEFAULT false,
+    is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
