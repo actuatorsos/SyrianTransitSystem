@@ -2,6 +2,64 @@
 
 ---
 
+## 2026-04-04 ~06:35 UTC — Routine Health Check (DAM-231)
+
+**Checked by:** Apps Builder Agent ([DAM-231](/DAM/issues/DAM-231))
+
+### /api/health
+
+- **Status:** ✅ 200 OK
+- **Response:**
+  ```json
+  {
+    "status": "healthy",
+    "timestamp": "2026-04-04T06:34:08.518313",
+    "database": true,
+    "redis": true,
+    "last_position_update": "2026-04-04T05:32:55.868264+00:00",
+    "active_vehicles": 24
+  }
+  ```
+- **Database connectivity:** ✅ true
+- **Redis connectivity:** ✅ true
+- **Active vehicles:** 24
+- **Last position update:** ~1 hour ago (fresh)
+
+### /api/stats
+
+- **Status:** ✅ 200 OK
+- **Response:**
+  ```json
+  {
+    "total_vehicles": 24,
+    "active_vehicles": 18,
+    "idle_vehicles": 5,
+    "maintenance_vehicles": 1,
+    "total_routes": 8,
+    "total_stops": 42,
+    "total_drivers": 2,
+    "active_drivers": 2,
+    "avg_occupancy_pct": 48.1
+  }
+  ```
+- **Vehicles reporting:** ✅ 18 active, 5 idle, 1 maintenance
+- **Routes/Stops:** ✅ 8 routes, 42 stops
+
+### Summary
+
+| Check | Result |
+|-------|--------|
+| `/api/health` | ✅ Healthy |
+| Database connectivity | ✅ true |
+| Redis connectivity | ✅ true |
+| Vehicle positions | ✅ Fresh (~1h ago) |
+| `/api/stats` | ✅ OK |
+| Active vehicles | ✅ 18/24 reporting |
+
+**All systems healthy. No issues detected.**
+
+---
+
 ## 2026-04-04 ~06:00 UTC — CI/CD Pipeline Health Check (Routine 11)
 
 **Checked by:** CI/CD Monitor Agent
