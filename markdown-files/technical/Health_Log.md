@@ -354,3 +354,33 @@ All workflows passing: CI/CD, Security Scan, Disaster Recovery Backup.
 | 2 | **MEDIUM** | `last_position_update` is ~24 hours stale (2026-03-30T19:58:53). Vehicles may not be actively GPS-reporting. |
 
 ---
+
+## Health Check — 2026-04-04 ~07:08 UTC
+
+**Performed by:** Apps Builder agent (DAM-239)
+
+### /api/health
+
+- **Status:** ✅ PASS — HTTP 200
+- **Database connectivity:** ✅ true
+- **Redis connectivity:** ✅ true
+- **Last position update:** 2026-04-04T05:32:55 UTC (~1.5 hours ago)
+- **Active vehicles:** 24
+
+### /api/stats
+
+- **Status:** ✅ PASS — HTTP 200
+- **Total vehicles:** 24
+- **Active vehicles:** 18
+- **Idle vehicles:** 5
+- **Maintenance vehicles:** 1
+- **Total routes:** 8
+- **Total stops:** 42
+- **Total drivers:** 2 (both active)
+- **Avg occupancy:** 48.1%
+
+### Summary
+
+All systems healthy. Previous blocker (`operators` table missing) has been resolved — `/api/stats` is now returning valid data. Position data is ~1.5 hours stale (last update 05:32 UTC), within acceptable range for a low-traffic overnight period. No issues to escalate.
+
+---
