@@ -37,7 +37,7 @@ async def _supabase_get(path: str, params: Optional[dict] = None) -> list:
             timeout=httpx.Timeout(10.0, connect=3.0)
         ) as client:
             resp = await client.get(
-                _supabase_url(path), headers=_supabase_headers(), params=params or {}
+                _supabase_url(path), headers=_supabase_headers(), params=params
             )
             resp.raise_for_status()
             data = resp.json()

@@ -145,6 +145,17 @@ class TestRoutes:
                 f"stop_count is not an int: {route['stop_count']}"
             )
 
+    def test_routes_have_distinct_stop_counts(self, client):
+        r = client.get("/api/routes", params={"operator": OPERATOR})
+        routes = r.json()
+        if len(routes) < 2:
+            pytest.skip("Fewer than 2 routes — cannot check for distinct stop counts")
+        counts = [route["stop_count"] for route in routes]
+        assert len(set(counts)) > 1, (
+            f"All routes have identical stop_count={counts[0]} — "
+            "per-route filter is likely broken (regression: httpx params={} drops URL query params)"
+        )
+
 
 # ---------------------------------------------------------------------------
 # 4. Homepage — loads in <3s, map tiles accessible, vehicles endpoint reachable
