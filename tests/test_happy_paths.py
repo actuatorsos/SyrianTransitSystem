@@ -385,7 +385,7 @@ class TestVehiclesHappyPath:
                 return_value="op-001",
             ),
         ):
-            mock_get.side_effect = [[mock_pos], [mock_vehicle]]
+            mock_get.side_effect = [[mock_vehicle], [mock_pos]]
             r = client.get("/api/vehicles/positions?operator=damascus")
         assert r.status_code == 200
         assert isinstance(r.json(), list)
