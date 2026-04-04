@@ -862,7 +862,7 @@ def _interpolate_position(stops: list, progress: float) -> tuple:
 async def _run_simulation() -> dict:
     """Core simulation logic — generates positions for all active vehicles."""
     vehicles = await _service_get(
-        "vehicles?status=eq.active&assigned_route_id=not.is.null"
+        "vehicles?status=in.(active,idle)&assigned_route_id=not.is.null"
         "&select=id,vehicle_id,assigned_route_id,vehicle_type"
     )
 

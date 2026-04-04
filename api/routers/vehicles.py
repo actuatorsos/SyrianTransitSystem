@@ -117,9 +117,17 @@ async def get_vehicle_positions(
         if cached is not None:
             return cached
 
-        # Fetch positions and vehicle metadata separately to avoid broken
-        # PostgREST embed from vehicle_positions_latest → vehicles.
-        # Query the PostGIS "location" column and parse coords in Python.
+        # Query all non-decommissioned vehicles first so every vehicle appears
+        # in the response regardless of whether it has position data yet.
+        veh_query = (
+            "vehicles?select=id,vehicle_id,vehicle_type,name,name_ar,assigned_route_id"
+            "&status=neq.decommissioned"
+        )
+        if op_id:
+            veh_query += f"&{_op_filter(op_id)}"
+        vehicles = await _supabase_get(veh_query)
+
+        # Fetch latest positions and index by vehicle UUID.
         pos_query = (
             "vehicle_positions_latest"
             "?select=vehicle_id,location,speed_kmh,heading,source,"
@@ -128,23 +136,15 @@ async def get_vehicle_positions(
         if op_id:
             pos_query += f"&{_op_filter(op_id)}"
         raw = await _supabase_get(pos_query)
-
-        # Build vehicle lookup from vehicles table
-        veh_query = (
-            "vehicles?select=id,vehicle_id,vehicle_type,name,name_ar,assigned_route_id"
-        )
-        if op_id:
-            veh_query += f"&{_op_filter(op_id)}"
-        vehicles = await _supabase_get(veh_query)
-        veh_by_id = {v["id"]: v for v in (vehicles or [])}
+        pos_by_id = {p["vehicle_id"]: p for p in (raw or [])}
 
         result = []
-        for pos in raw or []:
-            vehicle = veh_by_id.get(pos.get("vehicle_id"), {})
-            lat, lon = parse_location(pos.get("location"))
+        for vehicle in vehicles or []:
+            pos = pos_by_id.get(vehicle["id"], {})
+            lat, lon = parse_location(pos.get("location")) if pos else (None, None)
             result.append(
                 {
-                    "vehicle_id": vehicle.get("vehicle_id") or pos.get("vehicle_id"),
+                    "vehicle_id": vehicle.get("vehicle_id"),
                     "vehicle_type": vehicle.get("vehicle_type", "bus"),
                     "vehicle_name": vehicle.get("name", ""),
                     "vehicle_name_ar": vehicle.get("name_ar", ""),
