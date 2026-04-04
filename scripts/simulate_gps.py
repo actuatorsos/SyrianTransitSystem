@@ -52,7 +52,7 @@ def simulate(client: httpx.Client, base_url: str, token: str) -> dict:
     )
     if resp.status_code != 200:
         print(f"Simulate failed ({resp.status_code}): {resp.text}", file=sys.stderr)
-        return {"status": "error", "updated": 0}
+        return {"status": "error", "updated": 0, "_status_code": resp.status_code}
     return resp.json()
 
 
@@ -102,6 +102,10 @@ def main():
         try:
             while True:
                 result = simulate(client, args.base_url, token)
+                if result.get("_status_code") == 401:
+                    print("Token expired — re-authenticating…")
+                    token = login(client, args.base_url, args.email, args.password)
+                    result = simulate(client, args.base_url, token)
                 ts = result.get("timestamp", "?")
                 count = result.get("updated", 0)
                 print(f"[{ts}] Updated {count} vehicles")

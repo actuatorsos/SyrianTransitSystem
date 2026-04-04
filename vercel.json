@@ -43,7 +43,7 @@
   "crons": [
     {
       "path": "/api/cron/simulate",
-      "schedule": "0 5 * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
