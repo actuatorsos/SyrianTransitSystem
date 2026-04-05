@@ -67,11 +67,14 @@ jobs:
           java-version: "21"
 
       - name: Download GTFS canonical validator
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           VALIDATOR_VERSION="6.0.0"
-          curl -fsSL \
-            "https://github.com/MobilityData/gtfs-validator/releases/download/v${VALIDATOR_VERSION}/gtfs-validator-${VALIDATOR_VERSION}-cli.jar" \
-            -o gtfs-validator.jar
+          gh release download "v${VALIDATOR_VERSION}" \
+            --repo MobilityData/gtfs-validator \
+            --pattern "gtfs-validator-${VALIDATOR_VERSION}-cli.jar"
+          mv "gtfs-validator-${VALIDATOR_VERSION}-cli.jar" gtfs-validator.jar
           file gtfs-validator.jar | grep -q "Java archive" || { echo "ERROR: Downloaded file is not a valid JAR"; exit 1; }
 
       - name: Package feed into ZIP for validator
