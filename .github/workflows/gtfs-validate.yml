@@ -75,7 +75,7 @@ jobs:
             --repo MobilityData/gtfs-validator \
             --pattern "gtfs-validator-${VALIDATOR_VERSION}-cli.jar"
           mv "gtfs-validator-${VALIDATOR_VERSION}-cli.jar" gtfs-validator.jar
-          file gtfs-validator.jar | grep -q "Java archive" || { echo "ERROR: Downloaded file is not a valid JAR"; exit 1; }
+          file gtfs-validator.jar | grep -qE "(Java archive|Zip archive)" || { echo "ERROR: Downloaded file is not a valid JAR"; file gtfs-validator.jar; exit 1; }
 
       - name: Package feed into ZIP for validator
         run: |
