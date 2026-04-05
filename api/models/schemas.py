@@ -1,7 +1,15 @@
+import re
 from datetime import datetime
-from typing import Dict, Any, Literal, Optional
+from typing import Dict, Any, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+def _strip_html(value: Optional[str]) -> Optional[str]:
+    """Strip HTML tags to prevent stored XSS."""
+    if value is None:
+        return None
+    return re.sub(r"<[^>]+>", "", value).strip()
 
 
 class HealthResponse(BaseModel):
@@ -14,8 +22,16 @@ class HealthResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(..., max_length=254)
+    password: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email address")
+        return v
 
 
 class TokenResponse(BaseModel):
@@ -26,18 +42,26 @@ class TokenResponse(BaseModel):
 
 
 class UserCreate(BaseModel):
-    email: str
-    password: str
-    full_name: str
-    full_name_ar: Optional[str] = None
+    email: str = Field(..., max_length=254)
+    password: str = Field(..., min_length=8, max_length=128)
+    full_name: str = Field(..., min_length=1, max_length=100)
+    full_name_ar: Optional[str] = Field(None, max_length=100)
     role: Literal["admin", "dispatcher", "driver", "viewer"] = "viewer"
-    phone: Optional[str] = None
+    phone: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email address")
+        return v
 
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
-    full_name_ar: Optional[str] = None
-    phone: Optional[str] = None
+    full_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    full_name_ar: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
     is_active: Optional[bool] = None
 
 
@@ -53,26 +77,47 @@ class UserResponse(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    email: str
-    password: str
-    full_name: str
-    full_name_ar: Optional[str] = None
-    phone: Optional[str] = None
+    email: str = Field(..., max_length=254)
+    password: str = Field(..., min_length=8, max_length=128)
+    full_name: str = Field(..., min_length=1, max_length=100)
+    full_name_ar: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email address")
+        return v
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: str = Field(..., max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email address")
+        return v
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
+    current_password: str = Field(..., min_length=1, max_length=128)
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 
 class ProfileUpdateRequest(BaseModel):
-    full_name: Optional[str] = None
-    full_name_ar: Optional[str] = None
-    phone: Optional[str] = None
+    full_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    full_name_ar: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
+
+    @field_validator("full_name", "full_name_ar", mode="before")
+    @classmethod
+    def sanitize_name(cls, v):
+        return _strip_html(v)
 
 
 class RouteResponse(BaseModel):
@@ -279,13 +324,139 @@ class PushSubscribeRequest(BaseModel):
 
 
 class PushBroadcastRequest(BaseModel):
-    title: str
-    body: str
-    icon: Optional[str] = None
+    title: str = Field(..., min_length=1, max_length=200)
+    body: str = Field(..., min_length=1, max_length=1000)
+    icon: Optional[str] = Field(None, max_length=500)
     role: Optional[str] = None  # broadcast only to this role; None = all
     data: Optional[Dict[str, Any]] = None
 
+    @field_validator("title", "body", mode="before")
+    @classmethod
+    def sanitize_text(cls, v):
+        return _strip_html(v)
+
 
 class NotificationTestRequest(BaseModel):
-    email: str
+    email: str = Field(..., max_length=254)
     kind: Literal["alert", "welcome"] = "alert"
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email address")
+        return v
+
+
+class FeedbackCreate(BaseModel):
+    trip_id: str = Field(..., min_length=1, max_length=36)
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = Field(None, max_length=2000)
+    categories: Optional[List[str]] = None
+    is_anonymous: bool = False
+
+    @field_validator("comment", mode="before")
+    @classmethod
+    def sanitize_comment(cls, v):
+        return _strip_html(v)
+
+
+class FeedbackResponse(BaseModel):
+    id: str
+    trip_id: str
+    driver_id: Optional[str] = None
+    passenger_id: Optional[str] = None
+    rating: int
+    comment: Optional[str] = None
+    categories: List[str] = []
+    is_anonymous: bool
+    created_at: Optional[str] = None
+
+
+class DriverRatingSummary(BaseModel):
+    driver_id: str
+    total_reviews: int
+    average_rating: Optional[float] = None
+    five_star: int = 0
+    four_star: int = 0
+    three_star: int = 0
+    two_star: int = 0
+    one_star: int = 0
+    last_reviewed_at: Optional[str] = None
+
+
+class ETAArrival(BaseModel):
+    vehicle_id: str
+    vehicle_name: str
+    vehicle_name_ar: str
+    route_name: Optional[str] = None
+    route_name_ar: Optional[str] = None
+    eta_minutes: int
+    distance_km: float
+    speed_kmh: Optional[float] = None
+    source: str = "estimated"  # "real" | "estimated"
+
+
+class StopETAResponse(BaseModel):
+    stop_id: str
+    stop_name: str
+    stop_name_ar: str
+    arrivals: List[ETAArrival]
+    updated_at: str
+
+
+# ── Generic response models for endpoints returning simple dicts ─────────────
+
+
+class StatusTimestampResponse(BaseModel):
+    status: str
+    timestamp: str
+
+
+class TripActionResponse(BaseModel):
+    status: str
+    trip_id: Optional[str] = None
+    timestamp: str
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
+class WebhookResponse(BaseModel):
+    status: str
+    timestamp: Optional[str] = None
+    reason: Optional[str] = None
+    detail: Optional[str] = None
+
+
+class VapidKeyResponse(BaseModel):
+    publicKey: str
+    enabled: bool
+
+
+class PushSubscribeResponse(BaseModel):
+    status: str
+    endpoint: str
+    role: str
+
+
+class PushUnsubscribeResponse(BaseModel):
+    status: str
+
+
+class PushBroadcastResponse(BaseModel):
+    sent: int
+    failed: int
+    skipped: int
+
+
+class PushTestResponse(BaseModel):
+    status: str
+    count: Optional[int] = None
+    message: Optional[str] = None
+
+
+class WsStatsResponse(BaseModel):
+    active_connections: int

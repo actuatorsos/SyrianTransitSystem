@@ -15,7 +15,15 @@ from api.core.cache import (
     _rate_limit_check,
 )
 from api.core.logging import logger
-from api.models.schemas import PushBroadcastRequest, PushSubscribeRequest
+from api.models.schemas import (
+    PushBroadcastRequest,
+    PushBroadcastResponse,
+    PushSubscribeRequest,
+    PushSubscribeResponse,
+    PushTestResponse,
+    PushUnsubscribeResponse,
+    VapidKeyResponse,
+)
 
 try:
     from pywebpush import webpush, WebPushException
@@ -103,14 +111,14 @@ async def send_push_notification(
         return False
 
 
-@router.get("/api/push/vapid-public-key", tags=["push"])
+@router.get("/api/push/vapid-public-key", response_model=VapidKeyResponse, tags=["push"])
 async def get_vapid_public_key():
     """Return the VAPID public key for Web Push subscription setup."""
     key = os.environ.get("VAPID_PUBLIC_KEY", "")
     return {"publicKey": key, "enabled": bool(key)}
 
 
-@router.post("/api/push/subscribe", tags=["push"])
+@router.post("/api/push/subscribe", response_model=PushSubscribeResponse, tags=["push"])
 async def subscribe_push(
     req: PushSubscribeRequest,
     raw_request: Request,
@@ -157,7 +165,7 @@ async def subscribe_push(
     return {"status": "subscribed", "endpoint": endpoint, "role": role}
 
 
-@router.delete("/api/push/subscribe", tags=["push"])
+@router.delete("/api/push/subscribe", response_model=PushUnsubscribeResponse, tags=["push"])
 async def unsubscribe_push(req: dict):
     """Remove a Web Push subscription by endpoint URL."""
     endpoint = req.get("endpoint", "")
@@ -171,7 +179,7 @@ async def unsubscribe_push(req: dict):
     return {"status": "unsubscribed"}
 
 
-@router.post("/api/push/broadcast", tags=["push"])
+@router.post("/api/push/broadcast", response_model=PushBroadcastResponse, tags=["push"])
 async def broadcast_push(
     req: PushBroadcastRequest,
     current_user: CurrentUser = Depends(require_role("admin")),
@@ -213,7 +221,7 @@ async def broadcast_push(
     return {"sent": sent, "failed": failed, "skipped": skipped}
 
 
-@router.post("/api/push/test", tags=["push"])
+@router.post("/api/push/test", response_model=PushTestResponse, tags=["push"])
 async def test_push_self(
     current_user: CurrentUser = Depends(require_role("admin")),
 ):

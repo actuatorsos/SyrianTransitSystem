@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+
+from api.models.schemas import WsStatsResponse
 
 from api.core.database import _supabase_get
 from api.core.geo import parse_location
@@ -106,10 +107,10 @@ async def _ws_broadcast_loop() -> None:
         await asyncio.sleep(1)
 
 
-@router.get("/api/ws/stats", tags=["websocket"])
+@router.get("/api/ws/stats", response_model=WsStatsResponse, tags=["websocket"])
 async def websocket_stats():
     """Returns current WebSocket connection statistics."""
-    return JSONResponse({"active_connections": ws_manager.count})
+    return WsStatsResponse(active_connections=ws_manager.count)
 
 
 @router.websocket("/api/ws/track")

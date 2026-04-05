@@ -116,6 +116,16 @@ app = FastAPI(
         "Tokens expire after 24 hours."
     ),
     version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    contact={
+        "name": "Damascus Transit System",
+        "email": "support@damascustransit.com",
+    },
+    license_info={
+        "name": "MIT",
+    },
     openapi_tags=_OPENAPI_TAGS,
 )
 
@@ -148,7 +158,7 @@ app.add_middleware(
 from api.core.cache import RATE_LIMIT_GLOBAL, _get_client_ip, _rate_limit_check  # noqa: E402
 
 _GLOBAL_RATE_LIMIT_SKIP = frozenset(
-    {"/api/health", "/", "/docs", "/openapi.json", "/redoc"}
+    {"/api/health", "/", "/api/docs", "/api/openapi.json", "/api/redoc"}
 )
 
 _API_V1_PREFIX = "/api/v1"

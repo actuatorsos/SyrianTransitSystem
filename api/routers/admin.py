@@ -28,7 +28,9 @@ from api.models.schemas import (
     AlertResponse,
     AlertResolve,
     AnalyticsOverview,
+    MessageResponse,
     NotificationTestRequest,
+    StatusTimestampResponse,
     UserCreate,
     UserResponse,
     UserUpdate,
@@ -339,7 +341,7 @@ async def update_vehicle(
         )
 
 
-@router.post("/api/admin/vehicles/{vehicle_id}/assign", tags=["admin"])
+@router.post("/api/admin/vehicles/{vehicle_id}/assign", response_model=StatusTimestampResponse, tags=["admin"])
 async def assign_vehicle(
     vehicle_id: str,
     assignment: VehicleAssign,
@@ -411,7 +413,7 @@ async def list_all_alerts(
         )
 
 
-@router.put("/api/admin/alerts/{alert_id}/resolve", tags=["admin"])
+@router.put("/api/admin/alerts/{alert_id}/resolve", response_model=StatusTimestampResponse, tags=["admin"])
 async def resolve_alert(
     alert_id: str,
     alert_data: AlertResolve,
@@ -954,7 +956,7 @@ async def _run_simulation() -> dict:
     }
 
 
-@router.post("/api/admin/simulate", tags=["admin"])
+@router.post("/api/admin/simulate", response_model=StatusTimestampResponse, tags=["admin"])
 async def simulate_vehicle_positions(
     current_user: CurrentUser = Depends(require_role("admin", "super_admin")),
 ):

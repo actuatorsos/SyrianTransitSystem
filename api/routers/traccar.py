@@ -9,7 +9,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 
 from api.core.database import _supabase_get, _supabase_post, _supabase_rpc
 from api.core.logging import logger
-from api.models.schemas import TraccarEvent, TraccarPosition
+from api.models.schemas import TraccarEvent, TraccarPosition, WebhookResponse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 try:
@@ -39,7 +39,7 @@ def verify_traccar_signature(request_body: str, signature: str) -> bool:
     return hmac.compare_digest(computed, signature)
 
 
-@router.post("/api/traccar/position", tags=["traccar"])
+@router.post("/api/traccar/position", response_model=WebhookResponse, tags=["traccar"])
 async def traccar_position_webhook(
     position: TraccarPosition,
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
@@ -86,7 +86,7 @@ async def traccar_position_webhook(
         return {"status": "error", "detail": str(e)}
 
 
-@router.post("/api/traccar/event", tags=["traccar"])
+@router.post("/api/traccar/event", response_model=WebhookResponse, tags=["traccar"])
 async def traccar_event_webhook(
     event: TraccarEvent,
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),

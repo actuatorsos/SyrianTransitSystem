@@ -17,6 +17,7 @@ from api.models.schemas import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    MessageResponse,
     ProfileUpdateRequest,
     RegisterRequest,
     TokenResponse,
@@ -35,6 +36,7 @@ async def login(request: LoginRequest, raw_request: Request):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many login attempts. Try again later.",
+            headers={"Retry-After": str(window)},
         )
     try:
         users = await _supabase_get(
@@ -92,6 +94,7 @@ async def register(request: RegisterRequest, raw_request: Request):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many registration attempts. Try again later.",
+            headers={"Retry-After": "60"},
         )
     try:
         if len(request.password) < 8:
@@ -158,7 +161,7 @@ async def register(request: RegisterRequest, raw_request: Request):
         )
 
 
-@router.post("/api/auth/forgot-password", tags=["auth"])
+@router.post("/api/auth/forgot-password", response_model=MessageResponse, tags=["auth"])
 async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
     """Initiate a password reset. Always returns 200 to avoid user enumeration."""
     client_ip = raw_request.client.host if raw_request.client else "unknown"
@@ -166,6 +169,7 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many password reset attempts. Try again later.",
+            headers={"Retry-After": "60"},
         )
     try:
         users = await _supabase_get(
@@ -290,7 +294,7 @@ async def update_my_profile(
         )
 
 
-@router.post("/api/auth/change-password", tags=["auth"])
+@router.post("/api/auth/change-password", response_model=MessageResponse, tags=["auth"])
 async def change_password(
     request: ChangePasswordRequest,
     current_user: CurrentUser = Depends(get_current_user),

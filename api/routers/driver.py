@@ -17,12 +17,19 @@ from api.core.database import (
     _supabase_post,
     _supabase_rpc,
 )
-from api.models.schemas import PassengerCountUpdate, PositionUpdate, TripEnd, TripStart
+from api.models.schemas import (
+    PassengerCountUpdate,
+    PositionUpdate,
+    StatusTimestampResponse,
+    TripActionResponse,
+    TripEnd,
+    TripStart,
+)
 
 router = APIRouter()
 
 
-@router.post("/api/driver/position", tags=["driver"])
+@router.post("/api/driver/position", response_model=StatusTimestampResponse, tags=["driver"])
 async def report_driver_position(
     position: PositionUpdate,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -94,7 +101,7 @@ async def report_driver_position(
         )
 
 
-@router.post("/api/driver/trip/start", tags=["driver"])
+@router.post("/api/driver/trip/start", response_model=TripActionResponse, tags=["driver"])
 async def start_trip(
     trip: TripStart,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -141,7 +148,7 @@ async def start_trip(
         )
 
 
-@router.post("/api/driver/trip/end", tags=["driver"])
+@router.post("/api/driver/trip/end", response_model=TripActionResponse, tags=["driver"])
 async def end_trip(
     trip_data: TripEnd,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -178,7 +185,7 @@ async def end_trip(
         )
 
 
-@router.post("/api/driver/trip/passenger-count", tags=["driver"])
+@router.post("/api/driver/trip/passenger-count", response_model=StatusTimestampResponse, tags=["driver"])
 async def update_passenger_count(
     data: PassengerCountUpdate,
     current_user: CurrentUser = Depends(require_role("driver")),
