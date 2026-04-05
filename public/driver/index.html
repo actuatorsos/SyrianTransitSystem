@@ -418,11 +418,11 @@ function handleLogin() {
   })
   .then(r => r.json())
   .then(data => {
-    if (data.token && data.user) {
-      authToken = data.token;
-      currentUser = data.user;
-      sessionStorage.setItem('authToken', data.token);
-      sessionStorage.setItem('user', JSON.stringify(data.user));
+    if (data.access_token && data.user_id) {
+      authToken = data.access_token;
+      currentUser = { id: data.user_id, role: data.role };
+      sessionStorage.setItem('authToken', data.access_token);
+      sessionStorage.setItem('user', JSON.stringify(currentUser));
       document.getElementById('loginScreen').classList.add('hidden');
       document.dispatchEvent(new Event('driver:logged-in'));
       initMap();
