@@ -292,6 +292,32 @@
     pax_eta_source_est:       { ar: 'تقدير', en: 'Est.' },
     pax_eta_countdown_min:    { ar: 'دقيقة', en: 'min' },
     pax_eta_tap_stop:         { ar: 'اضغط على محطة لعرض مواعيد الوصول', en: 'Tap a stop to see arrival times' },
+
+    /* ── Driver Analytics Page ───────────────────────────────── */
+    da_title:                { ar: 'تحليلات أداء السائقين', en: 'Driver Performance Analytics' },
+    da_subtitle:             { ar: 'مقاييس الأداء التشغيلي لكل سائق', en: 'Operational performance metrics per driver' },
+    da_leaderboard:          { ar: 'قائمة السائقين', en: 'Driver Leaderboard' },
+    da_trips_col:            { ar: 'الرحلات', en: 'Trips' },
+    da_on_time_col:          { ar: 'الالتزام', en: 'On-Time %' },
+    da_avg_speed_col:        { ar: 'متوسط السرعة', en: 'Avg Speed' },
+    da_distance_col:         { ar: 'المسافة (كم)', en: 'Distance (km)' },
+    da_active_hrs_col:       { ar: 'ساعات العمل', en: 'Active Hrs' },
+    da_status_col:           { ar: 'الحالة', en: 'Status' },
+    da_driver_col:           { ar: 'السائق', en: 'Driver' },
+    da_on_time_chart:        { ar: 'أداء الالتزام بالمواعيد — أعلى 10 سائقين', en: 'On-Time Performance — Top 10 Drivers' },
+    da_sparkline_title:      { ar: 'عدد الرحلات اليومية (آخر 30 يوماً)', en: 'Daily Trip Count (Last 30 Days)' },
+    da_period_7d:            { ar: '7 أيام', en: '7 Days' },
+    da_period_30d:           { ar: '30 يوماً', en: '30 Days' },
+    da_no_data:              { ar: 'لا بيانات متاحة', en: 'No data available' },
+    da_loading:              { ar: 'جاري تحميل البيانات...', en: 'Loading data...' },
+    da_active_badge:         { ar: 'نشط', en: 'Active' },
+    da_inactive_badge:       { ar: 'غير نشط', en: 'Inactive' },
+    da_back_admin:           { ar: '← لوحة الإدارة', en: '← Admin Panel' },
+    da_km_h:                 { ar: 'كم/س', en: 'km/h' },
+    da_total_drivers:        { ar: 'إجمالي السائقين', en: 'Total Drivers' },
+    da_active_drivers:       { ar: 'سائقون نشطون', en: 'Active Drivers' },
+    da_total_trips:          { ar: 'إجمالي الرحلات', en: 'Total Trips' },
+    da_fleet_avg_ontime:     { ar: 'متوسط الالتزام', en: 'Fleet On-Time Avg' },
   };
 
   /* ─────────────────────────────────────────────────────────────────────
