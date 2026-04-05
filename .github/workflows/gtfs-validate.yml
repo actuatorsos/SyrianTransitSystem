@@ -68,10 +68,11 @@ jobs:
 
       - name: Download GTFS canonical validator
         run: |
-          VALIDATOR_VERSION="6.1.0"
-          curl -sSL \
+          VALIDATOR_VERSION="6.0.0"
+          curl -fsSL \
             "https://github.com/MobilityData/gtfs-validator/releases/download/v${VALIDATOR_VERSION}/gtfs-validator-${VALIDATOR_VERSION}-cli.jar" \
             -o gtfs-validator.jar
+          file gtfs-validator.jar | grep -q "Java archive" || { echo "ERROR: Downloaded file is not a valid JAR"; exit 1; }
 
       - name: Package feed into ZIP for validator
         run: |
