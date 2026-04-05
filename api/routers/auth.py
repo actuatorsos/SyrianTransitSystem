@@ -183,7 +183,7 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
         hashed = hash_password(temp_password)
         await _supabase_patch(
             f"users?id=eq.{user['id']}",
-            {"password_hash": hashed, "requires_password_change": True},
+            {"password_hash": hashed, "must_change_password": True},
         )
 
         try:
@@ -320,7 +320,7 @@ async def change_password(
         hashed = hash_password(request.new_password)
         await _supabase_patch(
             f"users?id=eq.{current_user.user_id}",
-            {"password_hash": hashed, "requires_password_change": False},
+            {"password_hash": hashed, "must_change_password": False},
         )
 
         return {"message": "Password changed successfully."}
