@@ -89,8 +89,7 @@ jobs:
           java -jar gtfs-validator.jar \
             --input gtfs_feed.zip \
             --output_base gtfs_validation_output \
-            --country_code sy \
-            --feeds_count 1
+            --country_code sy
 
       - name: Check for errors (fail on any ERROR severity)
         run: |
