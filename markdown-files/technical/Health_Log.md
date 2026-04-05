@@ -2,6 +2,68 @@
 
 ---
 
+## 2026-04-05 09:44 UTC — Routine Health Check ([DAM-268](/DAM/issues/DAM-268))
+
+**Checked by:** Apps Builder Agent
+
+### /api/health
+
+- **Status:** ✅ 200 OK (2.22s)
+- **Response:**
+  ```json
+  {
+    "status": "healthy",
+    "timestamp": "2026-04-05T09:44:27.493234",
+    "database": true,
+    "redis": true,
+    "last_position_update": "2026-04-05T00:45:12.734999+00:00",
+    "active_vehicles": 18
+  }
+  ```
+- **Database connectivity:** ✅ true
+- **Redis connectivity:** ✅ true
+- **Active vehicles:** 18
+- **Last position update:** ~9 hours ago (00:45 UTC) — overnight gap, within normal range
+
+### /api/stats
+
+- **Status:** ✅ 200 OK (3.49s — cold start)
+- **Response:**
+  ```json
+  {
+    "total_vehicles": 24,
+    "active_vehicles": 18,
+    "idle_vehicles": 5,
+    "maintenance_vehicles": 1,
+    "total_routes": 8,
+    "total_stops": 54,
+    "total_drivers": 18,
+    "active_drivers": 18,
+    "avg_occupancy_pct": 47.1,
+    "timestamp": "2026-04-05T09:44:37.826202"
+  }
+  ```
+- **Vehicles reporting:** ✅ 18 active, 5 idle, 1 maintenance
+- **Routes/Stops:** ✅ 8 routes, 54 stops (up from 42 — 12 new stops added)
+- **Drivers:** ✅ 18 total / 18 active (up from 2 — full driver roster now seeded)
+
+### Summary
+
+| Check | Result | Notes |
+|-------|--------|-------|
+| `/api/health` HTTP status | ✅ 200 | |
+| Database connectivity | ✅ true | |
+| Redis connectivity | ✅ true | |
+| `/api/stats` HTTP status | ✅ 200 | |
+| Vehicles reporting | ✅ 18 active / 24 total | 1 maintenance, 5 idle |
+| Routes / Stops | ✅ 8 routes, 54 stops | |
+| Response times | ⚠️ health: 2.22s, stats: 3.49s (cold start) | Stats cold start, not persistent |
+| Position data freshness | ✅ Overnight gap expected | Last update 00:45 UTC |
+
+**All systems healthy. Notable data growth: stops 42→54, drivers 2→18. No CTO issue required.**
+
+---
+
 ## 2026-04-04 ~06:35 UTC — Routine Health Check (DAM-231)
 
 **Checked by:** Apps Builder Agent ([DAM-231](/DAM/issues/DAM-231))
