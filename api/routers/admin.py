@@ -28,7 +28,6 @@ from api.models.schemas import (
     AlertResponse,
     AlertResolve,
     AnalyticsOverview,
-    MessageResponse,
     NotificationTestRequest,
     StatusTimestampResponse,
     UserCreate,
