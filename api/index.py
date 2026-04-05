@@ -290,7 +290,6 @@ async def _seed_default_operator():
                     "slug": "damascus",
                     "name": "Damascus Transit Authority",
                     "name_ar": "\u0647\u064a\u0626\u0629 \u0646\u0642\u0644 \u062f\u0645\u0634\u0642",
-                    "plan": "enterprise",
                     "is_active": True,
                 },
             )
