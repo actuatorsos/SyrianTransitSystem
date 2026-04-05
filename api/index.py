@@ -267,8 +267,44 @@ for _router in [
 
 
 # ── Startup event ─────────────────────────────────────────────────────────────
+async def _seed_default_operator():
+    """Ensure the default 'damascus' operator exists in the database."""
+    from api.core.database import _supabase_get, _supabase_headers, _supabase_url
+
+    try:
+        rows = await _supabase_get(
+            "operators?slug=eq.damascus&select=id,is_active"
+        )
+        if rows and rows[0].get("is_active"):
+            logger.info("Default operator 'damascus' exists and is active")
+            return
+        # Insert or reactivate
+        import httpx as _httpx
+
+        headers = _supabase_headers()
+        headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+        async with _httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                _supabase_url("operators?on_conflict=slug"),
+                headers=headers,
+                json={
+                    "id": "00000000-0000-0000-0000-000000000001",
+                    "slug": "damascus",
+                    "name": "Damascus Transit Authority",
+                    "name_ar": "\u0647\u064a\u0626\u0629 \u0646\u0642\u0644 \u062f\u0645\u0634\u0642",
+                    "plan": "enterprise",
+                    "is_active": True,
+                },
+            )
+            resp.raise_for_status()
+        logger.info("Default operator 'damascus' seeded/reactivated successfully")
+    except Exception as e:
+        logger.error(f"Failed to seed default operator: {e}")
+
+
 @app.on_event("startup")
 async def _startup():
+    await _seed_default_operator()
     asyncio.create_task(websocket._ws_broadcast_loop())
 
 
