@@ -35,7 +35,34 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.openstreetmap.fr; connect-src 'self' https://syrian-transit-system.vercel.app wss://syrian-transit-system.vercel.app; font-src 'self' data:; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.openstreetmap.fr https://basemaps.cartocdn.com; connect-src 'self' https://syrian-transit-system.vercel.app wss://syrian-transit-system.vercel.app https://basemaps.cartocdn.com https://demotiles.maplibre.org; worker-src blob: https://unpkg.com; frame-ancestors 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/admin(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.openstreetmap.fr https://basemaps.cartocdn.com; connect-src 'self' https://syrian-transit-system.vercel.app wss://syrian-transit-system.vercel.app https://basemaps.cartocdn.com https://demotiles.maplibre.org https://unpkg.com; worker-src blob: https://unpkg.com; frame-ancestors 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/driver(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.openstreetmap.fr https://basemaps.cartocdn.com; connect-src 'self' https://syrian-transit-system.vercel.app wss://syrian-transit-system.vercel.app https://basemaps.cartocdn.com https://demotiles.maplibre.org https://unpkg.com; worker-src blob: https://unpkg.com; frame-ancestors 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/passenger(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.openstreetmap.fr https://basemaps.cartocdn.com; connect-src 'self' https://syrian-transit-system.vercel.app wss://syrian-transit-system.vercel.app https://basemaps.cartocdn.com https://demotiles.maplibre.org https://unpkg.com; worker-src blob: https://unpkg.com; frame-ancestors 'none'"
         }
       ]
     }

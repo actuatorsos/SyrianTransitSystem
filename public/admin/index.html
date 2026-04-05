@@ -1712,9 +1712,10 @@
             const mapContainer = document.getElementById('map');
             if (!mapContainer || map) return;
 
+            maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl-csp-worker.js';
             map = new maplibregl.Map({
                 container: 'map',
-                style: 'https://demotiles.maplibre.org/style.json',
+                style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
                 center: [36.2765, 33.5138],
                 zoom: 11,
                 pitch: 0,

@@ -476,6 +476,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ── Map ──
 function initMap() {
+  maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl-csp-worker.js';
   map = new maplibregl.Map({
     container:'map',
     style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
