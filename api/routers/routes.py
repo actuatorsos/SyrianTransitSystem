@@ -1,13 +1,16 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from api.core.auth import CurrentUser, optional_auth
 from api.core.cache import (
     CACHE_KEY_ROUTES_LIST,
     CACHE_TTL_ROUTES_STOPS,
+    RATE_LIMIT_READ,
     _cache_get,
     _cache_set,
+    _get_client_ip,
+    _rate_limit_check,
     _tenant_cache_key,
 )
 from api.core.database import _supabase_get
@@ -19,12 +22,21 @@ router = APIRouter()
 
 @router.get("/api/routes", response_model=List[RouteResponse], tags=["routes"])
 async def list_routes(
+    raw_request: Request,
     operator: Optional[str] = Query(
         None, description="Operator slug (e.g. 'damascus')"
     ),
     current_user: Optional[CurrentUser] = Depends(optional_auth),
 ):
     """List all active routes with stop counts."""
+    client_ip = _get_client_ip(raw_request)
+    max_req, window = RATE_LIMIT_READ
+    if not await _rate_limit_check(f"routes:{client_ip}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Try again later.",
+            headers={"Retry-After": str(window)},
+        )
     try:
         if current_user and current_user.role == "super_admin":
             op_id = await _resolve_operator_id(operator) if operator else None

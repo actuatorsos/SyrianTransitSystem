@@ -18,6 +18,8 @@ RATE_LIMIT_LOGIN = (10, 60)
 RATE_LIMIT_DRIVER_POS = (12, 60)
 RATE_LIMIT_GLOBAL = (200, 60)
 RATE_LIMIT_PUSH_SUB = (5, 60)
+RATE_LIMIT_READ = (60, 60)
+RATE_LIMIT_WRITE = (20, 60)
 
 
 def _tenant_cache_key(base: str, operator_id: str) -> str:

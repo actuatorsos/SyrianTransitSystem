@@ -10,9 +10,14 @@ Endpoints:
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from api.core.auth import CurrentUser, optional_auth, require_role
+from api.core.cache import (
+    RATE_LIMIT_WRITE,
+    _get_client_ip,
+    _rate_limit_check,
+)
 from api.core.database import (
     _supabase_get,
     _supabase_post,
@@ -36,6 +41,7 @@ router = APIRouter()
     tags=["feedback"],
 )
 async def submit_feedback(
+    raw_request: Request,
     payload: FeedbackCreate,
     current_user: Optional[CurrentUser] = Depends(optional_auth),
 ):
@@ -45,6 +51,14 @@ async def submit_feedback(
     Authentication is optional — anonymous submissions are accepted.
     A logged-in passenger may only submit one review per trip.
     """
+    client_ip = _get_client_ip(raw_request)
+    max_req, window = RATE_LIMIT_WRITE
+    if not await _rate_limit_check(f"feedback:{client_ip}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Try again later.",
+            headers={"Retry-After": str(window)},
+        )
     # Verify the trip exists and is completed
     trips = await _supabase_get(
         f"trips?id=eq.{payload.trip_id}&select=id,driver_id,status,operator_id"

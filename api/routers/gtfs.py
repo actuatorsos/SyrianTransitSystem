@@ -5,9 +5,10 @@ import zipfile
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response
 
+from api.core.cache import RATE_LIMIT_READ, _get_client_ip, _rate_limit_check
 from api.core.database import _supabase_get
 from api.core.geo import parse_location
 
@@ -43,8 +44,16 @@ def _parse_iso_timestamp(iso_str: Optional[str]) -> Optional[int]:
 
 
 @router.get("/api/gtfs/static/{filename}", tags=["gtfs"])
-async def get_gtfs_static_file(filename: str):
+async def get_gtfs_static_file(raw_request: Request, filename: str):
     """Serve individual GTFS static feed files."""
+    client_ip = _get_client_ip(raw_request)
+    max_req, window = RATE_LIMIT_READ
+    if not await _rate_limit_check(f"gtfs:{client_ip}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Try again later.",
+            headers={"Retry-After": str(window)},
+        )
     allowed = {
         "agency.txt",
         "stops.txt",
@@ -67,8 +76,16 @@ async def get_gtfs_static_file(filename: str):
 
 
 @router.get("/api/gtfs/feed.zip", tags=["gtfs"])
-async def get_gtfs_zip():
+async def get_gtfs_zip(raw_request: Request):
     """Download full GTFS static feed as a ZIP archive (Google Maps compatible)."""
+    client_ip = _get_client_ip(raw_request)
+    max_req, window = RATE_LIMIT_READ
+    if not await _rate_limit_check(f"gtfs:{client_ip}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Try again later.",
+            headers={"Retry-After": str(window)},
+        )
     files = [
         "agency.txt",
         "stops.txt",
@@ -99,12 +116,20 @@ async def get_gtfs_zip():
 
 @router.get("/api/gtfs/realtime", tags=["gtfs"])
 @router.get("/api/public/gtfs-rt", tags=["gtfs"])
-async def get_gtfs_realtime():
+async def get_gtfs_realtime(raw_request: Request):
     """GTFS-Realtime feed (VehiclePositions + TripUpdates).
 
     Returns a binary protobuf FeedMessage (GTFS-RT 2.0).
     Falls back to JSON when gtfs-realtime-bindings is not installed.
     """
+    client_ip = _get_client_ip(raw_request)
+    max_req, window = RATE_LIMIT_READ
+    if not await _rate_limit_check(f"gtfs:{client_ip}", max_req, window):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Try again later.",
+            headers={"Retry-After": str(window)},
+        )
     try:
         positions = await _supabase_get(
             "vehicle_positions_latest"
