@@ -97,10 +97,16 @@ async def get_fleet_stats(
         )
 
 
-def _build_driver_metrics(driver: dict, driver_trips: list, positions_by_vehicle: dict) -> dict:
+def _build_driver_metrics(
+    driver: dict, driver_trips: list, positions_by_vehicle: dict
+) -> dict:
     """Compute per-driver metrics from trip and position data."""
-    on_time_values = [t["on_time_pct"] for t in driver_trips if t.get("on_time_pct") is not None]
-    speed_values = [t["speed_kmh"] for t in driver_trips if t.get("speed_kmh") is not None]
+    on_time_values = [
+        t["on_time_pct"] for t in driver_trips if t.get("on_time_pct") is not None
+    ]
+    speed_values = [
+        t["speed_kmh"] for t in driver_trips if t.get("speed_kmh") is not None
+    ]
     total_distance = round(sum(t.get("distance_km") or 0 for t in driver_trips), 1)
 
     # Active hours: sum of trip durations derived from actual_start / actual_end
@@ -124,8 +130,12 @@ def _build_driver_metrics(driver: dict, driver_trips: list, positions_by_vehicle
         "name": driver.get("full_name_ar") or driver.get("full_name"),
         "is_active": driver.get("is_active", False),
         "total_trips": len(driver_trips),
-        "on_time_pct": round(sum(on_time_values) / len(on_time_values), 1) if on_time_values else None,
-        "avg_speed_kmh": round(sum(speed_values) / len(speed_values), 1) if speed_values else None,
+        "on_time_pct": round(sum(on_time_values) / len(on_time_values), 1)
+        if on_time_values
+        else None,
+        "avg_speed_kmh": round(sum(speed_values) / len(speed_values), 1)
+        if speed_values
+        else None,
         "total_distance_km": total_distance,
         "active_hours": round(active_seconds / 3600, 1),
         "current_speed_kmh": live_speed,
@@ -152,13 +162,19 @@ async def get_driver_stats(
 
         drivers, trips, positions = await _gather_driver_data(op_suffix, cutoff)
 
-        positions_by_vehicle = {p["vehicle_id"]: p for p in positions if p.get("vehicle_id")}
+        positions_by_vehicle = {
+            p["vehicle_id"]: p for p in positions if p.get("vehicle_id")
+        }
 
         # Enrich drivers with their assigned vehicle id from positions lookup
         vehicle_rows = await _supabase_get(
             f"vehicles?select=id,assigned_driver_id{op_suffix}"
         )
-        vehicle_by_driver = {v["assigned_driver_id"]: v["id"] for v in vehicle_rows if v.get("assigned_driver_id")}
+        vehicle_by_driver = {
+            v["assigned_driver_id"]: v["id"]
+            for v in vehicle_rows
+            if v.get("assigned_driver_id")
+        }
         for d in drivers:
             d["vehicle_id"] = vehicle_by_driver.get(d["id"])
 
@@ -167,14 +183,19 @@ async def get_driver_stats(
             if t.get("driver_id"):
                 trip_map[t["driver_id"]].append(t)
 
-        result = [_build_driver_metrics(d, trip_map.get(d["id"], []), positions_by_vehicle) for d in drivers]
+        result = [
+            _build_driver_metrics(d, trip_map.get(d["id"], []), positions_by_vehicle)
+            for d in drivers
+        ]
         result.sort(key=lambda x: x["total_trips"], reverse=True)
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/api/stats/drivers/{driver_id}", response_model=dict, tags=["stats"])
@@ -198,7 +219,9 @@ async def get_driver_detail(
             f"users?id=eq.{driver_id}&role=eq.driver&select=id,full_name,full_name_ar,is_active{op_suffix}"
         )
         if not driver_rows:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Driver not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Driver not found"
+            )
         driver = driver_rows[0]
 
         # Fetch trips for last 30 days (detail view)
@@ -234,10 +257,16 @@ async def get_driver_detail(
         vehicle_id = vehicle_rows[0]["id"] if vehicle_rows else None
         driver["vehicle_id"] = vehicle_id
 
-        positions = await _supabase_get(
-            f"vehicle_positions_latest?select=vehicle_id,speed_kmh{op_suffix}"
-        ) if vehicle_id else []
-        positions_by_vehicle = {p["vehicle_id"]: p for p in positions if p.get("vehicle_id")}
+        positions = (
+            await _supabase_get(
+                f"vehicle_positions_latest?select=vehicle_id,speed_kmh{op_suffix}"
+            )
+            if vehicle_id
+            else []
+        )
+        positions_by_vehicle = {
+            p["vehicle_id"]: p for p in positions if p.get("vehicle_id")
+        }
 
         metrics = _build_driver_metrics(driver, trips_30, positions_by_vehicle)
         metrics["sparkline_7d"] = sparkline_7
@@ -247,12 +276,15 @@ async def get_driver_detail(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 async def _gather_driver_data(op_suffix: str, cutoff: str):
     """Fetch drivers, trips, and live positions concurrently."""
     import asyncio
+
     drivers_task = _supabase_get(
         f"users?role=eq.driver&select=id,full_name,full_name_ar,is_active{op_suffix}"
     )
@@ -263,5 +295,7 @@ async def _gather_driver_data(op_suffix: str, cutoff: str):
     positions_task = _supabase_get(
         f"vehicle_positions_latest?select=vehicle_id,speed_kmh{op_suffix}"
     )
-    drivers, trips, positions = await asyncio.gather(drivers_task, trips_task, positions_task)
+    drivers, trips, positions = await asyncio.gather(
+        drivers_task, trips_task, positions_task
+    )
     return drivers or [], trips or [], positions or []

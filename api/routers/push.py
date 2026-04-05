@@ -111,7 +111,9 @@ async def send_push_notification(
         return False
 
 
-@router.get("/api/push/vapid-public-key", response_model=VapidKeyResponse, tags=["push"])
+@router.get(
+    "/api/push/vapid-public-key", response_model=VapidKeyResponse, tags=["push"]
+)
 async def get_vapid_public_key():
     """Return the VAPID public key for Web Push subscription setup."""
     key = os.environ.get("VAPID_PUBLIC_KEY", "")
@@ -165,7 +167,9 @@ async def subscribe_push(
     return {"status": "subscribed", "endpoint": endpoint, "role": role}
 
 
-@router.delete("/api/push/subscribe", response_model=PushUnsubscribeResponse, tags=["push"])
+@router.delete(
+    "/api/push/subscribe", response_model=PushUnsubscribeResponse, tags=["push"]
+)
 async def unsubscribe_push(req: dict):
     """Remove a Web Push subscription by endpoint URL."""
     endpoint = req.get("endpoint", "")

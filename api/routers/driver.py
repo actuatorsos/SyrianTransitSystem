@@ -29,7 +29,9 @@ from api.models.schemas import (
 router = APIRouter()
 
 
-@router.post("/api/driver/position", response_model=StatusTimestampResponse, tags=["driver"])
+@router.post(
+    "/api/driver/position", response_model=StatusTimestampResponse, tags=["driver"]
+)
 async def report_driver_position(
     position: PositionUpdate,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -101,7 +103,9 @@ async def report_driver_position(
         )
 
 
-@router.post("/api/driver/trip/start", response_model=TripActionResponse, tags=["driver"])
+@router.post(
+    "/api/driver/trip/start", response_model=TripActionResponse, tags=["driver"]
+)
 async def start_trip(
     trip: TripStart,
     current_user: CurrentUser = Depends(require_role("driver")),
@@ -185,7 +189,11 @@ async def end_trip(
         )
 
 
-@router.post("/api/driver/trip/passenger-count", response_model=StatusTimestampResponse, tags=["driver"])
+@router.post(
+    "/api/driver/trip/passenger-count",
+    response_model=StatusTimestampResponse,
+    tags=["driver"],
+)
 async def update_passenger_count(
     data: PassengerCountUpdate,
     current_user: CurrentUser = Depends(require_role("driver")),
