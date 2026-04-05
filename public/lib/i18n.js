@@ -285,6 +285,13 @@
     pax_buses_label:         { ar: 'حافلة', en: 'bus' },
     pax_buses_label_pl:      { ar: 'حافلات', en: 'buses' },
     pax_no_vehicles_on_route: { ar: 'لا مركبات على هذا الخط', en: 'No vehicles on this route' },
+    pax_eta_loading:          { ar: 'جاري تحميل المواعيد...', en: 'Loading arrivals...' },
+    pax_eta_no_arrivals:      { ar: 'لا حافلات متاحة حاليًا', en: 'No buses available now' },
+    pax_eta_arriving_soon:    { ar: 'وصول الآن', en: 'Arriving now' },
+    pax_eta_source_real:      { ar: 'GPS حقيقي', en: 'Real GPS' },
+    pax_eta_source_est:       { ar: 'تقدير', en: 'Est.' },
+    pax_eta_countdown_min:    { ar: 'دقيقة', en: 'min' },
+    pax_eta_tap_stop:         { ar: 'اضغط على محطة لعرض مواعيد الوصول', en: 'Tap a stop to see arrival times' },
   };
 
   /* ─────────────────────────────────────────────────────────────────────

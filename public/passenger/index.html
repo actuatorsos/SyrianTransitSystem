@@ -327,6 +327,37 @@ let sheetExpanded = false;
 let pollInterval = null;
 const connectionBar = document.getElementById('connectionBar');
 
+// ETA state
+let realStops = [];           // stops from API with UUIDs
+let currentStop = null;       // stop object currently shown in detail view
+let etaRefreshTimer = null;   // interval for periodic ETA refresh
+let etaCountdownTimer = null; // interval for decrementing displayed countdown
+let etaArrivals = [];         // last fetched arrivals
+let etaFetchedAt = null;      // timestamp when arrivals were fetched
+
+// Load real stop data from API (runs on init)
+async function loadRealStops() {
+  try {
+    const res = await fetch(`${API_BASE}/api/stops`);
+    if (!res.ok) return;
+    realStops = await res.json();
+  } catch (e) {
+    // Non-fatal: fallback to client-side ETA only
+    console.log('Could not load real stops:', e);
+  }
+}
+
+// Find real stop UUID by matching nearest lat/lon within 500 m
+function findRealStopId(localStop) {
+  let best = null, bestDist = Infinity;
+  for (const rs of realStops) {
+    if (rs.latitude == null || rs.longitude == null) continue;
+    const d = haversine(localStop.lat, localStop.lon, rs.latitude, rs.longitude);
+    if (d < bestDist) { bestDist = d; best = rs; }
+  }
+  return bestDist < 0.5 ? (best && best.id) : null; // within 500 m
+}
+
 // ─── Arabic search normalization ───
 // Strips diacritics (tashkeel) and normalizes alef/hamza/teh-marbuta variants
 // so searching "مرجه" matches "مرجة", "اوتوستراد" matches "أوتوستراد", etc.
@@ -426,6 +457,7 @@ function initMap() {
   connectSSE();
   updateRouteCards();
   fetchVehicles();
+  loadRealStops();
   pollInterval = setInterval(fetchVehicles, 5000);
 
 }
@@ -433,6 +465,8 @@ function initMap() {
 // ─── SSE Live Vehicle Tracking ───
 const SSE_URL = "/api/stream";
 let eventSource = null;
+
+let _lastSSEEtaRefresh = 0;
 
 function connectSSE() {
   if (eventSource) eventSource.close();
@@ -447,6 +481,16 @@ function connectSSE() {
     });
     updateRouteCards();
     connectionBar.classList.remove('disconnected');
+
+    // If stop detail is visible, refresh ETA via client-side calc on SSE updates
+    // (rate-limited to once every 5 s to avoid thrashing the display)
+    if (currentStop) {
+      const now = Date.now();
+      if (now - _lastSSEEtaRefresh > 5000) {
+        _lastSSEEtaRefresh = now;
+        computeClientSideETA(currentStop);
+      }
+    }
   };
   eventSource.onerror = () => {
     connectionBar.classList.add('disconnected');
@@ -602,30 +646,73 @@ function updateRouteCards() {
 
 // ─── Stop Detail ───
 function showStopDetail(stop) {
+  // Clear any existing ETA timers
+  clearInterval(etaRefreshTimer);
+  clearInterval(etaCountdownTimer);
+  currentStop = stop;
+  etaArrivals = [];
+  etaFetchedAt = null;
+
   document.getElementById('routesView').style.display = 'none';
   document.getElementById('stopDetail').classList.add('active');
-  document.getElementById('stopName').textContent = stop.nameAr;
-  document.getElementById('stopAddress').textContent = stop.name;
+  document.getElementById('stopName').textContent = i18n.getCurrentLang() === 'ar' ? stop.nameAr : stop.name;
+  document.getElementById('stopAddress').textContent = i18n.getCurrentLang() === 'ar' ? stop.name : stop.nameAr;
+  document.getElementById('arrivalList').innerHTML = `<div style="text-align:center;padding:24px;color:#888;font-size:14px;">${t('pax_eta_loading')}</div>`;
 
-  // Compute arrivals using real ETA from vehicle positions
+  expandSheet();
+  map.flyTo({ center: [stop.lon, stop.lat], zoom: 15 });
+
+  // Try fetching from API, fall back to client-side computation
+  fetchStopETA(stop);
+
+  // Refresh from API every 30 s while stop detail is visible
+  etaRefreshTimer = setInterval(() => fetchStopETA(currentStop), 30000);
+
+  // Decrement displayed countdown every 60 s
+  etaCountdownTimer = setInterval(() => {
+    if (!etaFetchedAt || !etaArrivals.length) return;
+    const elapsedMin = Math.round((Date.now() - etaFetchedAt) / 60000);
+    renderArrivalList(etaArrivals, elapsedMin);
+  }, 60000);
+}
+
+async function fetchStopETA(stop) {
+  const realStopId = findRealStopId(stop);
+
+  if (realStopId) {
+    try {
+      const res = await fetch(`${API_BASE}/api/stops/${encodeURIComponent(realStopId)}/eta?limit=3`);
+      if (res.ok) {
+        const data = await res.json();
+        etaArrivals = data.arrivals || [];
+        etaFetchedAt = Date.now();
+        renderArrivalList(etaArrivals, 0);
+        return;
+      }
+    } catch (e) {
+      console.log('ETA API error, falling back to client-side:', e);
+    }
+  }
+
+  // Client-side fallback using live vehicle positions
+  computeClientSideETA(stop);
+}
+
+function computeClientSideETA(stop) {
   const arrivals = stop.routes.map(rid => {
     const route = ROUTES.find(r => r.id === rid);
     if (!route) return null;
 
-    // Find nearest vehicle on this route
     const routeVehicles = Object.values(vehicles).filter(v =>
       (v.route_name || v.assigned_route_id || '').toLowerCase().includes(rid.replace(/_/g,' '))
     );
 
-    let bestVehicle = null;
-    let bestEta = Infinity;
-
+    let bestVehicle = null, bestEta = Infinity;
     routeVehicles.forEach(v => {
       const eta = calcETA(v, stop.lat, stop.lon);
       if (eta < bestEta) { bestEta = eta; bestVehicle = v; }
     });
 
-    // Fallback: nearest vehicle overall
     if (!bestVehicle) {
       Object.values(vehicles).forEach(v => {
         const eta = calcETA(v, stop.lat, stop.lon);
@@ -633,30 +720,62 @@ function showStopDetail(stop) {
       });
     }
 
-    const eta = bestVehicle ? Math.min(bestEta, 60) : '--';
-    const isReal = bestVehicle && bestVehicle.source === 'traccar';
-    return { route, eta, vehicle: bestVehicle, isReal };
-  }).filter(Boolean).sort((a,b) => {
-    if (a.eta === '--') return 1;
-    if (b.eta === '--') return -1;
-    return a.eta - b.eta;
-  });
+    if (!bestVehicle) return null;
+    return {
+      vehicle_id: bestVehicle.vehicle_id || bestVehicle.vehicle_name || '',
+      vehicle_name: bestVehicle.vehicle_name || '',
+      vehicle_name_ar: bestVehicle.vehicle_name_ar || '',
+      route_name: route.name,
+      route_name_ar: route.nameAr,
+      eta_minutes: Math.min(bestEta, 60),
+      distance_km: haversine(
+        bestVehicle.latitude, bestVehicle.longitude, stop.lat, stop.lon
+      ),
+      speed_kmh: bestVehicle.speed_kmh,
+      source: bestVehicle.source === 'traccar' ? 'real' : 'estimated',
+    };
+  }).filter(Boolean).sort((a, b) => a.eta_minutes - b.eta_minutes).slice(0, 3);
 
-  document.getElementById('arrivalList').innerHTML = arrivals.map(a => `
+  etaArrivals = arrivals;
+  etaFetchedAt = Date.now();
+  renderArrivalList(etaArrivals, 0);
+}
+
+function renderArrivalList(arrivals, elapsedMin) {
+  const list = document.getElementById('arrivalList');
+  if (!list) return;
+
+  if (!arrivals.length) {
+    list.innerHTML = `<div style="text-align:center;padding:24px;color:#888;font-size:14px;">${t('pax_eta_no_arrivals')}</div>`;
+    return;
+  }
+
+  const isAr = i18n.getCurrentLang() === 'ar';
+  list.innerHTML = arrivals.map(a => {
+    const remaining = Math.max(0, a.eta_minutes - elapsedMin);
+    const etaLabel = remaining === 0 ? t('pax_eta_arriving_soon') : remaining;
+    const etaUnit = remaining === 0 ? '' : `<small>${t('pax_eta_countdown_min')}</small>`;
+    const isReal = a.source === 'real';
+    const routeLabel = isAr ? (a.route_name_ar || a.route_name || '') : (a.route_name || a.route_name_ar || '');
+    const vehicleLabel = isAr ? (a.vehicle_name_ar || a.vehicle_name || a.vehicle_id) : (a.vehicle_name || a.vehicle_id);
+    const sourceBadge = isReal
+      ? `<span style="background:#8B5CF6;color:#fff;padding:1px 5px;border-radius:6px;font-size:9px;">${t('pax_eta_source_real')}</span>`
+      : `<span style="background:#F3F4F6;color:#6B7280;padding:1px 5px;border-radius:6px;font-size:9px;">${t('pax_eta_source_est')}</span>`;
+    return `
     <div class="arrival-item">
-      <div class="arrival-eta">${a.eta}<small>د</small></div>
+      <div class="arrival-eta">${etaLabel}${etaUnit}</div>
       <div class="arrival-info">
-        <div class="name">${a.route.nameAr} ${a.isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 5px;border-radius:6px;font-size:9px;">GPS</span>' : ''}</div>
-        <div class="detail">${a.vehicle ? a.vehicle.vehicle_id + ' · ' + (a.vehicle.speed_kmh || 0) + ' km/h' : t('pax_estimated')}</div>
+        <div class="name">${routeLabel} ${sourceBadge}</div>
+        <div class="detail">${vehicleLabel}${a.speed_kmh ? ' · ' + Math.round(a.speed_kmh) + ' km/h' : ''}</div>
       </div>
-    </div>
-  `).join('');
-
-  expandSheet();
-  map.flyTo({ center: [stop.lon, stop.lat], zoom: 15 });
+    </div>`;
+  }).join('');
 }
 
 function showRoutes() {
+  clearInterval(etaRefreshTimer);
+  clearInterval(etaCountdownTimer);
+  currentStop = null;
   document.getElementById('stopDetail').classList.remove('active');
   document.getElementById('routesView').style.display = 'block';
 }
@@ -783,6 +902,14 @@ async function togglePushNotifications() {
 // ─── Language change — re-render dynamic lists ───
 document.addEventListener('langchange', () => {
   updateRouteCards();
+  if (currentStop) {
+    document.getElementById('stopName').textContent = i18n.getCurrentLang() === 'ar' ? currentStop.nameAr : currentStop.name;
+    document.getElementById('stopAddress').textContent = i18n.getCurrentLang() === 'ar' ? currentStop.name : currentStop.nameAr;
+    if (etaArrivals.length) {
+      const elapsedMin = etaFetchedAt ? Math.round((Date.now() - etaFetchedAt) / 60000) : 0;
+      renderArrivalList(etaArrivals, elapsedMin);
+    }
+  }
 });
 
 // ─── Init ───
