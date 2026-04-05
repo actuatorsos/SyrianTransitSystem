@@ -786,6 +786,12 @@
         }
 
         // ── Hero Map ──────────────────────────────────────────────────────
+        // MapLibre v4 CDN fix: worker URL must be set explicitly; without it
+        // the worker blob URL fails to importScripts() the CDN bundle and the
+        // tile-fetching thread never starts (map canvas initialises fine but
+        // no tile requests are ever made).
+        maplibregl.workerUrl = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.0.0/dist/maplibre-gl-csp-worker.js';
+
         const map = new maplibregl.Map({
             container: 'hero-map-container',
             style: {
