@@ -187,6 +187,34 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 .loading-overlay p { color:var(--gold); font-size:14px; }
 .spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,0.2); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── Accessibility: focus states ── */
+*:focus-visible {
+  outline: 2px solid var(--green-light);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ── UI: route card hover lift ── */
+.route-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.route-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  transform: translateY(-1px);
+}
+
+/* ── UI: nav item active indicator ── */
+.nav-item.active {
+  font-weight: 600;
+}
+
+/* ── Responsive: search bar on small screens ── */
+@media (max-width: 360px) {
+  .top-bar h1 { font-size: 16px; }
+  .search-bar { padding: 10px 14px; }
+  .search-bar input { font-size: 14px; }
+}
 </style>
 </head>
 <body>
@@ -195,7 +223,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 <div class="loading-overlay" id="loading">
   <h2>DamascusTransit</h2>
   <div class="spinner"></div>
-  <p>جاري تحميل بيانات الأسطول...</p>
+  <p data-i18n="pax_loading_fleet">جاري تحميل بيانات الأسطول...</p>
 </div>
 
 <!-- Connection status -->

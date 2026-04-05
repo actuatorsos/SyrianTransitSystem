@@ -597,6 +597,31 @@
         html[dir="ltr"] .lang-toggle {
             /* No position overrides needed — toggle is inside nav flex layout */
         }
+
+        /* ── Accessibility: focus states ── */
+        *:focus-visible {
+            outline: 2px solid var(--forest-green-primary);
+            outline-offset: 2px;
+            border-radius: 3px;
+        }
+
+        /* ── App card transition ── */
+        .app-card {
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        /* ── Stat card ── */
+        .stat-item {
+            transition: background 0.2s ease;
+        }
+
+        /* ── Tablet layout improvements ── */
+        @media (max-width: 900px) and (min-width: 641px) {
+            .apps-grid {
+                grid-template-columns: repeat(2, 1fr);
+                max-width: 480px;
+            }
+        }
     </style>
 </head>
 <body>
