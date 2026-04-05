@@ -3,6 +3,11 @@
 -- 8 routes (with polylines), 54 stops, 24 vehicles, 20 users
 -- ============================================================
 
+-- Seed default operator (must exist before routes/vehicles reference it)
+INSERT INTO operators (id, slug, name, name_ar, is_active) VALUES
+('00000000-0000-0000-0000-000000000001', 'damascus', 'Damascus Transit Authority', 'هيئة نقل دمشق', true)
+ON CONFLICT (slug) DO UPDATE SET is_active = true;
+
 -- Seed users (demo password: damascus2025 — CHANGE IN PRODUCTION)
 INSERT INTO users (email, password_hash, full_name, full_name_ar, role, phone) VALUES
 ('admin@damascustransit.sy', '$2b$12$6dfwtB87aK9WOSd0sI/Ixe/X8d45kroxYrMXblEo6dwCOqu/vY8p.', 'System Admin', 'مدير النظام', 'admin', '+963000000001'),

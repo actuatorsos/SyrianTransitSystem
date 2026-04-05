@@ -26,25 +26,39 @@ async def _ensure_operator(slug: str) -> Optional[str]:
     seed = _DEFAULT_OPERATORS.get(slug)
     if not seed:
         return None
-    try:
-        headers = _supabase_headers()
-        headers["Prefer"] = "resolution=merge-duplicates,return=representation"
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                _supabase_url("operators?on_conflict=slug"),
-                headers=headers,
-                json=seed,
+    for attempt in range(3):
+        try:
+            headers = _supabase_headers()
+            headers["Prefer"] = "return=representation"
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(
+                    _supabase_url("operators?on_conflict=slug"),
+                    headers=headers,
+                    json=seed,
+                )
+                resp.raise_for_status()
+                result = resp.json()
+                if isinstance(result, list) and result:
+                    logger.info(f"Auto-seeded operator '{slug}'")
+                    return result[0].get("id") or seed["id"]
+                elif isinstance(result, dict) and result.get("id"):
+                    logger.info(f"Auto-seeded operator '{slug}'")
+                    return result["id"]
+                else:
+                    # PostgREST returned empty/unexpected — use the known id
+                    logger.warning(
+                        f"Unexpected seed response for '{slug}': {result!r}, "
+                        f"using default id"
+                    )
+                    return seed["id"]
+        except Exception as e:
+            logger.error(
+                f"Auto-seed operator '{slug}' attempt {attempt + 1}/3 failed: {e}"
             )
-            resp.raise_for_status()
-            result = resp.json()
-            if isinstance(result, list) and result:
-                logger.info(f"Auto-seeded operator '{slug}'")
-                return result[0]["id"]
-            elif isinstance(result, dict) and result.get("id"):
-                logger.info(f"Auto-seeded operator '{slug}'")
-                return result["id"]
-    except Exception as e:
-        logger.error(f"Failed to auto-seed operator '{slug}': {e}")
+            if attempt < 2:
+                import asyncio
+
+                await asyncio.sleep(0.5 * (attempt + 1))
     return None
 
 

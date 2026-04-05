@@ -280,7 +280,7 @@ async def _seed_default_operator():
         import httpx as _httpx
 
         headers = _supabase_headers()
-        headers["Prefer"] = "resolution=merge-duplicates,return=representation"
+        headers["Prefer"] = "return=representation"
         async with _httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 _supabase_url("operators?on_conflict=slug"),
