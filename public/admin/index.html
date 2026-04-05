@@ -1697,12 +1697,12 @@
         function loadStats() {
             apiCall('/api/admin/analytics/overview')
                 .then(data => {
-                    document.getElementById('totalVehicles').textContent = data.totalVehicles || 0;
-                    document.getElementById('activeVehicles').textContent = data.activeVehicles || 0;
-                    document.getElementById('idleVehicles').textContent = data.idleVehicles || 0;
-                    document.getElementById('maintenanceVehicles').textContent = data.maintenanceVehicles || 0;
-                    document.getElementById('tripsToday').textContent = data.tripsToday || 0;
-                    document.getElementById('onTimePercentage').textContent = (data.onTimePercentage || 0) + '%';
+                    document.getElementById('totalVehicles').textContent = data.total_vehicles || 0;
+                    document.getElementById('activeVehicles').textContent = data.active_vehicles || 0;
+                    document.getElementById('idleVehicles').textContent = data.idle_vehicles || 0;
+                    document.getElementById('maintenanceVehicles').textContent = data.maintenance_vehicles || 0;
+                    document.getElementById('tripsToday').textContent = data.total_routes || 0;
+                    document.getElementById('onTimePercentage').textContent = (data.avg_occupancy_pct || 0) + '%';
                 })
                 .catch(err => console.error('Error loading stats:', err));
         }
@@ -1729,14 +1729,14 @@
         }
 
         function loadVehiclePositions() {
-            apiCall('/api/stream')
+            apiCall('/api/vehicles/positions')
                 .then(data => {
                     if (!Array.isArray(data)) data = [data];
                     data.forEach(vehicle => {
-                        if (!vehicle.lat || !vehicle.lng) return;
+                        if (!vehicle.lat || !vehicle.lon) return;
 
-                        const markerId = vehicle.id;
-                        const position = [vehicle.lng, vehicle.lat];
+                        const markerId = vehicle.vehicle_id;
+                        const position = [vehicle.lon, vehicle.lat];
 
                         if (vehicleMarkers[markerId]) {
                             vehicleMarkers[markerId].setLngLat(position);
@@ -1752,7 +1752,7 @@
                             el.style.cursor = 'pointer';
 
                             const popup = new maplibregl.Popup({ offset: 25 })
-                                .setHTML(`<strong>${vehicle.name || vehicle.id}</strong><br/>سرعة: ${vehicle.speed || 0} كم/س`);
+                                .setHTML(`<strong>${vehicle.vehicle_name || vehicle.vehicle_id}</strong><br/>سرعة: ${vehicle.speed_kmh || 0} كم/س`);
 
                             const marker = new maplibregl.Marker(el)
                                 .setLngLat(position)
