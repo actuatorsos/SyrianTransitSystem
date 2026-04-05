@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
 <script src="/lib/error-handler.js"></script>
+<script src="/lib/i18n.js"></script>
 <style>
 :root {
   --green-dark: #002623;
@@ -198,18 +199,18 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 </div>
 
 <!-- Connection status -->
-<div class="connection-bar" id="connectionBar">🔄 انقطع الاتصال — جارٍ إعادة الاتصال بالبيانات المباشرة... | Connection lost, retrying...</div>
+<div class="connection-bar" id="connectionBar" data-i18n="pax_connection_lost_bar">🔄 انقطع الاتصال — جارٍ إعادة الاتصال بالبيانات المباشرة...</div>
 
 <!-- Top Bar -->
 <div class="top-bar">
   <div class="logo-row">
     <h1>DamascusTransit</h1>
-    <div class="badge">مباشر</div>
+    <div class="badge" data-i18n="pax_live_badge">مباشر</div>
     <div class="live-dot"></div>
   </div>
   <div class="search-bar" onclick="focusSearch()">
     <span class="search-icon">🔍</span>
-    <input type="text" id="searchInput" placeholder="Search routes… ابحث عن خطوط" oninput="filterRoutes(this.value)" dir="auto">
+    <input type="text" id="searchInput" data-i18n-placeholder="pax_search_ph" placeholder="ابحث عن خطوط..." oninput="filterRoutes(this.value)" dir="auto">
   </div>
 </div>
 
@@ -223,8 +224,8 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
   <!-- Routes list view -->
   <div id="routesView">
     <div class="sheet-header">
-      <h2>الخطوط القريبة</h2>
-      <span class="count" id="routeCount">8 خطوط</span>
+      <h2 data-i18n="pax_nearby_routes">الخطوط القريبة</h2>
+      <span class="count" id="routeCount">8 <span data-i18n="pax_routes_suffix">خطوط</span></span>
     </div>
     <div class="routes-scroll" id="routesList">
       <!-- Skeleton placeholder shown until routes render -->
@@ -236,7 +237,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 
   <!-- Stop detail view -->
   <div class="stop-detail" id="stopDetail">
-    <button class="back-btn" onclick="showRoutes()">→ العودة إلى الخطوط</button>
+    <button class="back-btn" onclick="showRoutes()" data-i18n="pax_back_to_routes">→ العودة إلى الخطوط</button>
     <div class="stop-name" id="stopName"></div>
     <div class="stop-address" id="stopAddress"></div>
     <div class="arrival-list" id="arrivalList"></div>
@@ -245,10 +246,11 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 
 <!-- Nav Bar -->
 <div class="nav-bar">
-  <button class="nav-item active" onclick="switchTab('map')"><span class="nav-icon">🗺️</span>الخريطة</button>
-  <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span>الخطوط</button>
-  <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span>المحطات</button>
-  <button id="pushToggleBtn" class="nav-item" onclick="switchTab('alerts'); togglePushNotifications()" title="تفعيل الإشعارات — Enable notifications"><span class="nav-icon">🔔</span>التنبيهات</button>
+  <button class="nav-item active" onclick="switchTab('map')"><span class="nav-icon">🗺️</span><span data-i18n="pax_nav_map">الخريطة</span></button>
+  <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span><span data-i18n="pax_nav_routes">الخطوط</span></button>
+  <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span><span data-i18n="pax_nav_stops">المحطات</span></button>
+  <button id="pushToggleBtn" class="nav-item" onclick="switchTab('alerts'); togglePushNotifications()"><span class="nav-icon">🔔</span><span data-i18n="pax_nav_alerts">التنبيهات</span></button>
+  <button class="dt-lang-toggle nav-item" onclick="i18n.toggleLanguage()" style="font-size:11px;font-weight:600;letter-spacing:0.3px;border:none;background:transparent;color:inherit;cursor:pointer;font-family:inherit;padding:0 6px;">EN</button>
 </div>
 
 <script>
@@ -540,7 +542,7 @@ function updateRouteCards() {
   const searchVal = document.getElementById('searchInput').value;
   const filtered = ROUTES.filter(r => matchesSearch(r, searchVal));
 
-  document.getElementById('routeCount').textContent = `${filtered.length} خط`;
+  document.getElementById('routeCount').textContent = `${filtered.length} ${t('pax_routes_suffix')}`;
   document.getElementById('routesList').innerHTML = filtered.map(r => {
     const count = routeCounts[r.id] || 0;
     const etaInfo = routeETAs[r.id];
@@ -554,17 +556,17 @@ function updateRouteCards() {
       <div class="route-meta">
         <span>${r.name}</span>
         <span>·</span>
-        <span>${r.stops} محطة</span>
+        <span>${r.stops} ${t('pax_stops_label')}</span>
         <span>·</span>
-        <span>${count} مركبة نشطة</span>
+        <span>${count} ${t('pax_active_vehicle_s')}</span>
       </div>
       <div class="eta-row">
-        <div class="eta-badge ${etaClass}">${eta}<small>د</small></div>
+        <div class="eta-badge ${etaClass}">${eta}<small>${t('pax_min_label')}</small></div>
         <div class="eta-info">
-          <div class="vehicle-name">أقرب وصول${etaInfo ? ': ' + etaInfo.vehicle.vehicle_id : ''}</div>
+          <div class="vehicle-name">${t('pax_next_arrival')}${etaInfo ? ': ' + etaInfo.vehicle.vehicle_id : ''}</div>
           <div class="vehicle-detail">${r.distance} · ${etaInfo && etaInfo.vehicle ? (etaInfo.vehicle.speed_kmh || 0) + ' km/h' : ''}</div>
         </div>
-        <span class="eta-source ${isReal ? 'real' : 'sim'}">${isReal ? 'GPS' : 'تقدير'}</span>
+        <span class="eta-source ${isReal ? 'real' : 'sim'}">${isReal ? t('pax_real_gps') : t('pax_estimated')}</span>
       </div>
     </div>`;
   }).join('');
@@ -617,7 +619,7 @@ function showStopDetail(stop) {
       <div class="arrival-eta">${a.eta}<small>د</small></div>
       <div class="arrival-info">
         <div class="name">${a.route.nameAr} ${a.isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 5px;border-radius:6px;font-size:9px;">GPS</span>' : ''}</div>
-        <div class="detail">${a.vehicle ? a.vehicle.vehicle_id + ' · ' + (a.vehicle.speed_kmh || 0) + ' km/h' : 'تقدير'}</div>
+        <div class="detail">${a.vehicle ? a.vehicle.vehicle_id + ' · ' + (a.vehicle.speed_kmh || 0) + ' km/h' : t('pax_estimated')}</div>
       </div>
     </div>
   `).join('');
@@ -707,7 +709,7 @@ function urlBase64ToUint8Array(base64String) {
 
 async function togglePushNotifications() {
   if (!('PushManager' in window) || !_swReg) {
-    alert('إشعارات الدفع غير مدعومة في هذا المتصفح — Push notifications not supported in this browser.');
+    alert(t('pax_push_unsupported'));
     return;
   }
   const btn = document.getElementById('pushToggleBtn');
@@ -720,7 +722,7 @@ async function togglePushNotifications() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ endpoint: existing.endpoint }),
     }).catch(() => {});
-    if (btn) { btn.textContent = '🔔'; btn.title = 'تفعيل الإشعارات — Enable notifications'; }
+    if (btn) { btn.querySelector('.nav-icon').textContent = '🔔'; btn.title = t('pax_enable_notif'); }
     return;
   }
   // Subscribe
@@ -743,12 +745,17 @@ async function togglePushNotifications() {
       body: JSON.stringify({ subscription: sub.toJSON(), role: 'passenger' }),
     });
 
-    if (btn) { btn.textContent = '🔕'; btn.title = 'إيقاف الإشعارات — Disable notifications'; }
+    if (btn) { btn.querySelector('.nav-icon').textContent = '🔕'; btn.title = t('pax_disable_notif'); }
   } catch (err) {
     console.warn('Push subscribe failed:', err);
-    alert('فشل تفعيل الإشعارات — Failed to enable push notifications.');
+    alert(t('pax_push_failed'));
   }
 }
+
+// ─── Language change — re-render dynamic lists ───
+document.addEventListener('langchange', () => {
+  updateRouteCards();
+});
 
 // ─── Init ───
 initMap();

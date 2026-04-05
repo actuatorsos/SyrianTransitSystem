@@ -25,6 +25,7 @@
 
     <!-- Shared error handling & utilities -->
     <script src="/lib/error-handler.js"></script>
+    <script src="/lib/i18n.js"></script>
 
     <!-- Chart.js for analytics visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1066,33 +1067,33 @@
         <!-- SIDEBAR -->
         <nav class="sidebar" id="sidebar">
             <div class="logo">
-                <div class="logo-text">نقل دمشق</div>
-                <div class="logo-subtitle">Admin Panel</div>
+                <div class="logo-text" data-i18n="adm_logo">نقل دمشق</div>
+                <div class="logo-subtitle" data-i18n="adm_panel">Admin Panel</div>
             </div>
 
             <div class="nav-item active" onclick="switchTab('dashboard', this)">
                 <span class="nav-icon">📊</span>
-                <span>لوحة التحكم</span>
+                <span data-i18n="adm_nav_dashboard">لوحة التحكم</span>
             </div>
             <div class="nav-item" onclick="switchTab('vehicles', this)">
                 <span class="nav-icon">🚌</span>
-                <span>المركبات</span>
+                <span data-i18n="adm_nav_vehicles">المركبات</span>
             </div>
             <div class="nav-item" onclick="switchTab('routes', this)">
                 <span class="nav-icon">🗺️</span>
-                <span>المسارات</span>
+                <span data-i18n="adm_nav_routes">المسارات</span>
             </div>
             <div class="nav-item" onclick="switchTab('alerts', this)">
                 <span class="nav-icon">🚨</span>
-                <span>التنبيهات</span>
+                <span data-i18n="adm_nav_alerts">التنبيهات</span>
             </div>
             <div class="nav-item" data-role="admin-only" onclick="switchTab('drivers', this)">
                 <span class="nav-icon">👥</span>
-                <span>السائقون</span>
+                <span data-i18n="adm_nav_drivers">السائقون</span>
             </div>
             <div class="nav-item" data-role="admin-only" onclick="switchTab('analytics', this)">
                 <span class="nav-icon">📈</span>
-                <span>التحليلات</span>
+                <span data-i18n="adm_nav_analytics">التحليلات</span>
             </div>
         </nav>
 
@@ -1107,9 +1108,10 @@
                 <div class="topbar-right">
                     <div class="user-info">
                         <div class="user-name" id="userName">Admin</div>
-                        <div class="user-role">مدير النظام</div>
+                        <div class="user-role" id="userRole" data-i18n="adm_system_admin">مدير النظام</div>
                     </div>
-                    <button class="logout-btn" onclick="handleLogout()">تسجيل الخروج</button>
+                    <button class="dt-lang-toggle" onclick="i18n.toggleLanguage()" style="background:rgba(255,255,255,0.1);color:var(--golden);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">EN</button>
+                    <button class="logout-btn" onclick="handleLogout()" data-i18n="logout">تسجيل الخروج</button>
                 </div>
             </div>
 
@@ -1120,24 +1122,24 @@
                     <!-- Stats -->
                     <div class="stats-grid">
                         <div class="stat-card">
-                            <div class="stat-label">إجمالي المركبات</div>
+                            <div class="stat-label" data-i18n="adm_total_vehicles">إجمالي المركبات</div>
                             <div class="stat-value" id="totalVehicles"><span class="dt-skel" style="width:48px;height:1.4em;"></span></div>
-                            <div class="stat-change">📍 جميع المركبات</div>
+                            <div class="stat-change" data-i18n="adm_all_vehicles">📍 جميع المركبات</div>
                         </div>
                         <div class="stat-card accent-warning">
-                            <div class="stat-label">المركبات النشطة</div>
+                            <div class="stat-label" data-i18n="adm_active_vehicles">المركبات النشطة</div>
                             <div class="stat-value" id="activeVehicles"><span class="dt-skel" style="width:40px;height:1.4em;"></span></div>
-                            <div class="stat-change">🟢 في الخدمة</div>
+                            <div class="stat-change" data-i18n="adm_in_service">🟢 في الخدمة</div>
                         </div>
                         <div class="stat-card accent-umber">
-                            <div class="stat-label">مركبات خامدة</div>
+                            <div class="stat-label" data-i18n="adm_idle_vehicles">مركبات خامدة</div>
                             <div class="stat-value" id="idleVehicles"><span class="dt-skel" style="width:40px;height:1.4em;"></span></div>
-                            <div class="stat-change">🔴 متوقفة</div>
+                            <div class="stat-change" data-i18n="adm_stopped_vehicles">🔴 متوقفة</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-label">الصيانة</div>
+                            <div class="stat-label" data-i18n="adm_maintenance">الصيانة</div>
                             <div class="stat-value" id="maintenanceVehicles"><span class="dt-skel" style="width:36px;height:1.4em;"></span></div>
-                            <div class="stat-change">🔧 قيد الصيانة</div>
+                            <div class="stat-change" data-i18n="adm_under_maintenance">🔧 قيد الصيانة</div>
                         </div>
                     </div>
 
@@ -1149,18 +1151,18 @@
                     <!-- Quick Stats -->
                     <div class="stats-grid">
                         <div class="stat-card">
-                            <div class="stat-label">الرحلات اليوم</div>
+                            <div class="stat-label" data-i18n="adm_trips_today">الرحلات اليوم</div>
                             <div class="stat-value" id="tripsToday"><span class="dt-skel" style="width:48px;height:1.4em;"></span></div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-label">الالتزام بالجدول</div>
+                            <div class="stat-label" data-i18n="adm_schedule_adherence">الالتزام بالجدول</div>
                             <div class="stat-value" id="onTimePercentage"><span class="dt-skel" style="width:60px;height:1.4em;"></span></div>
                         </div>
                     </div>
 
                     <!-- Alerts Section -->
                     <div>
-                        <div class="section-title">التنبيهات النشطة</div>
+                        <div class="section-title" data-i18n="adm_active_alerts">التنبيهات النشطة</div>
                         <div class="alerts-container" id="alertsList">
                             <div class="alert-item" style="padding: 40px; text-align: center; color: var(--text-muted);">
                                 جاري التحميل...
@@ -1172,38 +1174,38 @@
                 <!-- VEHICLES TAB -->
                 <div id="vehicles-tab" class="tab-content">
                     <div class="section-title">
-                        <button class="btn btn-primary" onclick="openVehicleModal()">+ إضافة مركبة</button>
-                        إدارة المركبات
+                        <button class="btn btn-primary" onclick="openVehicleModal()" data-i18n="adm_add_vehicle">+ إضافة مركبة</button>
+                        <span data-i18n="adm_manage_vehicles">إدارة المركبات</span>
                     </div>
 
                     <div class="table-wrapper">
                         <div class="table-controls">
-                            <button class="btn btn-primary btn-small" onclick="loadVehicles()">تحديث</button>
+                            <button class="btn btn-primary btn-small" onclick="loadVehicles()" data-i18n="refresh">تحديث</button>
                             <div class="filters">
                                 <select class="filter-select" id="vehicleTypeFilter" onchange="filterVehicles()">
-                                    <option value="">جميع الأنواع</option>
-                                    <option value="bus">باص</option>
-                                    <option value="microbus">ميكروباص</option>
-                                    <option value="taxi">تاكسي</option>
+                                    <option value="" data-i18n="adm_all_types">جميع الأنواع</option>
+                                    <option value="bus" data-i18n="adm_bus_filter">باص</option>
+                                    <option value="microbus" data-i18n="filter_microbuses">ميكروباص</option>
+                                    <option value="taxi" data-i18n="filter_taxis">تاكسي</option>
                                 </select>
                                 <select class="filter-select" id="vehicleStatusFilter" onchange="filterVehicles()">
-                                    <option value="">جميع الحالات</option>
-                                    <option value="active">نشطة</option>
-                                    <option value="idle">خامدة</option>
-                                    <option value="maintenance">صيانة</option>
+                                    <option value="" data-i18n="adm_all_statuses">جميع الحالات</option>
+                                    <option value="active" data-i18n="status_active">نشطة</option>
+                                    <option value="idle" data-i18n="status_idle">خامدة</option>
+                                    <option value="maintenance" data-i18n="status_maintenance">صيانة</option>
                                 </select>
                             </div>
                         </div>
                         <table>
                             <thead>
                                 <tr>
-                                    <th>الإجراءات</th>
-                                    <th>جهاز GPS</th>
-                                    <th>المسار</th>
-                                    <th>الحالة</th>
-                                    <th>النوع</th>
-                                    <th>الاسم</th>
-                                    <th>رقم المركبة</th>
+                                    <th data-i18n="actions">الإجراءات</th>
+                                    <th data-i18n="adm_vehicle_gps_col">جهاز GPS</th>
+                                    <th data-i18n="adm_vehicle_route_col">المسار</th>
+                                    <th data-i18n="status">الحالة</th>
+                                    <th data-i18n="type_col">النوع</th>
+                                    <th data-i18n="name_col">الاسم</th>
+                                    <th data-i18n="adm_vehicle_num_col">رقم المركبة</th>
                                 </tr>
                             </thead>
                             <tbody id="vehiclesTable">
@@ -1217,7 +1219,7 @@
 
                 <!-- ROUTES TAB -->
                 <div id="routes-tab" class="tab-content">
-                    <div class="section-title">إدارة المسارات</div>
+                    <div class="section-title" data-i18n="adm_manage_routes">إدارة المسارات</div>
 
                     <div class="route-cards" id="routesList">
                         <div class="route-card" style="opacity:.4;pointer-events:none;"><div class="dt-skel" style="width:70%;height:1.3em;margin-bottom:10px;display:block;"></div><div class="dt-skel" style="width:100%;height:0.9em;display:block;"></div></div>
@@ -1228,36 +1230,36 @@
 
                 <!-- ALERTS TAB -->
                 <div id="alerts-tab" class="tab-content">
-                    <div class="section-title">جميع التنبيهات</div>
+                    <div class="section-title" data-i18n="adm_all_alerts_tab">جميع التنبيهات</div>
 
                     <div class="table-wrapper">
                         <div class="table-controls">
-                            <button class="btn btn-primary btn-small" onclick="loadAlerts()">تحديث</button>
+                            <button class="btn btn-primary btn-small" onclick="loadAlerts()" data-i18n="refresh">تحديث</button>
                             <div class="filters">
                                 <select class="filter-select" id="alertSeverityFilter" onchange="filterAlerts()">
-                                    <option value="">جميع المستويات</option>
-                                    <option value="critical">حرج</option>
-                                    <option value="warning">تحذير</option>
-                                    <option value="info">معلومة</option>
+                                    <option value="" data-i18n="adm_all_levels">جميع المستويات</option>
+                                    <option value="critical" data-i18n="adm_critical">حرج</option>
+                                    <option value="warning" data-i18n="adm_warning">تحذير</option>
+                                    <option value="info" data-i18n="adm_info_level">معلومة</option>
                                 </select>
                                 <select class="filter-select" id="alertTypeFilter" onchange="filterAlerts()">
-                                    <option value="">جميع الأنواع</option>
+                                    <option value="" data-i18n="adm_all_types">جميع الأنواع</option>
                                     <option value="gps">GPS</option>
-                                    <option value="fuel">وقود</option>
-                                    <option value="maintenance">صيانة</option>
-                                    <option value="speed">السرعة</option>
+                                    <option value="fuel" data-i18n="adm_fuel">وقود</option>
+                                    <option value="maintenance" data-i18n="status_maintenance">صيانة</option>
+                                    <option value="speed" data-i18n="adm_speed_alert">السرعة</option>
                                 </select>
                             </div>
                         </div>
                         <table>
                             <thead>
                                 <tr>
-                                    <th>الإجراء</th>
-                                    <th>الحالة</th>
-                                    <th>مستوى الخطورة</th>
-                                    <th>النوع</th>
-                                    <th>المركبة</th>
-                                    <th>الوقت</th>
+                                    <th data-i18n="action">الإجراء</th>
+                                    <th data-i18n="status">الحالة</th>
+                                    <th data-i18n="adm_severity_col">مستوى الخطورة</th>
+                                    <th data-i18n="type_col">النوع</th>
+                                    <th data-i18n="vehicle">المركبة</th>
+                                    <th data-i18n="adm_time_col">الوقت</th>
                                 </tr>
                             </thead>
                             <tbody id="alertsTable">
@@ -1271,23 +1273,23 @@
                 <!-- DRIVERS TAB -->
                 <div id="drivers-tab" class="tab-content">
                     <div class="section-title">
-                        <button class="btn btn-primary" onclick="openDriverModal()">+ إضافة سائق</button>
-                        إدارة السائقين
+                        <button class="btn btn-primary" onclick="openDriverModal()" data-i18n="adm_add_driver">+ إضافة سائق</button>
+                        <span data-i18n="adm_manage_drivers">إدارة السائقين</span>
                     </div>
 
                     <div class="table-wrapper">
                         <div class="table-controls">
-                            <button class="btn btn-primary btn-small" onclick="loadDrivers()">تحديث</button>
+                            <button class="btn btn-primary btn-small" onclick="loadDrivers()" data-i18n="refresh">تحديث</button>
                         </div>
                         <table>
                             <thead>
                                 <tr>
-                                    <th>الإجراءات</th>
-                                    <th>المركبة المخصصة</th>
-                                    <th>رقم الهاتف</th>
-                                    <th>البريد الإلكتروني</th>
-                                    <th>الاسم</th>
-                                    <th>رقم السائق</th>
+                                    <th data-i18n="actions">الإجراءات</th>
+                                    <th data-i18n="adm_assigned_vehicle">المركبة المخصصة</th>
+                                    <th data-i18n="adm_driver_phone_col">رقم الهاتف</th>
+                                    <th data-i18n="adm_driver_email_col">البريد الإلكتروني</th>
+                                    <th data-i18n="name_col">الاسم</th>
+                                    <th data-i18n="adm_driver_id_col">رقم السائق</th>
                                 </tr>
                             </thead>
                             <tbody id="driversTable">
@@ -1301,100 +1303,100 @@
 
                 <!-- ANALYTICS TAB -->
                 <div id="analytics-tab" class="tab-content">
-                    <div class="section-title">التحليلات والإحصائيات</div>
+                    <div class="section-title" data-i18n="adm_analytics_title">التحليلات والإحصائيات</div>
 
                     <!-- KPI Cards -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px;">
                         <div class="stat-card">
-                            <div class="stat-label">استخدام الأسطول</div>
+                            <div class="stat-label" data-i18n="adm_fleet_utilization">استخدام الأسطول</div>
                             <div class="stat-value" id="fleetUtilization">--%</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-label">متوسط السرعة</div>
-                            <div class="stat-value" id="avgSpeed">-- كم/س</div>
+                            <div class="stat-label" data-i18n="adm_avg_speed">متوسط السرعة</div>
+                            <div class="stat-value" id="avgSpeed">--</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-label">الرحلات اليومية</div>
+                            <div class="stat-label" data-i18n="adm_daily_trips">الرحلات اليومية</div>
                             <div class="stat-value" id="dailyTrips">--</div>
                         </div>
                         <div class="stat-card accent-umber">
-                            <div class="stat-label">نقاط GPS (24 ساعة)</div>
+                            <div class="stat-label" data-i18n="adm_gps_points_24h">نقاط GPS (24 ساعة)</div>
                             <div class="stat-value" id="gpsPointCount">--</div>
                         </div>
                     </div>
 
                     <!-- Fleet Utilization Chart (24h) -->
                     <div class="chart-container" style="background: rgba(5,66,57,0.15); border: 1px solid var(--forest-green); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
-                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;">
+                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;" data-i18n="adm_fleet_util_chart">
                             استخدام الأسطول — المركبات النشطة مقابل الخاملة (24 ساعة)
                         </div>
                         <div style="position: relative; height: 260px;">
                             <canvas id="fleetUtilizationChart"></canvas>
                         </div>
-                        <div id="fleetChartEmpty" style="display:none; text-align:center; color:var(--text-muted); padding: 40px 0;">
+                        <div id="fleetChartEmpty" style="display:none; text-align:center; color:var(--text-muted); padding: 40px 0;" data-i18n="adm_no_trip_data">
                             لا بيانات رحلات في آخر 24 ساعة
                         </div>
                     </div>
 
                     <!-- Route Performance Table -->
                     <div class="chart-container" style="background: rgba(5,66,57,0.15); border: 1px solid var(--forest-green); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
-                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;">
+                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;" data-i18n="adm_route_perf_title">
                             أداء المسارات — نسبة الالتزام بالمواعيد ومتوسط التأخير (7 أيام)
                         </div>
                         <table style="width:100%; border-collapse: collapse;">
                             <thead>
                                 <tr style="border-bottom: 1px solid var(--border-color);">
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">متوسط التأخير (د)</th>
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">الالتزام بالمواعيد</th>
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">الرحلات</th>
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">المسار</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="adm_avg_delay_col">متوسط التأخير (د)</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="adm_on_time_col">الالتزام بالمواعيد</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="trips">الرحلات</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="adm_route_col">المسار</th>
                                 </tr>
                             </thead>
                             <tbody id="routePerformanceTable">
-                                <tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-muted);">جاري التحميل...</td></tr>
+                                <tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-muted);" data-i18n="loading_short">جاري التحميل</td></tr>
                             </tbody>
                         </table>
                     </div>
 
                     <!-- Driver Scoreboard -->
                     <div class="chart-container" style="background: rgba(5,66,57,0.15); border: 1px solid var(--forest-green); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
-                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;">
+                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;" data-i18n="adm_driver_scoreboard">
                             لوحة السائقين — الرحلات المكتملة والتزام المسار (30 يوماً)
                         </div>
                         <table style="width:100%; border-collapse: collapse;">
                             <thead>
                                 <tr style="border-bottom: 1px solid var(--border-color);">
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">المسافة الكلية (كم)</th>
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">الالتزام بالمسار</th>
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">الرحلات</th>
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">الحالة</th>
-                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;">السائق</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="adm_total_distance">المسافة الكلية (كم)</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="adm_route_adherence">الالتزام بالمسار</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="trips">الرحلات</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="status">الحالة</th>
+                                    <th style="text-align:right; padding: 10px 12px; color: var(--golden-mid); font-size: 13px;" data-i18n="adm_driver_col">السائق</th>
                                 </tr>
                             </thead>
                             <tbody id="driverScoreboardTable">
-                                <tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">جاري التحميل...</td></tr>
+                                <tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);" data-i18n="loading_short">جاري التحميل</td></tr>
                             </tbody>
                         </table>
                     </div>
 
                     <!-- GPS Coverage Heatmap -->
                     <div class="chart-container" style="background: rgba(5,66,57,0.15); border: 1px solid var(--forest-green); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
-                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;">
+                        <div class="chart-title" style="font-size: 16px; font-weight: 600; color: var(--golden); margin-bottom: 16px; text-align: right;" data-i18n="adm_gps_heatmap">
                             خريطة تغطية GPS — كثافة إشارة المركبات (24 ساعة)
                         </div>
                         <div style="display: flex; gap: 16px; margin-bottom: 12px; justify-content: flex-end; font-size: 12px; color: var(--text-muted);">
                             <span style="display:flex; align-items:center; gap:6px;">
-                                <span style="width:12px; height:12px; border-radius:50%; background:#ef4444; display:inline-block;"></span> تغطية عالية
+                                <span style="width:12px; height:12px; border-radius:50%; background:#ef4444; display:inline-block;"></span> <span data-i18n="adm_high_coverage">تغطية عالية</span>
                             </span>
                             <span style="display:flex; align-items:center; gap:6px;">
-                                <span style="width:12px; height:12px; border-radius:50%; background:#f59e0b; display:inline-block;"></span> تغطية متوسطة
+                                <span style="width:12px; height:12px; border-radius:50%; background:#f59e0b; display:inline-block;"></span> <span data-i18n="adm_mid_coverage">تغطية متوسطة</span>
                             </span>
                             <span style="display:flex; align-items:center; gap:6px;">
-                                <span style="width:12px; height:12px; border-radius:50%; background:#3b82f6; display:inline-block;"></span> تغطية منخفضة
+                                <span style="width:12px; height:12px; border-radius:50%; background:#3b82f6; display:inline-block;"></span> <span data-i18n="adm_low_coverage">تغطية منخفضة</span>
                             </span>
                         </div>
                         <div id="heatmapContainer" style="height: 380px; border-radius: 6px; overflow: hidden; background: #1a1a2e;"></div>
-                        <div id="heatmapEmpty" style="display:none; text-align:center; color:var(--text-muted); padding: 40px 0;">
+                        <div id="heatmapEmpty" style="display:none; text-align:center; color:var(--text-muted); padding: 40px 0;" data-i18n="adm_no_gps_data">
                             لا بيانات GPS متاحة
                         </div>
                     </div>
@@ -1409,51 +1411,51 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button class="modal-close" onclick="closeVehicleModal()">✕</button>
-                <div class="modal-title">تحرير المركبة</div>
+                <div class="modal-title" data-i18n="adm_edit_vehicle">تحرير المركبة</div>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">رقم المركبة</label>
+                    <label class="form-label" data-i18n="adm_vehicle_id_label">رقم المركبة</label>
                     <input type="text" id="vehicleId" class="form-input" placeholder="مثال: V001" readonly>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">الاسم (عربي)</label>
-                        <input type="text" id="vehicleNameAr" class="form-input" placeholder="اسم المركبة">
+                        <label class="form-label" data-i18n="adm_name_ar_label">الاسم (عربي)</label>
+                        <input type="text" id="vehicleNameAr" class="form-input" data-i18n-placeholder="adm_vehicle_name_ph" placeholder="اسم المركبة">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">النوع</label>
+                        <label class="form-label" data-i18n="adm_type_label">النوع</label>
                         <select id="vehicleType" class="form-select">
-                            <option value="bus">باص</option>
-                            <option value="microbus">ميكروباص</option>
-                            <option value="taxi">تاكسي</option>
+                            <option value="bus" data-i18n="adm_bus_filter">باص</option>
+                            <option value="microbus" data-i18n="filter_microbuses">ميكروباص</option>
+                            <option value="taxi" data-i18n="filter_taxis">تاكسي</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">الحالة</label>
+                        <label class="form-label" data-i18n="adm_status_label">الحالة</label>
                         <select id="vehicleStatus" class="form-select">
-                            <option value="active">نشطة</option>
-                            <option value="idle">خامدة</option>
-                            <option value="maintenance">صيانة</option>
+                            <option value="active" data-i18n="status_active">نشطة</option>
+                            <option value="idle" data-i18n="status_idle">خامدة</option>
+                            <option value="maintenance" data-i18n="status_maintenance">صيانة</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">المسار المخصص</label>
+                        <label class="form-label" data-i18n="adm_assigned_route">المسار المخصص</label>
                         <select id="vehicleRoute" class="form-select">
-                            <option value="">لا يوجد</option>
+                            <option value="" data-i18n="adm_no_route">لا يوجد</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">رقم GPS Device</label>
-                    <input type="text" id="vehicleGPS" class="form-input" placeholder="رقم الجهاز">
+                    <label class="form-label" data-i18n="adm_gps_device_label">رقم GPS Device</label>
+                    <input type="text" id="vehicleGPS" class="form-input" data-i18n-placeholder="adm_gps_device_ph" placeholder="رقم الجهاز">
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeVehicleModal()">إغلاق</button>
-                <button class="btn btn-primary" onclick="saveVehicle()">حفظ</button>
+                <button class="btn btn-secondary" onclick="closeVehicleModal()" data-i18n="close">إغلاق</button>
+                <button class="btn btn-primary" onclick="saveVehicle()" data-i18n="save">حفظ</button>
             </div>
         </div>
     </div>
@@ -1463,37 +1465,37 @@
         <div class="modal-content">
             <div class="modal-header">
                 <button class="modal-close" onclick="closeDriverModal()">✕</button>
-                <div class="modal-title">إضافة سائق</div>
+                <div class="modal-title" data-i18n="adm_add_driver_modal">إضافة سائق</div>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">الاسم الكامل</label>
-                    <input type="text" id="driverName" class="form-input" placeholder="اسم السائق">
+                    <label class="form-label" data-i18n="adm_full_name_label">الاسم الكامل</label>
+                    <input type="text" id="driverName" class="form-input" data-i18n-placeholder="adm_driver_name_ph" placeholder="اسم السائق">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">البريد الإلكتروني</label>
-                        <input type="email" id="driverEmail" class="form-input" placeholder="بريد إلكتروني">
+                        <label class="form-label" data-i18n="adm_email_label">البريد الإلكتروني</label>
+                        <input type="email" id="driverEmail" class="form-input" data-i18n-placeholder="adm_email_ph" placeholder="بريد إلكتروني">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">رقم الهاتف</label>
-                        <input type="tel" id="driverPhone" class="form-input" placeholder="رقم الهاتف">
+                        <label class="form-label" data-i18n="adm_phone_label">رقم الهاتف</label>
+                        <input type="tel" id="driverPhone" class="form-input" data-i18n-placeholder="adm_phone_ph" placeholder="رقم الهاتف">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">كلمة المرور</label>
-                    <input type="password" id="driverPassword" class="form-input" placeholder="كلمة مرور قوية">
+                    <label class="form-label" data-i18n="adm_password_label">كلمة المرور</label>
+                    <input type="password" id="driverPassword" class="form-input" data-i18n-placeholder="adm_strong_password_ph" placeholder="كلمة مرور قوية">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">تعيين المركبة</label>
+                    <label class="form-label" data-i18n="adm_assign_vehicle">تعيين المركبة</label>
                     <select id="driverVehicle" class="form-select">
-                        <option value="">بدون تعيين</option>
+                        <option value="" data-i18n="adm_no_assignment">بدون تعيين</option>
                     </select>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeDriverModal()">إغلاق</button>
-                <button class="btn btn-primary" onclick="saveDriver()">إنشاء</button>
+                <button class="btn btn-secondary" onclick="closeDriverModal()" data-i18n="close">إغلاق</button>
+                <button class="btn btn-primary" onclick="saveDriver()" data-i18n="adm_create_btn">إنشاء</button>
             </div>
         </div>
     </div>
@@ -1541,10 +1543,19 @@
             adminOnlyTabs.forEach(el => {
                 if (role === 'dispatcher') el.style.display = 'none';
             });
-            // Update role label in topbar
-            const roleLabels = { admin: 'مدير النظام', super_admin: 'مدير عام', dispatcher: 'مشغّل' };
-            const roleEl = document.querySelector('.user-role');
-            if (roleEl) roleEl.textContent = roleLabels[role] || role;
+            // Update role label in topbar — use i18n keys
+            const roleKeys = { admin: 'adm_role_admin', super_admin: 'adm_role_super', dispatcher: 'adm_role_dispatcher' };
+            const roleEl = document.getElementById('userRole');
+            if (roleEl) {
+                const key = roleKeys[role];
+                if (key) {
+                    roleEl.setAttribute('data-i18n', key);
+                    roleEl.textContent = (typeof t === 'function') ? t(key) : roleEl.textContent;
+                } else {
+                    roleEl.removeAttribute('data-i18n');
+                    roleEl.textContent = role;
+                }
+            }
         }
 
         function showDashboard() {
@@ -1612,16 +1623,23 @@
                 tabElement.classList.add('active');
             }
 
-            // Update page title
-            const titles = {
-                'dashboard': 'لوحة التحكم',
-                'vehicles': 'المركبات',
-                'routes': 'المسارات',
-                'alerts': 'التنبيهات',
-                'drivers': 'السائقون',
-                'analytics': 'التحليلات'
+            // Update page title using i18n
+            const titleKeys = {
+                'dashboard': 'adm_nav_dashboard',
+                'vehicles': 'adm_nav_vehicles',
+                'routes': 'adm_nav_routes',
+                'alerts': 'adm_nav_alerts',
+                'drivers': 'adm_nav_drivers',
+                'analytics': 'adm_nav_analytics'
             };
-            document.getElementById('pageTitle').textContent = titles[tabName] || '';
+            const titleEl = document.getElementById('pageTitle');
+            if (titleEl) {
+                const key = titleKeys[tabName];
+                if (key) {
+                    titleEl.setAttribute('data-i18n', key);
+                    titleEl.textContent = (typeof t === 'function') ? t(key) : titleEl.textContent;
+                }
+            }
 
             // Refresh map on dashboard
             if (tabName === 'dashboard' && map) {
@@ -1683,8 +1701,8 @@
                     const isTimeout = err.name === 'AbortError';
                     if (window.DT) {
                         DT.toast(
-                            isTimeout ? 'انتهت مهلة الاتصال بالخادم' : 'تعذّر الاتصال — جارٍ إعادة المحاولة',
-                            isTimeout ? 'Connection timed out. Check your network.' : 'Connection lost, retrying...',
+                            isTimeout ? t('adm_connection_timeout') : t('adm_connection_lost'),
+                            isTimeout ? t('adm_connection_timeout') : t('adm_connection_lost'),
                             'warn'
                         );
                     }
@@ -1753,7 +1771,7 @@
                             el.style.cursor = 'pointer';
 
                             const popup = new maplibregl.Popup({ offset: 25 })
-                                .setHTML(`<strong>${vehicle.vehicle_name || vehicle.vehicle_id}</strong><br/>سرعة: ${vehicle.speed_kmh || 0} كم/س`);
+                                .setHTML(`<strong>${vehicle.vehicle_name || vehicle.vehicle_id}</strong><br/>${t('speed')}: ${vehicle.speed_kmh || 0} ${t('adm_speed_unit')}`);
 
                             const marker = new maplibregl.Marker(el)
                                 .setLngLat(position)
@@ -1783,9 +1801,9 @@
             if (!vehicles.length) {
                 tbody.innerHTML = '<tr><td colspan="7" style="padding:0;">' +
                     '<div class="dt-empty"><div class="e-icon">🚌</div>' +
-                    '<div class="e-ar">لا توجد مركبات مسجّلة</div>' +
+                    '<div class="e-ar">' + t('adm_no_vehicles_reg') + '</div>' +
                     '<div class="e-en">No vehicles registered</div>' +
-                    '<div class="e-hint">أضف مركبة جديدة باستخدام زر الإضافة</div></div></td></tr>';
+                    '<div class="e-hint">' + t('adm_add_vehicle_hint') + '</div></div></td></tr>';
                 return;
             }
 
@@ -1793,8 +1811,8 @@
                 <tr>
                     <td>
                         <div class="btn-group">
-                            <button class="btn btn-secondary btn-small" onclick="editVehicle('${v.id}')">تحرير</button>
-                            <button class="btn btn-secondary btn-small" onclick="assignRoute('${v.id}')">تعيين</button>
+                            <button class="btn btn-secondary btn-small" onclick="editVehicle('${v.id}')">${t('adm_edit')}</button>
+                            <button class="btn btn-secondary btn-small" onclick="assignRoute('${v.id}')">${t('adm_assign')}</button>
                         </div>
                     </td>
                     <td>${v.gpsDevice || '-'}</td>
@@ -1876,10 +1894,10 @@
             const driverSelect = document.getElementById('driverVehicle');
 
             const options = allVehicles.map(v => `<option value="${v.id}">${v.nameAr || v.id}</option>`).join('');
-            driverSelect.innerHTML = '<option value="">بدون تعيين</option>' + options;
+            driverSelect.innerHTML = `<option value="">${t('adm_no_assignment')}</option>` + options;
 
             const routes = allRoutes.map(r => `<option value="${r.id}">${r.nameAr || r.name}</option>`).join('');
-            routeSelect.innerHTML = '<option value="">لا يوجد</option>' + routes;
+            routeSelect.innerHTML = `<option value="">${t('adm_no_route')}</option>` + routes;
         }
 
         function assignRoute(vehicleId) {
@@ -1902,9 +1920,9 @@
             if (!routes.length) {
                 container.innerHTML = '<div style="grid-column:1/-1;">' +
                     '<div class="dt-empty"><div class="e-icon">🗺️</div>' +
-                    '<div class="e-ar">لا توجد مسارات مُعرَّفة</div>' +
+                    '<div class="e-ar">' + t('adm_no_routes_def') + '</div>' +
                     '<div class="e-en">No routes defined</div>' +
-                    '<div class="e-hint">أضف مسارات عبر واجهة إدارة الشبكة</div></div></div>';
+                    '<div class="e-hint">' + t('adm_add_routes_hint') + '</div></div></div>';
                 return;
             }
 
@@ -1912,10 +1930,10 @@
                 <div class="route-card" onclick="viewRouteOnMap('${r.id}')">
                     <div class="route-name">${r.nameAr || r.name}</div>
                     <div class="route-info">
-                        <div><strong>النوع:</strong> ${r.type || 'حضر'}</div>
-                        <div><strong>عدد المحطات:</strong> ${r.stopsCount || 0}</div>
-                        <div><strong>المسافة:</strong> ${r.distance || 0} كم</div>
-                        <div><strong>التكرار:</strong> ${r.frequency || 'كل 30 دقيقة'}</div>
+                        <div><strong>${t('adm_route_type')}</strong> ${r.type ? t('adm_urban') : t('adm_urban')}</div>
+                        <div><strong>${t('adm_route_stops')}</strong> ${r.stopsCount || 0}</div>
+                        <div><strong>${t('adm_route_distance')}</strong> ${r.distance || 0} ${t('pax_km')}</div>
+                        <div><strong>${t('adm_route_frequency')}</strong> ${r.frequency || ''}</div>
                     </div>
                 </div>
             `).join('');
@@ -1943,11 +1961,11 @@
 
             if (!alerts.length) {
                 alertsList.innerHTML = '<div class="dt-empty"><div class="e-icon">✅</div>' +
-                    '<div class="e-ar">لا توجد تنبيهات نشطة</div>' +
+                    '<div class="e-ar">' + t('adm_no_alerts_active') + '</div>' +
                     '<div class="e-en">No active alerts — all systems normal</div></div>';
                 alertsTable.innerHTML = '<tr><td colspan="6" style="padding:0;">' +
                     '<div class="dt-empty"><div class="e-icon">✅</div>' +
-                    '<div class="e-ar">لا توجد تنبيهات</div>' +
+                    '<div class="e-ar">' + t('adm_no_alerts_short') + '</div>' +
                     '<div class="e-en">No alerts</div></div></td></tr>';
                 return;
             }
@@ -1957,7 +1975,7 @@
             alertsList.innerHTML = latestAlerts.map(a => `
                 <div class="alert-item">
                     <div style="flex-shrink: 0;">
-                        <button class="btn btn-success btn-small" onclick="resolveAlert('${a.id}')" style="${a.status === 'resolved' ? 'display:none;' : ''}">حل</button>
+                        <button class="btn btn-success btn-small" onclick="resolveAlert('${a.id}')" style="${a.status === 'resolved' ? 'display:none;' : ''}">${t('adm_resolve')}</button>
                     </div>
                     <div class="alert-content">
                         <div class="alert-time">${formatTime(a.timestamp)}</div>
@@ -1970,11 +1988,11 @@
             alertsTable.innerHTML = alerts.map(a => `
                 <tr>
                     <td>
-                        ${a.status === 'resolved' ? '<span style="color: var(--text-muted);">تم الحل</span>' : `<button class="btn btn-success btn-small" onclick="resolveAlert('${a.id}')">حل</button>`}
+                        ${a.status === 'resolved' ? `<span style="color: var(--text-muted);">${t('adm_resolved')}</span>` : `<button class="btn btn-success btn-small" onclick="resolveAlert('${a.id}')">${t('adm_resolve')}</button>`}
                     </td>
                     <td><span class="badge" style="background: rgba(16,185,129,0.2); color: #6ee7b7;">${a.status}</span></td>
                     <td><span class="badge ${getSeverityClass(a.severity)}">${getSeverityLabel(a.severity)}</span></td>
-                    <td>${a.type || 'عام'}</td>
+                    <td>${a.type ? t('adm_' + a.type) || a.type : t('adm_general_type')}</td>
                     <td>${a.vehicleId}</td>
                     <td>${formatTime(a.timestamp)}</td>
                 </tr>
@@ -2015,9 +2033,9 @@
             if (!drivers.length) {
                 tbody.innerHTML = '<tr><td colspan="6" style="padding:0;">' +
                     '<div class="dt-empty"><div class="e-icon">👤</div>' +
-                    '<div class="e-ar">لا يوجد سائقون مسجّلون</div>' +
+                    '<div class="e-ar">' + t('adm_no_drivers_reg') + '</div>' +
                     '<div class="e-en">No drivers registered</div>' +
-                    '<div class="e-hint">أضف سائقاً جديداً باستخدام زر الإضافة</div></div></td></tr>';
+                    '<div class="e-hint">' + t('adm_add_driver_hint') + '</div></div></td></tr>';
                 return;
             }
 
@@ -2025,7 +2043,7 @@
                 <tr>
                     <td>
                         <div class="btn-group">
-                            <button class="btn btn-secondary btn-small" onclick="editDriver('${d.id}')">تحرير</button>
+                            <button class="btn btn-secondary btn-small" onclick="editDriver('${d.id}')">${t('adm_edit')}</button>
                         </div>
                     </td>
                     <td>${d.assignedVehicle || '-'}</td>
@@ -2134,7 +2152,7 @@
                             labels,
                             datasets: [
                                 {
-                                    label: 'نشطة',
+                                    label: t('adm_chart_active'),
                                     data: activeData,
                                     backgroundColor: 'rgba(66, 129, 119, 0.85)',
                                     borderColor: '#428177',
@@ -2142,7 +2160,7 @@
                                     stack: 'fleet'
                                 },
                                 {
-                                    label: 'خاملة',
+                                    label: t('adm_chart_idle'),
                                     data: idleData,
                                     backgroundColor: 'rgba(107, 31, 42, 0.7)',
                                     borderColor: '#6b1f2a',
@@ -2160,7 +2178,7 @@
                                 },
                                 tooltip: {
                                     callbacks: {
-                                        title: ctx => 'الساعة: ' + ctx[0].label
+                                        title: ctx => t('adm_chart_hour') + ' ' + ctx[0].label
                                     }
                                 }
                             },
@@ -2174,7 +2192,7 @@
                                     stacked: true,
                                     ticks: { color: '#b0b0b0', stepSize: 1 },
                                     grid: { color: 'rgba(255,255,255,0.05)' },
-                                    title: { display: true, text: 'عدد المركبات', color: '#b0b0b0' }
+                                    title: { display: true, text: t('adm_vehicle_count'), color: '#b0b0b0' }
                                 }
                             }
                         }
@@ -2189,7 +2207,7 @@
                     const tbody = document.getElementById('routePerformanceTable');
                     if (!tbody) return;
                     if (!routes || !routes.length) {
-                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا بيانات</td></tr>';
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">${t('adm_no_data')}</td></tr>`;
                         return;
                     }
                     tbody.innerHTML = routes.map(r => {
@@ -2218,7 +2236,7 @@
                     const tbody = document.getElementById('driverScoreboardTable');
                     if (!tbody) return;
                     if (!drivers || !drivers.length) {
-                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">لا بيانات سائقين</td></tr>';
+                        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">${t('adm_no_data_drivers')}</td></tr>`;
                         return;
                     }
                     tbody.innerHTML = drivers.map((d, idx) => {
@@ -2229,7 +2247,7 @@
                             : 'var(--danger)';
                         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
                         const statusColor = d.is_active ? 'var(--success)' : 'var(--text-muted)';
-                        const statusLabel = d.is_active ? 'نشط' : 'غير نشط';
+                        const statusLabel = d.is_active ? t('adm_driver_active') : t('adm_driver_inactive');
                         return `
                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                                 <td style="padding: 10px 12px; color: var(--text-muted);">${d.total_km || 0} كم</td>
@@ -2326,12 +2344,8 @@
 
         // ==================== HELPER FUNCTIONS ====================
         function getStatusLabel(status) {
-            const labels = {
-                'active': 'نشطة',
-                'idle': 'خامدة',
-                'maintenance': 'صيانة'
-            };
-            return labels[status] || status;
+            const keys = { 'active': 'status_active', 'idle': 'status_idle', 'maintenance': 'status_maintenance' };
+            return keys[status] ? t(keys[status]) : status;
         }
 
         function getStatusBadgeClass(status) {
@@ -2344,12 +2358,8 @@
         }
 
         function getTypeLabel(type) {
-            const labels = {
-                'bus': 'باص',
-                'microbus': 'ميكروباص',
-                'taxi': 'تاكسي'
-            };
-            return labels[type] || type;
+            const keys = { 'bus': 'adm_bus_filter', 'microbus': 'filter_microbuses', 'taxi': 'filter_taxis' };
+            return keys[type] ? t(keys[type]) : type;
         }
 
         function getTypeBadgeClass(type) {
@@ -2362,12 +2372,8 @@
         }
 
         function getSeverityLabel(severity) {
-            const labels = {
-                'critical': 'حرج',
-                'warning': 'تحذير',
-                'info': 'معلومة'
-            };
-            return labels[severity] || severity;
+            const keys = { 'critical': 'adm_critical', 'warning': 'adm_warning', 'info': 'adm_info_level' };
+            return keys[severity] ? t(keys[severity]) : severity;
         }
 
         function getSeverityClass(severity) {
@@ -2387,6 +2393,39 @@
             const month = String(date.getMonth() + 1).padStart(2, '0');
             return `${hours}:${mins} - ${day}/${month}`;
         }
+
+        // ==================== LANGUAGE CHANGE HANDLER ====================
+        // Re-render all dynamic content when language switches
+        document.addEventListener('langchange', () => {
+            // Re-render dynamic lists so t() picks up new lang
+            if (allVehicles.length) renderVehicles(allVehicles);
+            if (allAlerts.length) renderAlerts(allAlerts);
+            // Re-render route and driver tables
+            loadRoutes();
+            loadDrivers();
+            // Reload analytics charts so labels update
+            if (document.getElementById('analytics-tab').classList.contains('active')) {
+                loadAnalytics();
+            }
+            // Update topbar page title
+            const activeNav = document.querySelector('.nav-item.active span[data-i18n]');
+            if (activeNav) {
+                const titleEl = document.getElementById('pageTitle');
+                if (titleEl) {
+                    const key = activeNav.getAttribute('data-i18n');
+                    // Map nav key to title key
+                    const navToTitle = {
+                        'adm_nav_dashboard': 'adm_nav_dashboard',
+                        'adm_nav_vehicles': 'adm_nav_vehicles',
+                        'adm_nav_routes': 'adm_nav_routes',
+                        'adm_nav_alerts': 'adm_nav_alerts',
+                        'adm_nav_drivers': 'adm_nav_drivers',
+                        'adm_nav_analytics': 'adm_nav_analytics'
+                    };
+                    if (navToTitle[key]) titleEl.textContent = t(navToTitle[key]);
+                }
+            }
+        });
     </script>
 </body>
 </html>
