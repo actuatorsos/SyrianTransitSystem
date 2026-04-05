@@ -32,8 +32,9 @@ Total cost: **$0** on free tiers.
 2. Copy the entire contents of `db/schema.sql` and run it
 3. Copy the entire contents of `db/seed.sql` and run it
 4. Verify: Run `SELECT count(*) FROM routes;` → should return **8**
-5. Verify: Run `SELECT count(*) FROM stops;` → should return **42**
+5. Verify: Run `SELECT count(*) FROM stops;` → should return **54**
 6. Verify: Run `SELECT count(*) FROM vehicles;` → should return **24**
+7. Verify: Run `SELECT count(*) FROM users WHERE role='driver';` → should return **18**
 
 ### Enable Realtime
 
@@ -134,13 +135,34 @@ Visit your Vercel URL (e.g., `damascus-transit-xxxx.vercel.app`):
 
 ### Test Login
 
+All seed users share the same demo password: **`damascus2025`**
+
 ```bash
+# Admin login
 curl -X POST https://YOUR-URL.vercel.app/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "admin@damascustransit.sy", "password": "YOUR_ADMIN_PASSWORD"}'
+  -d '{"email": "admin@damascustransit.sy", "password": "damascus2025"}'
+
+# Dispatcher login
+curl -X POST https://YOUR-URL.vercel.app/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "dispatcher@damascustransit.sy", "password": "damascus2025"}'
+
+# Driver login (driver01–driver18 all use the same password)
+curl -X POST https://YOUR-URL.vercel.app/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "driver01@damascustransit.sy", "password": "damascus2025"}'
 ```
 
-Should return a JWT token. The seed data uses placeholder hashes — set real bcrypt hashes before running it (see `db/seed.sql` comments).
+Should return a JWT token. Driver tokens include `vehicle_id` and `vehicle_route_id` fields for the assigned vehicle.
+
+| Role       | Email                                | Password      |
+|------------|--------------------------------------|---------------|
+| admin      | admin@damascustransit.sy             | damascus2025  |
+| dispatcher | dispatcher@damascustransit.sy        | damascus2025  |
+| driver     | driver01@damascustransit.sy (–18)    | damascus2025  |
+
+> **Important:** Change all passwords before going live. See `db/seed.sql` for the full user list.
 
 ---
 
@@ -251,6 +273,6 @@ damascus-transit-platform/
 | API returns 500 | Check Vercel logs: `vercel logs` — likely missing env vars |
 | Map is blank | Check browser console — MapLibre needs HTTPS or localhost |
 | No vehicles on map | Run the simulator or check that seed data was loaded |
-| Login fails | Verify the users table has the seed admin user |
+| Login fails | Verify the users table has seed users: `SELECT email, role FROM users ORDER BY role;` |
 | PostGIS error | Make sure you ran `CREATE EXTENSION postgis` in Supabase |
 | SSE disconnects | Normal on Vercel — client auto-reconnects every 25s |
