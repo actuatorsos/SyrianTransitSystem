@@ -90,7 +90,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 
 /* Speed HUD */
 .speed-hud {
-  position:absolute;top:calc(var(--safe-top)+70px);right:16px;z-index:100;
+  position:absolute;top:calc(var(--safe-top)+115px);right:16px;z-index:100;
   background:var(--white);border-radius:16px;padding:16px;width:100px;
   text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.2);
   transition:background 0.3s,border 0.3s;border:3px solid transparent;
@@ -103,7 +103,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 
 /* Route adherence badge */
 .adherence-badge {
-  position:absolute;top:calc(var(--safe-top)+70px);left:16px;z-index:100;
+  position:absolute;top:calc(var(--safe-top)+115px);left:16px;z-index:100;
   border-radius:12px;padding:10px 14px;min-width:110px;text-align:center;
   box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:background 0.4s;
 }
@@ -115,7 +115,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 
 /* Trip stats bar */
 .trip-stats {
-  position:absolute;top:calc(var(--safe-top)+190px);right:16px;z-index:100;
+  position:absolute;top:calc(var(--safe-top)+235px);right:16px;z-index:100;
   display:flex;flex-direction:column;gap:8px;
 }
 .stat-card {
@@ -151,6 +151,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
   background:var(--white);border-radius:20px 20px 0 0;
   box-shadow:0 -4px 30px rgba(0,0,0,0.15);
   padding:16px 16px calc(var(--safe-bottom)+16px);
+  max-height:55vh;overflow-y:auto;
 }
 .panel-handle{width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 12px;}
 
@@ -322,8 +323,8 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
     <!-- Stop progress (hidden until trip started) -->
     <div class="stops-progress" id="stopsProgress" style="display:none;"></div>
 
-    <!-- Passenger counter -->
-    <div class="passenger-counter">
+    <!-- Passenger counter (hidden until trip active) -->
+    <div class="passenger-counter" id="passengerSection" style="display:none;">
       <button class="counter-btn" onclick="adjustPassengers(-1)">−</button>
       <div class="counter-val">
         <div class="num" id="passengerCount">0</div>
@@ -729,6 +730,7 @@ function showNextStopCard() {
   document.getElementById('tripIdleNotice').style.display = 'none';
   document.getElementById('nextStopCard').style.display = 'block';
   document.getElementById('stopsProgress').style.display = 'flex';
+  document.getElementById('passengerSection').style.display = 'flex';
   renderStopProgress();
   updateNextStop();
 }
@@ -737,6 +739,7 @@ function hideNextStopCard() {
   document.getElementById('tripIdleNotice').style.display = 'block';
   document.getElementById('nextStopCard').style.display = 'none';
   document.getElementById('stopsProgress').style.display = 'none';
+  document.getElementById('passengerSection').style.display = 'none';
 }
 
 function renderActions() {
