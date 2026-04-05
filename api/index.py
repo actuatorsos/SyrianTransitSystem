@@ -272,9 +272,7 @@ async def _seed_default_operator():
     from api.core.database import _supabase_get, _supabase_headers, _supabase_url
 
     try:
-        rows = await _supabase_get(
-            "operators?slug=eq.damascus&select=id,is_active"
-        )
+        rows = await _supabase_get("operators?slug=eq.damascus&select=id,is_active")
         if rows and rows[0].get("is_active"):
             logger.info("Default operator 'damascus' exists and is active")
             return

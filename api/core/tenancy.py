@@ -32,7 +32,7 @@ async def _ensure_operator(slug: str) -> Optional[str]:
         headers["Prefer"] = "resolution=merge-duplicates,return=representation"
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
-                _supabase_url(f"operators?on_conflict=slug"),
+                _supabase_url("operators?on_conflict=slug"),
                 headers=headers,
                 json=seed,
             )
