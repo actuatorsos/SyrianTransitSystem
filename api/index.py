@@ -136,6 +136,10 @@ if not _allowed_origins:
     raise RuntimeError(
         "ALLOWED_ORIGINS env var must be set to a comma-separated list of allowed origins"
     )
+if "*" in _allowed_origins:
+    raise RuntimeError(
+        "Wildcard '*' is not permitted in ALLOWED_ORIGINS — specify explicit origins only"
+    )
 _is_production = os.getenv("VERCEL_ENV", "").lower() == "production"
 if _is_production:
     _allowed_origins = [

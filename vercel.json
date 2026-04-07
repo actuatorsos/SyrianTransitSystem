@@ -72,5 +72,8 @@
       "path": "/api/cron/simulate",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "env": {
+    "ALLOWED_ORIGINS": "@allowed-origins"
+  }
 }
