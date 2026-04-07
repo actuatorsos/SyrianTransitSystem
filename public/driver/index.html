@@ -125,6 +125,13 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 .stat-card .val{font-size:18px;font-weight:700;color:var(--green-mid);}
 .stat-card .lbl{font-size:10px;color:#888;margin-top:2px;}
 
+/* Connection / offline bar */
+.connection-bar{
+  position:absolute;top:calc(var(--safe-top)+56px);left:0;right:0;z-index:310;
+  padding:6px 16px;font-size:12px;font-weight:600;text-align:center;
+  color:#fff;display:none;transition:background 0.3s;
+}
+
 /* Alert banner */
 .alert-banner{
   position:absolute;top:calc(var(--safe-top)+60px);left:16px;right:16px;z-index:300;
@@ -258,6 +265,9 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 <div id="appScreen">
   <div id="map"></div>
 
+  <!-- Offline / GPS queue status bar -->
+  <div class="connection-bar" id="connectionBar"></div>
+
   <!-- Speed warning flash border -->
   <div class="speed-warning-overlay" id="speedWarningOverlay"></div>
 
@@ -375,6 +385,104 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
 
 const SPEED_LIMIT_KMH = 60; // Urban route limit
 const OFF_ROUTE_THRESHOLD_KM = 0.3; // 300m
+
+// ─── Driver Offline DB (IndexedDB) ───
+// Stores GPS position queue and trip manifest for offline operation.
+const DriverOfflineDB = (() => {
+  const DB_NAME = 'damascus-driver-sw'; // shared with service worker
+  const DB_VERSION = 1;
+  let _db = null;
+
+  function open() {
+    if (_db) return Promise.resolve(_db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('gps-queue')) {
+          db.createObjectStore('gps-queue', { keyPath: 'id', autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains('trip-manifest')) {
+          db.createObjectStore('trip-manifest', { keyPath: 'routeId' });
+        }
+      };
+      req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function enqueueGPS(pos) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction('gps-queue', 'readwrite');
+      tx.objectStore('gps-queue').add(pos);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    }));
+  }
+
+  function countQueued() {
+    return open().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction('gps-queue', 'readonly');
+      const req = tx.objectStore('gps-queue').count();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+  }
+
+  function saveManifest(manifest) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction('trip-manifest', 'readwrite');
+      tx.objectStore('trip-manifest').put(manifest);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    }));
+  }
+
+  function getManifest(routeId) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction('trip-manifest', 'readonly');
+      const req = tx.objectStore('trip-manifest').get(routeId);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+  }
+
+  return { enqueueGPS, countQueued, saveManifest, getManifest };
+})();
+
+// ─── Offline state tracking ───
+let _isOnline = navigator.onLine;
+let _queuedCount = 0;
+
+function updateOfflineUI() {
+  const bar = document.getElementById('connectionBar');
+  if (!bar) return;
+  if (_isOnline) {
+    bar.textContent = _queuedCount > 0
+      ? `🔄 ${_queuedCount > 0 ? (_queuedCount + ' GPS positions syncing...') : ''}`
+      : '';
+    bar.style.display = _queuedCount > 0 ? 'block' : 'none';
+    bar.style.background = '#10B981';
+  } else {
+    bar.textContent = `📵 ${_queuedCount > 0 ? 'Offline — ' + _queuedCount + ' positions queued' : 'Offline — GPS positions will sync when reconnected'}`;
+    bar.style.display = 'block';
+    bar.style.background = '#6B7280';
+  }
+}
+
+window.addEventListener('online', () => {
+  _isOnline = true;
+  updateOfflineUI();
+  // Trigger background sync if supported
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    navigator.serviceWorker.ready.then(reg => reg.sync.register('gps-sync')).catch(() => {});
+  }
+});
+
+window.addEventListener('offline', () => {
+  _isOnline = false;
+  updateOfflineUI();
+});
 
 const ROUTE_STOPS = [
   { name:"Al-Marjeh Square",    nameAr:"ساحة المرجة",     lat:33.5117, lon:36.2963 },
@@ -501,6 +609,43 @@ function initMap() {
   });
 }
 
+// ── GPS Position Reporting with Offline Queue ──
+// Throttle: send at most one position per 5 seconds
+let _lastReportedAt = 0;
+const GPS_REPORT_INTERVAL_MS = 5000;
+
+async function reportOrQueuePosition(lat, lon, speed) {
+  const now = Date.now();
+  if (now - _lastReportedAt < GPS_REPORT_INTERVAL_MS) return;
+  _lastReportedAt = now;
+
+  const pos = { latitude: lat, longitude: lon, speed_kmh: speed, heading: 0, timestamp: now };
+
+  if (!navigator.onLine) {
+    // Queue in IndexedDB; service worker will flush on reconnect
+    try {
+      await DriverOfflineDB.enqueueGPS(pos);
+      _queuedCount = await DriverOfflineDB.countQueued();
+      // Also queue via service worker message for SW-side IndexedDB
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'QUEUE_GPS_POSITION', ...pos,
+        });
+      }
+      updateOfflineUI();
+    } catch (e) {
+      console.warn('Failed to queue GPS:', e);
+    }
+    return;
+  }
+
+  // Online — send directly
+  apiCall('/api/driver/position', 'POST', pos).catch(() => {
+    // If send fails mid-flight, queue it
+    DriverOfflineDB.enqueueGPS(pos).catch(() => {});
+  });
+}
+
 // ── GPS Tracking ──
 function startTracking() {
   if (!navigator.geolocation) { simulateDriver(); return; }
@@ -517,6 +662,11 @@ function startTracking() {
 
 function handlePosition(lat, lon, speed) {
   userPos = { lat, lon, speed };
+
+  // Report position to server (or queue if offline)
+  if (activeTrip) {
+    reportOrQueuePosition(lat, lon, speed);
+  }
 
   // Speed HUD
   document.getElementById('speedVal').textContent = speed;
@@ -624,6 +774,13 @@ function openStartModal() {
 function confirmStartTrip() {
   const routeId = document.getElementById('routeSelect').value;
   closeModal('startModal');
+
+  // Cache trip manifest (route stops) for offline use
+  DriverOfflineDB.saveManifest({
+    routeId,
+    stops: ROUTE_STOPS,
+    cachedAt: Date.now(),
+  }).catch(() => {});
 
   apiCall('/api/driver/trip/start', 'POST', { route_id: routeId })
     .then(data => {
@@ -847,11 +1004,24 @@ if ('serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.register('/driver/service-worker.js');
       console.log('Driver SW registered:', reg.scope);
 
-      // Listen for dispatch messages from SW
+      // Listen for messages from SW
       navigator.serviceWorker.addEventListener('message', event => {
-        if (event.data && event.data.type === 'PUSH_DATA') {
-          const { data } = event.data;
-          if (data.message) showAlert(data.message, data.severity || 'info');
+        if (!event.data) return;
+        const { type, data } = event.data;
+
+        if (type === 'PUSH_DATA') {
+          if (data && data.message) showAlert(data.message, data.severity || 'info');
+        } else if (type === 'GPS_SYNC_DONE') {
+          // Background sync flushed the queue — update count
+          DriverOfflineDB.countQueued().then(count => {
+            _queuedCount = count;
+            updateOfflineUI();
+          }).catch(() => {});
+        } else if (type === 'REQUEST_AUTH_TOKEN') {
+          // SW is requesting our auth token to use for batch GPS sync
+          if (event.ports && event.ports[0]) {
+            event.ports[0].postMessage({ authToken: authToken || sessionStorage.getItem('authToken') });
+          }
         }
       });
 

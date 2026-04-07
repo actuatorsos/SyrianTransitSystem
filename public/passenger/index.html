@@ -288,6 +288,64 @@ const API_BASE = window.location.hostname === 'localhost' || window.location.hos
   : window.location.origin;
 const DAMASCUS_CENTER = [36.2913, 33.5138];
 
+// ─── Offline DB (IndexedDB) ───
+// Stores stops list and per-stop ETA data with timestamps for offline use.
+const PassengerOfflineDB = (() => {
+  const DB_NAME = 'damascus-transit-passenger';
+  const DB_VERSION = 1;
+  let _db = null;
+
+  function open() {
+    if (_db) return Promise.resolve(_db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('stops')) {
+          db.createObjectStore('stops', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('eta')) {
+          db.createObjectStore('eta', { keyPath: 'stopId' });
+        }
+        if (!db.objectStoreNames.contains('schedules')) {
+          db.createObjectStore('schedules', { keyPath: 'routeId' });
+        }
+      };
+      req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function put(storeName, value) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).put(value);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    }));
+  }
+
+  function get(storeName, key) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+  }
+
+  function getAll(storeName) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+  }
+
+  return { put, get, getAll };
+})();
+
 // ─── Damascus Routes Data ───
 const ROUTES = [
   { id: "marjeh_western", name: "Marjeh → Western Station", nameAr: "المرجة → المحطة الغربية", stops: 8, distance: "6.2 km", busCount: 0, color: "#3B82F6" },
@@ -335,15 +393,27 @@ let etaCountdownTimer = null; // interval for decrementing displayed countdown
 let etaArrivals = [];         // last fetched arrivals
 let etaFetchedAt = null;      // timestamp when arrivals were fetched
 
-// Load real stop data from API (runs on init)
+// Load real stop data from API (runs on init), with IndexedDB fallback
 async function loadRealStops() {
   try {
     const res = await fetch(`${API_BASE}/api/stops`);
-    if (!res.ok) return;
+    if (!res.ok) throw new Error('stops fetch failed');
     realStops = await res.json();
+    // Cache each stop for offline use
+    await Promise.allSettled(
+      realStops.map(s => PassengerOfflineDB.put('stops', s))
+    );
   } catch (e) {
-    // Non-fatal: fallback to client-side ETA only
-    console.log('Could not load real stops:', e);
+    // Network unavailable — load from IndexedDB
+    try {
+      const cached = await PassengerOfflineDB.getAll('stops');
+      if (cached && cached.length) {
+        realStops = cached;
+        console.log('[offline] Loaded', cached.length, 'stops from IndexedDB');
+      }
+    } catch (dbErr) {
+      console.log('Could not load stops from IndexedDB:', dbErr);
+    }
   }
 }
 
@@ -686,10 +756,28 @@ async function fetchStopETA(stop) {
         const data = await res.json();
         etaArrivals = data.arrivals || [];
         etaFetchedAt = Date.now();
-        renderArrivalList(etaArrivals, 0);
+        // Cache ETA with timestamp for offline use
+        PassengerOfflineDB.put('eta', {
+          stopId: realStopId,
+          arrivals: etaArrivals,
+          cachedAt: etaFetchedAt,
+        }).catch(() => {});
+        renderArrivalList(etaArrivals, 0, false);
         return;
       }
     } catch (e) {
+      // Network unavailable — try IndexedDB cached ETA
+      if (realStopId) {
+        try {
+          const cached = await PassengerOfflineDB.get('eta', realStopId);
+          if (cached && cached.arrivals && cached.arrivals.length) {
+            etaArrivals = cached.arrivals;
+            etaFetchedAt = cached.cachedAt;
+            renderArrivalList(etaArrivals, 0, true, cached.cachedAt);
+            return;
+          }
+        } catch (dbErr) { /* ignore */ }
+      }
       console.log('ETA API error, falling back to client-side:', e);
     }
   }
@@ -741,7 +829,7 @@ function computeClientSideETA(stop) {
   renderArrivalList(etaArrivals, 0);
 }
 
-function renderArrivalList(arrivals, elapsedMin) {
+function renderArrivalList(arrivals, elapsedMin, isFromCache = false, cachedAt = null) {
   const list = document.getElementById('arrivalList');
   if (!list) return;
 
@@ -750,8 +838,20 @@ function renderArrivalList(arrivals, elapsedMin) {
     return;
   }
 
+  // Show "last updated X min ago" banner when serving from cache
+  let cacheBanner = '';
+  if (isFromCache && cachedAt) {
+    const ageMin = Math.round((Date.now() - cachedAt) / 60000);
+    const ageLabel = ageMin < 1 ? (i18n.getCurrentLang() === 'ar' ? 'للتو' : 'just now')
+      : (i18n.getCurrentLang() === 'ar' ? `منذ ${ageMin} د` : `${ageMin} min ago`);
+    cacheBanner = `<div style="background:#FEF3C7;border-radius:8px;padding:6px 12px;margin-bottom:8px;font-size:12px;color:#92400E;display:flex;align-items:center;gap:6px;">
+      <span>📵</span>
+      <span>${i18n.getCurrentLang() === 'ar' ? 'بيانات مخزنة — آخر تحديث ' + ageLabel : 'Cached data — last updated ' + ageLabel}</span>
+    </div>`;
+  }
+
   const isAr = i18n.getCurrentLang() === 'ar';
-  list.innerHTML = arrivals.map(a => {
+  list.innerHTML = cacheBanner + arrivals.map(a => {
     const remaining = Math.max(0, a.eta_minutes - elapsedMin);
     const etaLabel = remaining === 0 ? t('pax_eta_arriving_soon') : remaining;
     const etaUnit = remaining === 0 ? '' : `<small>${t('pax_eta_countdown_min')}</small>`;

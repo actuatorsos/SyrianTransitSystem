@@ -1,8 +1,9 @@
 // Damascus Transit PWA - Service Worker
-// Provides offline support via cache-first strategy for the app shell
-// and network-first for API data with graceful offline fallback.
+// Provides offline support via cache-first strategy for the app shell,
+// stale-while-revalidate for stops/routes/schedules API data,
+// and tile caching for offline map usage.
 
-const CACHE_NAME = 'damascus-transit-v1';
+const CACHE_NAME = 'damascus-transit-v2';
 const APP_SHELL = [
   '/passenger/',
   '/passenger/index.html',
@@ -13,11 +14,15 @@ const APP_SHELL = [
 ];
 
 // Map tile pattern — cache tiles as they're fetched
-const TILE_CACHE = 'damascus-transit-tiles-v1';
+const TILE_CACHE = 'damascus-transit-tiles-v2';
 const TILE_HOSTS = ['basemaps.cartocdn.com'];
 
+// Static data API — stale-while-revalidate (stops/routes/schedules)
+const STATIC_DATA_CACHE = 'damascus-transit-data-v2';
+const STATIC_DATA_PATTERNS = ['/api/stops', '/api/routes', '/api/schedules'];
+
 // API endpoints — network-only (live data must be fresh)
-const API_PATTERNS = ['/api/vehicles', '/api/stream'];
+const LIVE_API_PATTERNS = ['/api/vehicles', '/api/stream'];
 
 // ─── Install: pre-cache app shell ───
 self.addEventListener('install', event => {
@@ -37,7 +42,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys
-          .filter(k => k !== CACHE_NAME && k !== TILE_CACHE)
+          .filter(k => k !== CACHE_NAME && k !== TILE_CACHE && k !== STATIC_DATA_CACHE)
           .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
@@ -59,8 +64,21 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // API calls — network-only (live data must be fresh)
-  if (API_PATTERNS.some(p => url.pathname.includes(p))) {
+  // Live API calls — network-only (vehicle positions must be fresh)
+  if (LIVE_API_PATTERNS.some(p => url.pathname.includes(p))) {
+    return;
+  }
+
+  // Static data API — stale-while-revalidate (serve cached, refresh in background)
+  if (STATIC_DATA_PATTERNS.some(p => url.pathname.includes(p))) {
+    event.respondWith(staleWhileRevalidate(request, STATIC_DATA_CACHE));
+    return;
+  }
+
+  // ETA API — stale-while-revalidate
+  if (url.pathname.includes('/api/eta') ||
+      (url.pathname.includes('/api/stops/') && url.pathname.includes('/arrivals'))) {
+    event.respondWith(staleWhileRevalidate(request, STATIC_DATA_CACHE));
     return;
   }
 
@@ -88,6 +106,30 @@ async function appShellStrategy(request) {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
   }
+}
+
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+
+  // Fetch fresh copy in background regardless
+  const fetchPromise = fetch(request).then(response => {
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  }).catch(() => null);
+
+  // Return cached immediately if available; otherwise wait for network
+  if (cached) return cached;
+
+  const fresh = await fetchPromise;
+  if (fresh) return fresh;
+
+  return new Response(JSON.stringify([]), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', 'X-Offline': 'true' },
+  });
 }
 
 async function tileStrategy(request) {
