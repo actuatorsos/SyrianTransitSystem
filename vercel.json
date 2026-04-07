@@ -74,6 +74,6 @@
     }
   ],
   "env": {
-    "ALLOWED_ORIGINS": "@allowed-origins"
+    "ALLOWED_ORIGINS": "https://syrian-transit-system.vercel.app"
   }
 }
