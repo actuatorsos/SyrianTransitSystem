@@ -288,7 +288,8 @@ async def _build_gtfs_rt_feed():
                 alert_row.get("alert_type", ""), "UNKNOWN_CAUSE"
             )
             al.cause = getattr(
-                gtfs_realtime_pb2.Alert, cause_name,
+                gtfs_realtime_pb2.Alert,
+                cause_name,
                 gtfs_realtime_pb2.Alert.UNKNOWN_CAUSE,
             )
 
@@ -297,7 +298,8 @@ async def _build_gtfs_rt_feed():
                 alert_row.get("alert_type", ""), "UNKNOWN_EFFECT"
             )
             al.effect = getattr(
-                gtfs_realtime_pb2.Alert, effect_name,
+                gtfs_realtime_pb2.Alert,
+                effect_name,
                 gtfs_realtime_pb2.Alert.UNKNOWN_EFFECT,
             )
 
@@ -305,9 +307,7 @@ async def _build_gtfs_rt_feed():
             severity_name = _SEVERITY_TO_LEVEL.get(
                 alert_row.get("severity", ""), "INFO"
             )
-            severity_val = getattr(
-                gtfs_realtime_pb2.Alert, severity_name, None
-            )
+            severity_val = getattr(gtfs_realtime_pb2.Alert, severity_name, None)
             if severity_val is not None:
                 al.severity_level = severity_val
 

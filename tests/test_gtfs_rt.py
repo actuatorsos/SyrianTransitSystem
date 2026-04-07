@@ -119,6 +119,16 @@ def client():
         yield c
 
 
+@pytest.fixture(autouse=True)
+def _clear_gtfs_rt_cache():
+    """Reset the in-memory GTFS-RT cache before each test."""
+    from api.routers.gtfs import _gtfs_rt_cache
+
+    _gtfs_rt_cache["data"] = None
+    _gtfs_rt_cache["timestamp"] = 0.0
+    _gtfs_rt_cache["content_type"] = None
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -273,6 +283,8 @@ class TestGTFSRealtime:
 
     def test_occupancy_boundaries(self, client):
         """Occupancy percentage maps to correct OccupancyStatus enum."""
+        from api.routers.gtfs import _gtfs_rt_cache
+
         pb = gtfs_realtime_pb2.VehiclePosition
 
         cases = [
@@ -284,6 +296,11 @@ class TestGTFSRealtime:
         ]
 
         for pct, expected_status in cases:
+            # Clear cache between iterations to avoid stale responses
+            _gtfs_rt_cache["data"] = None
+            _gtfs_rt_cache["timestamp"] = 0.0
+            _gtfs_rt_cache["content_type"] = None
+
             pos = [{**SAMPLE_POSITIONS[0], "occupancy_pct": pct}]
             with patch(
                 "api.routers.gtfs._supabase_get",
