@@ -3,8 +3,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-logger = logging.getLogger(__name__)
-
 from api.core.auth import CurrentUser, optional_auth
 from api.core.cache import (
     CACHE_KEY_ROUTES_LIST,
@@ -19,6 +17,8 @@ from api.core.cache import (
 from api.core.database import _supabase_get
 from api.core.tenancy import _op_filter, _resolve_operator_id
 from api.models.schemas import RouteResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

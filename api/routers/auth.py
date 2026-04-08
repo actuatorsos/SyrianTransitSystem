@@ -7,8 +7,6 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-logger = logging.getLogger(__name__)
-
 from api.core.auth import (
     CurrentUser,
     create_access_token,
@@ -29,6 +27,8 @@ from api.models.schemas import (
     TokenResponse,
     UserResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

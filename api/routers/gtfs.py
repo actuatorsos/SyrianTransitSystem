@@ -457,7 +457,7 @@ async def get_gtfs_realtime(raw_request: Request):
             media_type=content_type,
             headers={"X-GTFS-RT-Version": "2.0", "X-Cache": "MISS"},
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",

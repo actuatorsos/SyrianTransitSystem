@@ -19,8 +19,6 @@ from api.core.database import (
 )
 import logging
 
-logger = logging.getLogger(__name__)
-
 from api.models.schemas import (
     PassengerCountUpdate,
     PositionUpdate,
@@ -29,6 +27,8 @@ from api.models.schemas import (
     TripEnd,
     TripStart,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -101,7 +101,7 @@ async def report_driver_position(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -151,7 +151,7 @@ async def start_trip(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -189,7 +189,7 @@ async def end_trip(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -224,7 +224,7 @@ async def update_passenger_count(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",

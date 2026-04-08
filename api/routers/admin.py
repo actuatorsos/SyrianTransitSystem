@@ -24,10 +24,6 @@ from api.core.database import (
 )
 from api.core.geo import parse_location
 from api.core.tenancy import _op_filter
-import logging
-
-logger = logging.getLogger(__name__)
-
 from api.models.schemas import (
     AlertResponse,
     AlertResolve,
@@ -42,14 +38,17 @@ from api.models.schemas import (
     VehicleResponse,
     VehicleUpdate,
 )
+import logging
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 try:
-    from lib.email import _alert_html, _send, send_alert_email, send_welcome_email  # noqa: E402
+    from lib.email import _alert_html, _send, send_alert_email, send_welcome_email
 
     _email_available = True
 except ImportError:
     _email_available = False
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -84,7 +83,7 @@ async def list_users(
             for u in users
         ]
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -149,7 +148,7 @@ async def create_user(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -198,7 +197,7 @@ async def update_user(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -245,7 +244,7 @@ async def list_all_vehicles(
             )
         return result
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -292,7 +291,7 @@ async def create_vehicle(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -343,7 +342,7 @@ async def update_vehicle(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -383,7 +382,7 @@ async def assign_vehicle(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -421,7 +420,7 @@ async def list_all_alerts(
             for a in alerts
         ]
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -456,7 +455,7 @@ async def resolve_alert(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -494,7 +493,7 @@ async def list_trips(
         result = await _supabase_get(query)
         return result or []
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -559,7 +558,7 @@ async def get_analytics_overview(
             avg_occupancy_pct=round(avg_occupancy, 1) if avg_occupancy else None,
         )
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -620,7 +619,7 @@ async def get_fleet_utilization(
 
         return {"hours": hours, "total": total_vehicles}
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -699,7 +698,7 @@ async def get_route_performance(
         result.sort(key=lambda x: x["trip_count"], reverse=True)
         return result
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -762,7 +761,7 @@ async def get_driver_scoreboard(
         result.sort(key=lambda x: x["trips_completed"], reverse=True)
         return result
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
@@ -849,7 +848,7 @@ async def get_gps_heatmap(
             "count": len(features),
         }
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
