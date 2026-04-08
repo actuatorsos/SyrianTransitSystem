@@ -22,6 +22,7 @@ env:
   SUPABASE_SERVICE_KEY: mock-service-key
   SUPABASE_ANON_KEY: mock-anon-key
   JWT_SECRET: ci-test-secret-do-not-use-in-prod-xxxxxxxxxx
+  TRACCAR_WEBHOOK_SECRET: ci-test-traccar-secret-do-not-use-in-prod
   ALLOWED_ORIGINS: http://localhost:3000
 
 jobs:
