@@ -89,7 +89,8 @@ async def login(request: LoginRequest, raw_request: Request):
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )
 
 
@@ -165,7 +166,8 @@ async def register(request: RegisterRequest, raw_request: Request):
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )
 
 
@@ -193,9 +195,7 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
         # Generate a cryptographically secure token; store only its hash.
         raw_token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
-        expires_at = (
-            datetime.now(timezone.utc) + timedelta(minutes=30)
-        ).isoformat()
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
 
         await _supabase_post(
             "password_reset_tokens",
@@ -233,7 +233,8 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )
 
 
@@ -283,7 +284,8 @@ async def reset_password(request: ResetPasswordRequest, raw_request: Request):
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )
 
 
@@ -314,7 +316,8 @@ async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )
 
 
@@ -361,7 +364,8 @@ async def update_my_profile(
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )
 
 
@@ -404,5 +408,6 @@ async def change_password(
     except Exception as e:
         logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
         )
