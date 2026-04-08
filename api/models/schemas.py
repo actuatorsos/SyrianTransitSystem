@@ -109,6 +109,11 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128)
 
 
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=1, max_length=512)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
 class ProfileUpdateRequest(BaseModel):
     full_name: Optional[str] = Field(None, min_length=1, max_length=100)
     full_name_ar: Optional[str] = Field(None, max_length=100)

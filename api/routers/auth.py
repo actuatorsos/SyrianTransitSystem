@@ -1,8 +1,10 @@
 import asyncio
+import hashlib
 import logging
+import os
 import secrets
-import string
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,7 @@ from api.models.schemas import (
     MessageResponse,
     ProfileUpdateRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserResponse,
 )
@@ -186,18 +189,28 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
             }
 
         user = users[0]
-        alphabet = string.ascii_letters + string.digits
-        temp_password = "".join(secrets.choice(alphabet) for _ in range(12))
 
-        hashed = hash_password(temp_password)
-        await _supabase_patch(
-            f"users?id=eq.{user['id']}",
-            {"password_hash": hashed, "must_change_password": True},
+        # Generate a cryptographically secure token; store only its hash.
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=30)
+        ).isoformat()
+
+        await _supabase_post(
+            "password_reset_tokens",
+            {
+                "user_id": user["id"],
+                "token_hash": token_hash,
+                "expires_at": expires_at,
+            },
         )
+
+        base_url = os.getenv("APP_BASE_URL", "https://damascustransit.sy")
+        reset_url = f"{base_url}/reset-password?token={raw_token}"
 
         try:
             import sys
-            import os
 
             sys.path.insert(
                 0, os.path.join(os.path.dirname(__file__), "..", "..", "..")
@@ -208,13 +221,63 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
                 send_password_reset_email(
                     full_name=user.get("full_name", ""),
                     email=user["email"],
-                    temp_password=temp_password,
+                    reset_url=reset_url,
                 )
             )
         except ImportError:
             pass
 
         return {"message": "If that email is registered, a reset email has been sent."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+        )
+
+
+@router.post("/api/auth/reset-password", response_model=MessageResponse, tags=["auth"])
+async def reset_password(request: ResetPasswordRequest, raw_request: Request):
+    """Consume a time-limited reset token and set a new password."""
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    if not await _rate_limit_check(f"reset:{client_ip}", 5, 60):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many reset attempts. Try again later.",
+            headers={"Retry-After": "60"},
+        )
+    try:
+        token_hash = hashlib.sha256(request.token.encode()).hexdigest()
+        now = datetime.now(timezone.utc).isoformat()
+
+        rows = await _supabase_get(
+            f"password_reset_tokens?token_hash=eq.{token_hash}"
+            f"&expires_at=gt.{urllib.parse.quote(now, safe='')}"
+            f"&used_at=is.null"
+            f"&select=id,user_id"
+        )
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token.",
+            )
+
+        token_row = rows[0]
+
+        # Mark token as used before changing the password (prevents replay).
+        await _supabase_patch(
+            f"password_reset_tokens?id=eq.{token_row['id']}",
+            {"used_at": now},
+        )
+
+        hashed = hash_password(request.new_password)
+        await _supabase_patch(
+            f"users?id=eq.{token_row['user_id']}",
+            {"password_hash": hashed, "must_change_password": False},
+        )
+
+        return {"message": "Password has been reset successfully. You can now log in."}
     except HTTPException:
         raise
     except Exception as e:

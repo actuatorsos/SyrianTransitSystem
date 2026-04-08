@@ -180,17 +180,26 @@ def _welcome_html(full_name: str, email: str, role: str) -> str:
     return _base_html("Welcome to Damascus Transit Platform", body)
 
 
-def _password_reset_html(full_name: str, temp_password: str) -> str:
+def _password_reset_html(full_name: str, reset_url: str) -> str:
     body = f"""
     <h2>Password Reset</h2>
     <p>Hi {full_name},</p>
-    <p>Your password has been reset by an administrator.
-       Use the temporary password below to log in, then change it immediately.</p>
-    <p style="font-size:22px;font-weight:700;letter-spacing:2px;
-              background:#f3f4f6;padding:12px 20px;border-radius:6px;
-              display:inline-block;">{temp_password}</p>
+    <p>We received a request to reset your Damascus Transit Platform password.
+       Click the button below to set a new password. The link expires in
+       <strong>30 minutes</strong> and can only be used once.</p>
+    <p style="margin:24px 0;">
+      <a href="{reset_url}"
+         style="background:#1e40af;color:#fff;text-decoration:none;
+                padding:12px 24px;border-radius:6px;font-weight:600;
+                display:inline-block;">Reset my password</a>
+    </p>
     <p style="font-size:13px;color:#6b7280;">
-      If you did not request this reset, contact your administrator immediately.
+      If the button doesn't work, copy and paste this URL into your browser:<br>
+      <span style="word-break:break-all;">{reset_url}</span>
+    </p>
+    <p style="font-size:13px;color:#6b7280;">
+      If you did not request a password reset, you can safely ignore this email.
+      Your password will not change.
     </p>
     """
     return _base_html("Password Reset — Damascus Transit Platform", body)
@@ -255,12 +264,12 @@ async def send_password_reset_email(
     *,
     full_name: str,
     email: str,
-    temp_password: str,
+    reset_url: str,
 ) -> bool:
-    """Send a password-reset email with a temporary password."""
-    html = _password_reset_html(full_name=full_name, temp_password=temp_password)
+    """Send a password-reset email containing a time-limited reset link."""
+    html = _password_reset_html(full_name=full_name, reset_url=reset_url)
     return await _send(
         to=[email],
-        subject="Your Damascus Transit Platform password has been reset",
+        subject="Reset your Damascus Transit Platform password",
         html=html,
     )
