@@ -2,7 +2,6 @@ import hashlib
 import hmac
 import os
 import sys
-import warnings
 from datetime import datetime
 
 from fastapi import APIRouter, Header, HTTPException, status
@@ -21,13 +20,11 @@ except ImportError:
 
 router = APIRouter()
 
-TRACCAR_WEBHOOK_SECRET = os.getenv("TRACCAR_WEBHOOK_SECRET", "")
+TRACCAR_WEBHOOK_SECRET = os.getenv("TRACCAR_WEBHOOK_SECRET")
 if not TRACCAR_WEBHOOK_SECRET:
-    warnings.warn(
-        "TRACCAR_WEBHOOK_SECRET is not set — Traccar webhook endpoints will reject all requests "
-        "until this is configured.",
-        RuntimeWarning,
-        stacklevel=1,
+    raise RuntimeError(
+        "TRACCAR_WEBHOOK_SECRET is required and must be set. "
+        "Refusing to start with webhook signature verification disabled."
     )
 
 
@@ -45,11 +42,6 @@ async def traccar_position_webhook(
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
 ):
     """Webhook for Traccar GPS position updates. Secured by HMAC signature."""
-    if not TRACCAR_WEBHOOK_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Webhook endpoint not configured",
-        )
     if not verify_traccar_signature(position.json(), x_traccar_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -92,11 +84,6 @@ async def traccar_event_webhook(
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
 ):
     """Webhook for Traccar events (engine on/off, speeding, etc). Secured by HMAC."""
-    if not TRACCAR_WEBHOOK_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Webhook endpoint not configured",
-        )
     if not verify_traccar_signature(event.json(), x_traccar_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
