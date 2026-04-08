@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, patch
 
 try:
     from fastapi.testclient import TestClient
+
     _HAS_FASTAPI = True
 except ImportError:
     _HAS_FASTAPI = False
@@ -21,17 +22,22 @@ pytestmark = pytest.mark.skipif(not _HAS_FASTAPI, reason="fastapi not installed"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+
 def _client():
     from api.index import app
+
     return TestClient(app, raise_server_exceptions=False)
 
 
 # ── Input validation — LoginRequest ──────────────────────────────────────────
 
+
 class TestLoginValidation:
     def test_invalid_email_rejected(self):
         c = _client()
-        resp = c.post("/api/auth/login", json={"email": "not-an-email", "password": "pw"})
+        resp = c.post(
+            "/api/auth/login", json={"email": "not-an-email", "password": "pw"}
+        )
         assert resp.status_code == 422
 
     def test_empty_email_rejected(self):
@@ -55,6 +61,7 @@ class TestLoginValidation:
 
 
 # ── Input validation — RegisterRequest ───────────────────────────────────────
+
 
 class TestRegisterValidation:
     def test_short_password_rejected(self):
@@ -96,6 +103,7 @@ class TestRegisterValidation:
 
 # ── Input validation — ForgotPasswordRequest ─────────────────────────────────
 
+
 class TestForgotPasswordValidation:
     def test_invalid_email_rejected(self):
         c = _client()
@@ -113,24 +121,29 @@ class TestForgotPasswordValidation:
 
 # ── Input validation — FeedbackCreate ────────────────────────────────────────
 
+
 class TestFeedbackValidation:
     def test_rating_below_range_rejected(self):
         from api.models.schemas import FeedbackCreate
+
         with pytest.raises(Exception):
             FeedbackCreate(trip_id="abc", rating=0)
 
     def test_rating_above_range_rejected(self):
         from api.models.schemas import FeedbackCreate
+
         with pytest.raises(Exception):
             FeedbackCreate(trip_id="abc", rating=6)
 
     def test_comment_too_long_rejected(self):
         from api.models.schemas import FeedbackCreate
+
         with pytest.raises(Exception):
             FeedbackCreate(trip_id="abc", rating=3, comment="x" * 2001)
 
     def test_html_stripped_from_comment(self):
         from api.models.schemas import FeedbackCreate
+
         fb = FeedbackCreate(
             trip_id="abc",
             rating=4,
@@ -141,35 +154,42 @@ class TestFeedbackValidation:
 
     def test_valid_feedback_accepted(self):
         from api.models.schemas import FeedbackCreate
+
         fb = FeedbackCreate(trip_id="abc-123", rating=5, comment="Great!")
         assert fb.rating == 5
 
 
 # ── Input validation — PositionUpdate coordinate ranges ──────────────────────
 
+
 class TestPositionValidation:
     def test_latitude_out_of_range_rejected(self):
         from api.models.schemas import PositionUpdate
+
         with pytest.raises(Exception):
             PositionUpdate(latitude=91.0, longitude=0.0)
 
     def test_latitude_below_range_rejected(self):
         from api.models.schemas import PositionUpdate
+
         with pytest.raises(Exception):
             PositionUpdate(latitude=-91.0, longitude=0.0)
 
     def test_longitude_out_of_range_rejected(self):
         from api.models.schemas import PositionUpdate
+
         with pytest.raises(Exception):
             PositionUpdate(latitude=0.0, longitude=181.0)
 
     def test_valid_coordinates_accepted(self):
         from api.models.schemas import PositionUpdate
+
         pos = PositionUpdate(latitude=33.5138, longitude=36.2765)
         assert pos.latitude == 33.5138
 
 
 # ── Input validation — NearestStop query params ───────────────────────────────
+
 
 class TestNearestStopValidation:
     def test_lat_too_high_rejected(self):
@@ -195,9 +215,11 @@ class TestNearestStopValidation:
 
 # ── Input validation — PushBroadcastRequest ──────────────────────────────────
 
+
 class TestPushBroadcastValidation:
     def test_html_stripped_from_title(self):
         from api.models.schemas import PushBroadcastRequest
+
         req = PushBroadcastRequest(
             title="<b>Alert</b>",
             body="Normal body",
@@ -207,21 +229,24 @@ class TestPushBroadcastValidation:
 
     def test_title_too_long_rejected(self):
         from api.models.schemas import PushBroadcastRequest
+
         with pytest.raises(Exception):
             PushBroadcastRequest(title="x" * 201, body="body")
 
     def test_body_too_long_rejected(self):
         from api.models.schemas import PushBroadcastRequest
+
         with pytest.raises(Exception):
             PushBroadcastRequest(title="title", body="x" * 1001)
 
 
 # ── Rate limit — 429 + Retry-After header (mock Redis over limit) ─────────────
 
+
 class TestRateLimitHeaders:
-    @pytest.mark.asyncio
-    async def test_login_429_includes_retry_after(self):
+    def test_login_429_includes_retry_after(self):
         """When rate limit is exceeded, response must include Retry-After header."""
+
         async def _over_limit(identifier, max_req, window):
             return False
 
@@ -234,8 +259,7 @@ class TestRateLimitHeaders:
         assert resp.status_code == 429
         assert "retry-after" in {k.lower() for k in resp.headers}
 
-    @pytest.mark.asyncio
-    async def test_routes_429_includes_retry_after(self):
+    def test_routes_429_includes_retry_after(self):
         async def _over_limit(identifier, max_req, window):
             return False
 
@@ -245,8 +269,7 @@ class TestRateLimitHeaders:
         assert resp.status_code == 429
         assert "retry-after" in {k.lower() for k in resp.headers}
 
-    @pytest.mark.asyncio
-    async def test_vehicles_429_includes_retry_after(self):
+    def test_vehicles_429_includes_retry_after(self):
         async def _over_limit(identifier, max_req, window):
             return False
 
@@ -256,8 +279,7 @@ class TestRateLimitHeaders:
         assert resp.status_code == 429
         assert "retry-after" in {k.lower() for k in resp.headers}
 
-    @pytest.mark.asyncio
-    async def test_gtfs_static_429_includes_retry_after(self):
+    def test_gtfs_static_429_includes_retry_after(self):
         async def _over_limit(identifier, max_req, window):
             return False
 
