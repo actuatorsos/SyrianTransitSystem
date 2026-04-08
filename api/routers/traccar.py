@@ -22,16 +22,27 @@ router = APIRouter()
 
 TRACCAR_WEBHOOK_SECRET = os.getenv("TRACCAR_WEBHOOK_SECRET")
 if not TRACCAR_WEBHOOK_SECRET:
-    raise RuntimeError(
-        "TRACCAR_WEBHOOK_SECRET is required and must be set. "
-        "Refusing to start with webhook signature verification disabled."
+    logger.warning(
+        "TRACCAR_WEBHOOK_SECRET is not set. "
+        "Traccar webhook endpoints will reject all requests until configured."
     )
+
+
+def _require_secret() -> str:
+    """Return the webhook secret or raise 503 if not configured."""
+    if not TRACCAR_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Traccar webhook integration is not configured.",
+        )
+    return TRACCAR_WEBHOOK_SECRET
 
 
 def verify_traccar_signature(request_body: str, signature: str) -> bool:
     """Verify Traccar webhook signature using HMAC."""
+    secret = _require_secret()
     computed = hmac.new(
-        TRACCAR_WEBHOOK_SECRET.encode(), request_body.encode(), hashlib.sha256
+        secret.encode(), request_body.encode(), hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(computed, signature)
 
