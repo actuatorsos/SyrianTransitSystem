@@ -23,4 +23,5 @@ async def cron_simulate_positions(request: Request):
         return await _run_simulation()
     except Exception as e:
         logger.error("Simulation failed", extra={"error": str(e)})
-        raise HTTPException(status_code=500, detail=f"Simulation error: {str(e)}")
+        logger.error("Unexpected error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")

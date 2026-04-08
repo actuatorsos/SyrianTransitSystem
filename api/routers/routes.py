@@ -1,6 +1,9 @@
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+
+logger = logging.getLogger(__name__)
 
 from api.core.auth import CurrentUser, optional_auth
 from api.core.cache import (
@@ -83,8 +86,9 @@ async def list_routes(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -140,6 +144,7 @@ async def get_route(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )

@@ -1,8 +1,11 @@
 import asyncio
+import logging
 import secrets
 import string
 import urllib.parse
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+
+logger = logging.getLogger(__name__)
 
 from api.core.auth import (
     CurrentUser,
@@ -81,8 +84,9 @@ async def login(request: LoginRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -156,8 +160,9 @@ async def register(request: RegisterRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -213,8 +218,9 @@ async def forgot_password(request: ForgotPasswordRequest, raw_request: Request):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -243,8 +249,9 @@ async def get_my_profile(current_user: CurrentUser = Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -289,8 +296,9 @@ async def update_my_profile(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -331,6 +339,7 @@ async def change_password(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error: %s", e, exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )

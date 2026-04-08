@@ -18,6 +18,9 @@ from api.core.database import _supabase_get
 from api.core.geo import parse_location
 from api.core.tenancy import _op_filter, _resolve_operator_id
 from api.models.schemas import VehicleResponse
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -106,7 +109,7 @@ async def list_vehicles(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -178,5 +181,5 @@ async def get_vehicle_positions(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )

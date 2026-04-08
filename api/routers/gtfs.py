@@ -11,6 +11,9 @@ from fastapi.responses import Response
 from api.core.cache import RATE_LIMIT_READ, _get_client_ip, _rate_limit_check
 from api.core.database import _supabase_get
 from api.core.geo import parse_location
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -456,5 +459,5 @@ async def get_gtfs_realtime(raw_request: Request):
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )

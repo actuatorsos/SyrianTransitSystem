@@ -24,6 +24,10 @@ from api.core.database import (
 )
 from api.core.geo import parse_location
 from api.core.tenancy import _op_filter
+import logging
+
+logger = logging.getLogger(__name__)
+
 from api.models.schemas import (
     AlertResponse,
     AlertResolve,
@@ -82,7 +86,7 @@ async def list_users(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -146,7 +150,7 @@ async def create_user(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -194,7 +198,7 @@ async def update_user(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -240,7 +244,7 @@ async def list_all_vehicles(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -286,7 +290,7 @@ async def create_vehicle(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -336,7 +340,7 @@ async def update_vehicle(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -375,7 +379,7 @@ async def assign_vehicle(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -412,7 +416,7 @@ async def list_all_alerts(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -446,7 +450,7 @@ async def resolve_alert(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -483,7 +487,7 @@ async def list_trips(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -547,7 +551,7 @@ async def get_analytics_overview(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -607,7 +611,7 @@ async def get_fleet_utilization(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -685,7 +689,7 @@ async def get_route_performance(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -747,7 +751,7 @@ async def get_driver_scoreboard(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -833,7 +837,7 @@ async def get_gps_heatmap(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -1030,7 +1034,8 @@ async def export_vehicles_csv(
         ]
         return _csv_response(rows, "vehicles.csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Unexpected error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/api/admin/export/trips.csv", tags=["admin"])
@@ -1069,7 +1074,8 @@ async def export_trips_csv(
         ]
         return _csv_response(rows, "trips.csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Unexpected error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/api/admin/export/alerts.csv", tags=["admin"])
@@ -1104,7 +1110,8 @@ async def export_alerts_csv(
         ]
         return _csv_response(rows, "alerts.csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Unexpected error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/api/admin/export/drivers.csv", tags=["admin"])
@@ -1163,7 +1170,8 @@ async def export_drivers_csv(
             )
         return _csv_response(rows, "drivers.csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Unexpected error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/api/admin/export/route-performance.csv", tags=["admin"])
@@ -1232,7 +1240,8 @@ async def export_route_performance_csv(
         rows.sort(key=lambda x: x["trip_count_7d"], reverse=True)
         return _csv_response(rows, "route-performance.csv")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Unexpected error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/api/admin/notifications/test", tags=["admin"])

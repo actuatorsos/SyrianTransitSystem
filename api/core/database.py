@@ -1,8 +1,11 @@
+import logging
 import os
 from typing import Optional
 
 import httpx
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 
 def _supabase_headers(use_service_key: bool = True) -> dict:
@@ -43,7 +46,8 @@ async def _supabase_get(path: str, params: Optional[dict] = None) -> list:
             data = resp.json()
             return data if isinstance(data, list) else [data] if data else []
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+        logger.error("Database query failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def _supabase_post(path: str, data: dict) -> dict:
@@ -57,9 +61,8 @@ async def _supabase_post(path: str, data: dict) -> dict:
             resp.raise_for_status()
             return resp.json() if resp.content else {}
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Database operation failed: {str(e)}"
-        )
+        logger.error("Database operation failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def _supabase_patch(path: str, data: dict) -> list:
@@ -74,7 +77,8 @@ async def _supabase_patch(path: str, data: dict) -> list:
             result = resp.json()
             return result if isinstance(result, list) else [result] if result else []
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
+        logger.error("Database update failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def _supabase_delete(path: str) -> None:
@@ -85,7 +89,8 @@ async def _supabase_delete(path: str) -> None:
             resp = await client.delete(_supabase_url(path), headers=_supabase_headers())
             resp.raise_for_status()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database delete failed: {str(e)}")
+        logger.error("Database delete failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def _supabase_rpc(func_name: str, params: dict):
@@ -101,7 +106,8 @@ async def _supabase_rpc(func_name: str, params: dict):
             resp.raise_for_status()
             return resp.json()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"RPC call failed: {str(e)}")
+        logger.error("RPC call failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def _service_get(path: str) -> list:
