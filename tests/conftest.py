@@ -19,6 +19,23 @@ os.environ.setdefault("JWT_SECRET", "test-secret-for-ci-only-xxxxxxxxxxxxxxxxx")
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000")
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Clear in-memory rate limiter state before each test.
+
+    In CI there is no Redis, so the in-memory sliding-window limiter is used.
+    Without this reset the accumulated request timestamps from earlier tests
+    carry over and cause HTTP 429 failures in later tests.
+    """
+    try:
+        import api.core.cache as _cache
+
+        _cache._rl_memory.clear()
+    except Exception:
+        pass
+    yield
+
+
 @pytest.fixture(scope="session")
 def client():
     """TestClient for the FastAPI app."""
