@@ -1,5 +1,7 @@
+import collections
 import json
 import os
+import threading
 import time
 
 from fastapi import Request
@@ -28,6 +30,28 @@ _TRUSTED_PROXIES: frozenset[str] = frozenset(
     for ip in os.getenv("TRUSTED_PROXY_IPS", "").split(",")
     if ip.strip()
 )
+
+
+# In-memory rate limit fallback — used when Redis is unavailable.
+# Stores a deque of request timestamps per identifier, protected by a lock.
+_rl_memory: collections.defaultdict = collections.defaultdict(collections.deque)
+_rl_lock: threading.Lock = threading.Lock()
+
+
+def _rate_limit_check_memory(
+    identifier: str, max_requests: int, window_seconds: int
+) -> bool:
+    """Thread-safe sliding-window rate limiter using in-process memory."""
+    now = time.time()
+    cutoff = now - window_seconds
+    with _rl_lock:
+        dq = _rl_memory[identifier]
+        while dq and dq[0] < cutoff:
+            dq.popleft()
+        if len(dq) >= max_requests:
+            return False
+        dq.append(now)
+        return True
 
 
 def _tenant_cache_key(base: str, operator_id: str) -> str:
@@ -96,7 +120,7 @@ async def _rate_limit_check(
 ) -> bool:
     client = _get_redis_client()
     if client is None:
-        return True
+        return _rate_limit_check_memory(identifier, max_requests, window_seconds)
     try:
         window = int(time.time()) // window_seconds
         key = f"rl:{identifier}:{window}"
@@ -105,7 +129,7 @@ async def _rate_limit_check(
             await client.expire(key, window_seconds + 1)
         return count <= max_requests
     except Exception:
-        return True
+        return _rate_limit_check_memory(identifier, max_requests, window_seconds)
 
 
 def _get_client_ip(request: Request) -> str:
