@@ -21,6 +21,14 @@ RATE_LIMIT_PUSH_SUB = (5, 60)
 RATE_LIMIT_READ = (60, 60)
 RATE_LIMIT_WRITE = (20, 60)
 
+# Trusted proxy IPs loaded from env (comma-separated). When set, X-Forwarded-For
+# is walked right-to-left: the first IP not in the trusted set is the real client.
+_TRUSTED_PROXIES: frozenset[str] = frozenset(
+    ip.strip()
+    for ip in os.getenv("TRUSTED_PROXY_IPS", "").split(",")
+    if ip.strip()
+)
+
 
 def _tenant_cache_key(base: str, operator_id: str) -> str:
     return f"{base}:{operator_id}"
@@ -101,9 +109,24 @@ async def _rate_limit_check(
 
 
 def _get_client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    # x-real-ip is set by Vercel/CDN and cannot be spoofed by end clients.
+    # Prefer it when available.
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip:
+        return real_ip
+
+    # When TRUSTED_PROXY_IPS is configured, walk X-Forwarded-For right-to-left
+    # and return the first IP that is not a known trusted proxy. This prevents
+    # clients from injecting arbitrary source IPs into the leftmost position.
+    if _TRUSTED_PROXIES:
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        if forwarded_for:
+            ips = [ip.strip() for ip in forwarded_for.split(",")]
+            for ip in reversed(ips):
+                if ip not in _TRUSTED_PROXIES:
+                    return ip
+
+    # Fall back to the actual TCP connection IP, which cannot be spoofed.
     if request.client:
         return request.client.host
     return "unknown"
