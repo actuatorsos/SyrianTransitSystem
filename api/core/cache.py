@@ -26,9 +26,7 @@ RATE_LIMIT_WRITE = (20, 60)
 # Trusted proxy IPs loaded from env (comma-separated). When set, X-Forwarded-For
 # is walked right-to-left: the first IP not in the trusted set is the real client.
 _TRUSTED_PROXIES: frozenset[str] = frozenset(
-    ip.strip()
-    for ip in os.getenv("TRUSTED_PROXY_IPS", "").split(",")
-    if ip.strip()
+    ip.strip() for ip in os.getenv("TRUSTED_PROXY_IPS", "").split(",") if ip.strip()
 )
 
 
