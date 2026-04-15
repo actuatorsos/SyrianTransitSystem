@@ -43,9 +43,10 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- MapLibre GL JS for hero map preview -->
-    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.0.0/dist/maplibre-gl.js"></script>
+    <!-- DAM-450: pinned to unpkg @ 4.1.2 to match driver/passenger and the service-worker cache -->
+    <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
     <script src="/lib/error-handler.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.0.0/dist/maplibre-gl.css" rel="stylesheet">
+    <link href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css" rel="stylesheet">
 
     <style>
         * {
@@ -815,7 +816,10 @@
         // the worker blob URL fails to importScripts() the CDN bundle and the
         // tile-fetching thread never starts (map canvas initialises fine but
         // no tile requests are ever made).
-        maplibregl.workerUrl = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.0.0/dist/maplibre-gl-csp-worker.js';
+        // DAM-450: pinned to unpkg @ 4.1.2 (see top of <head>). Must match the
+        // version of the main maplibre-gl.js bundle loaded above, or the worker
+        // will fail to importScripts() the CDN bundle.
+        maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl-csp-worker.js';
 
         const map = new maplibregl.Map({
             container: 'hero-map-container',
@@ -893,6 +897,13 @@
         });
 
         // ── Stats from API ────────────────────────────────────────────────
+        // DAM-449: display active_vehicles (actually positioned in the fleet),
+        //          not total_vehicles which inflates the figure by counting
+        //          simulator stubs with null lat/lon.
+        // DAM-455: refresh every 30 s so a long-open tab doesn't drift.
+        //          Animation only fires on the first load; subsequent refreshes
+        //          update the text in-place without re-animating.
+        let _statsLoadedOnce = false;
         async function loadStats() {
             try {
                 const fetchFn = window.DT ? DT.fetchWithTimeout : fetch;
@@ -900,13 +911,24 @@
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
 
-                const total = data.total_vehicles || 0;
+                // Prefer active_vehicles; fall back to total_vehicles if the
+                // backend is older and doesn't yet expose active_vehicles.
+                const vehicles = (data.active_vehicles != null)
+                    ? data.active_vehicles
+                    : (data.total_vehicles || 0);
                 const routes = data.total_routes || 0;
                 const stops = data.total_stops || 0;
 
-                animateCount('stat-vehicles', total);
-                animateCount('stat-routes', routes);
-                animateCount('stat-stops', stops);
+                if (_statsLoadedOnce) {
+                    _setCount('stat-vehicles', vehicles);
+                    _setCount('stat-routes', routes);
+                    _setCount('stat-stops', stops);
+                } else {
+                    animateCount('stat-vehicles', vehicles);
+                    animateCount('stat-routes', routes);
+                    animateCount('stat-stops', stops);
+                    _statsLoadedOnce = true;
+                }
             } catch (e) {
                 // API unavailable — show unknown state rather than stale hardcoded values
                 ['stat-vehicles', 'stat-routes', 'stat-stops'].forEach(function (id) {
@@ -914,6 +936,13 @@
                     if (el) el.innerHTML = '—';
                 });
             }
+        }
+
+        function _setCount(id, target) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (target === 0) { el.innerHTML = '—'; return; }
+            el.textContent = Number(target).toLocaleString('ar-EG');
         }
 
         function animateCount(id, target) {
@@ -932,6 +961,8 @@
         }
 
         loadStats();
+        // DAM-455: keep the stats bar honest on long-open tabs.
+        setInterval(loadStats, 30000);
 
         // Set dynamic copyright year
         const yearEl = document.getElementById('footer-year');

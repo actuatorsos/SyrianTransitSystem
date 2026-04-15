@@ -13,6 +13,8 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
+<!-- Capacitor native bridge — must load before app scripts; no-op on web -->
+<script src="/lib/capacitor-bridge.js"></script>
 <script src="/lib/i18n.js"></script>
 <script src="/lib/error-handler.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -258,6 +260,11 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
     <input type="email" id="loginEmail" class="login-input" data-i18n-placeholder="drv_email_ph" placeholder="البريد الإلكتروني" autocomplete="email">
     <input type="password" id="loginPassword" class="login-input" data-i18n-placeholder="drv_password_ph" placeholder="كلمة المرور" autocomplete="current-password">
     <button class="login-btn" id="loginBtn" onclick="handleLogin()" data-i18n="drv_login_btn">دخول — Sign In</button>
+    <!-- Biometric login — shown only on native devices with biometrics enrolled -->
+    <button class="login-btn" id="biometricBtn" onclick="handleBiometricLogin()"
+      style="margin-top:10px;background:#f5f3ee;color:#054239;display:none;">
+      <span id="biometricBtnLabel">🔑 بصمة — Biometric Sign In</span>
+    </button>
   </div>
 </div>
 
@@ -380,6 +387,9 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 </div>
 
 <script>
+// Mark app type so capacitor-bridge can tag push tokens correctly
+window.TRANSIT_APP_TYPE = 'driver';
+
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? `http://${window.location.hostname}:8080` : window.location.origin;
 
@@ -532,6 +542,11 @@ function handleLogin() {
       currentUser = { id: data.user_id, role: data.role };
       sessionStorage.setItem('authToken', data.access_token);
       sessionStorage.setItem('user', JSON.stringify(currentUser));
+      // Persist for biometric re-auth on native devices
+      if (window.CapacitorBridge && CapacitorBridge.IS_NATIVE) {
+        localStorage.setItem('authToken_persistent', data.access_token);
+        localStorage.setItem('user_persistent', JSON.stringify(currentUser));
+      }
       document.getElementById('loginScreen').classList.add('hidden');
       document.dispatchEvent(new Event('driver:logged-in'));
       initMap();
@@ -541,6 +556,36 @@ function handleLogin() {
   })
   .catch(() => showLoginError(t('drv_connection_error')))
   .finally(() => { btn.disabled = false; btn.textContent = t('drv_login_btn'); });
+}
+
+// ── Biometric login handler ──
+async function handleBiometricLogin() {
+  if (!window.CapacitorBridge) return;
+  const btn = document.getElementById('biometricBtn');
+  if (btn) btn.disabled = true;
+  const ok = await CapacitorBridge.authenticateBiometric('تسجيل الدخول — Sign in to Damascus Transit Driver');
+  if (ok) {
+    // Biometric passed — restore saved session or fall through to email/password
+    const savedToken = localStorage.getItem('authToken_persistent');
+    if (savedToken) {
+      authToken = savedToken;
+      sessionStorage.setItem('authToken', savedToken);
+      const savedUser = localStorage.getItem('user_persistent');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        sessionStorage.setItem('user', savedUser);
+      }
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.dispatchEvent(new Event('driver:logged-in'));
+      initMap();
+      CapacitorBridge.vibrate('medium');
+    } else {
+      showLoginError('لم يتم حفظ بيانات الجلسة — Please sign in with email first');
+    }
+  } else {
+    CapacitorBridge.vibrate('heavy');
+  }
+  if (btn) btn.disabled = false;
 }
 
 function showLoginError(msg) {
@@ -577,6 +622,32 @@ function apiCall(endpoint, method='GET', body=null, timeoutMs=5000) {
 
 // ── Init ──
 window.addEventListener('DOMContentLoaded', () => {
+  // Native setup: RTL verification, status bar, splash screen
+  if (window.CapacitorBridge) {
+    CapacitorBridge.enforceRTL();
+    CapacitorBridge.setupStatusBar();
+    // Show biometric button if available on this device
+    CapacitorBridge.getBiometryType().then(type => {
+      if (type !== 'none') {
+        const btn = document.getElementById('biometricBtn');
+        if (btn) {
+          btn.style.display = 'block';
+          const label = document.getElementById('biometricBtnLabel');
+          if (label) {
+            label.textContent = type === 'faceId'   ? '👤 Face ID — تسجيل بالوجه'
+                              : type === 'touchId'  ? '👆 Touch ID — بصمة الإصبع'
+                              : '🔑 بصمة — Biometric Sign In';
+          }
+        }
+      }
+    });
+    // Resume / pause handling — stop background GPS when app is backgrounded (passenger safety)
+    CapacitorBridge.listenAppLifecycle(
+      () => { if (activeTrip) _ensureTracking(); },
+      () => { /* background GPS continues via BackgroundGeolocation plugin */ }
+    );
+  }
+
   if (authToken) {
     document.getElementById('loginScreen').classList.add('hidden');
     initMap();
@@ -585,6 +656,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ── Map ──
 function initMap() {
+  if (window.CapacitorBridge) {
+    CapacitorBridge.hideSplash();
+    CapacitorBridge.setupStatusBar();
+    // Register native FCM/APNs push after map init
+    CapacitorBridge.registerPushNotifications((notification) => {
+      const msg = notification.body || notification.data && notification.data.message;
+      if (msg) showAlert(msg, 'info');
+    }).catch(() => {});
+  }
+
   maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl-csp-worker.js';
   map = new maplibregl.Map({
     container:'map',
@@ -647,10 +728,32 @@ async function reportOrQueuePosition(lat, lon, speed) {
 }
 
 // ── GPS Tracking ──
-function startTracking() {
-  if (!navigator.geolocation) { simulateDriver(); return; }
+let _stopTracking = null; // cleanup function returned by the active watcher
 
-  navigator.geolocation.watchPosition(pos => {
+function startTracking() {
+  _ensureTracking();
+}
+
+function _ensureTracking() {
+  if (_stopTracking) return; // already watching
+
+  if (window.CapacitorBridge && CapacitorBridge.IS_NATIVE) {
+    // Use background geolocation so tracking continues when screen is off
+    CapacitorBridge.startBackgroundGeolocation(pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
+      handlePosition(lat, lon, speed);
+    }).then(stopFn => { _stopTracking = stopFn; })
+      .catch(() => _browserGPSFallback());
+    return;
+  }
+  _browserGPSFallback();
+}
+
+function _browserGPSFallback() {
+  if (!navigator.geolocation) { simulateDriver(); return; }
+  const id = navigator.geolocation.watchPosition(pos => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     const speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
@@ -658,6 +761,7 @@ function startTracking() {
   }, () => {
     simulateDriver();
   }, { enableHighAccuracy:true, maximumAge:3000, timeout:10000 });
+  _stopTracking = () => navigator.geolocation.clearWatch(id);
 }
 
 function handlePosition(lat, lon, speed) {
@@ -771,6 +875,28 @@ function openStartModal() {
   document.getElementById('startModal').classList.remove('hidden');
 }
 
+// DAM-452: demo fallback is only allowed on localhost / 127.0.0.1.
+// In production we must surface real backend failures instead of silently
+// starting a fake trip whose GPS will never be persisted.
+function _isDemoAllowed() {
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '';
+}
+
+function _beginTripState(tripId, routeId) {
+  activeTrip = { tripId, routeId };
+  tripStartTime = Date.now();
+  tripDistance = 0;
+  currentStopIndex = 0;
+  passengers = 0;
+  const pc = document.getElementById('passengerCount');
+  if (pc) pc.textContent = '0';
+  startTripTimer();
+  updateStatusPill(true);
+  showNextStopCard();
+  renderActions();
+}
+
 function confirmStartTrip() {
   const routeId = document.getElementById('routeSelect').value;
   closeModal('startModal');
@@ -785,44 +911,30 @@ function confirmStartTrip() {
   apiCall('/api/driver/trip/start', 'POST', { route_id: routeId })
     .then(data => {
       if (data.trip_id || data.status === 'success') {
-        activeTrip = { tripId: data.trip_id, routeId };
-        tripStartTime = Date.now();
-        tripDistance = 0;
-        currentStopIndex = 0;
-        passengers = 0;
-        document.getElementById('passengerCount').textContent = '0';
-        startTripTimer();
-        updateStatusPill(true);
-        showNextStopCard();
-        renderActions();
+        _beginTripState(data.trip_id, routeId);
         showAlert('✅ ' + (i18n.getCurrentLang() === 'ar' ? 'تم بدء الرحلة بنجاح — Trip started' : 'Trip started successfully — تم بدء الرحلة'), 'info');
-      } else {
-        // Demo fallback if API unavailable
-        activeTrip = { tripId: 'demo-' + Date.now(), routeId };
-        tripStartTime = Date.now();
-        tripDistance = 0;
-        currentStopIndex = 0;
-        passengers = 0;
-        document.getElementById('passengerCount').textContent = '0';
-        startTripTimer();
-        updateStatusPill(true);
-        showNextStopCard();
-        renderActions();
+      } else if (_isDemoAllowed()) {
+        // Dev/local demo fallback — explicitly NOT used in production.
+        _beginTripState('demo-' + Date.now(), routeId);
         showAlert('🚌 ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية — Demo trip started' : 'Demo trip started — رحلة تجريبية'), 'info');
+      } else {
+        // Production: surface the failure so the driver contacts dispatch
+        // instead of driving a ghost trip that's never persisted.
+        showAlert('⚠️ ' + (i18n.getCurrentLang() === 'ar'
+          ? 'تعذّر بدء الرحلة — اتصل بالمركز قبل القيادة'
+          : 'Could not start trip — contact dispatch before driving'), 'danger');
       }
     })
-    .catch(() => {
-      // Demo fallback
-      activeTrip = { tripId: 'demo-' + Date.now(), routeId };
-      tripStartTime = Date.now();
-      tripDistance = 0;
-      currentStopIndex = 0;
-      passengers = 0;
-      startTripTimer();
-      updateStatusPill(true);
-      showNextStopCard();
-      renderActions();
-      showAlert('🚌 ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية (لا اتصال) — Demo mode' : 'Demo mode — رحلة تجريبية'), 'info');
+    .catch((err) => {
+      if (_isDemoAllowed()) {
+        _beginTripState('demo-' + Date.now(), routeId);
+        showAlert('🚌 ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية (لا اتصال) — Demo mode' : 'Demo mode — رحلة تجريبية'), 'info');
+      } else {
+        console.warn('[driver] trip/start failed in prod:', err);
+        showAlert('⚠️ ' + (i18n.getCurrentLang() === 'ar'
+          ? 'فشل الاتصال بالخادم — اتصل بالمركز قبل القيادة'
+          : 'Could not reach server — contact dispatch before driving'), 'danger');
+      }
     });
 }
 
@@ -837,14 +949,27 @@ function openEndModal() {
 function confirmEndTrip() {
   closeModal('endModal');
 
+  // DAM-452: don't finalize locally when the backend rejects the end call in prod.
+  // Keep the trip active so the driver can retry (or contact dispatch) instead of
+  // losing the trip record.
+  const wasDemoTrip = activeTrip && typeof activeTrip.tripId === 'string' &&
+    activeTrip.tripId.startsWith('demo-');
+
   apiCall('/api/driver/trip/end', 'POST', { passenger_count: passengers })
     .then(() => {
       finishTrip();
       showAlert('✅ تم إنهاء الرحلة — Trip ended successfully', 'info');
     })
-    .catch(() => {
-      finishTrip();
-      showAlert('🏁 انتهت الرحلة — Trip ended (demo)', 'info');
+    .catch((err) => {
+      if (wasDemoTrip || _isDemoAllowed()) {
+        finishTrip();
+        showAlert('🏁 انتهت الرحلة — Trip ended (demo)', 'info');
+      } else {
+        console.warn('[driver] trip/end failed in prod:', err);
+        showAlert('⚠️ ' + (i18n.getCurrentLang() === 'ar'
+          ? 'فشل إنهاء الرحلة على الخادم — حاول مجدداً أو اتصل بالمركز'
+          : 'Failed to end trip on the server — retry or contact dispatch'), 'danger');
+      }
     });
 }
 
@@ -909,8 +1034,36 @@ function renderActions() {
   } else {
     row.innerHTML = `
       <button class="action-btn btn-arrive" id="arriveBtn" onclick="arriveAtStop()">📍 ${t('drv_action_arrived')}</button>
+      <button class="action-btn btn-report" onclick="reportIncidentPhoto()" title="تصوير حادثة — Capture Incident Photo">📷</button>
       <button class="action-btn btn-end" onclick="openEndModal()">■ ${t('drv_action_end')}</button>
     `;
+  }
+}
+
+// ── Incident Photo Reporting (native camera or web file input) ──
+async function reportIncidentPhoto() {
+  if (!activeTrip) return;
+  const base64 = await (window.CapacitorBridge
+    ? CapacitorBridge.captureIncidentPhoto({ quality: 75 })
+    : Promise.resolve(null));
+
+  if (!base64) return; // user cancelled or error
+
+  showAlert('جارٍ رفع الصورة… — Uploading photo…', 'info');
+  try {
+    await apiCall('/api/driver/incident-photo', 'POST', {
+      tripId:    activeTrip.tripId,
+      routeId:   activeTrip.routeId,
+      photo:     base64,
+      mimeType:  'image/jpeg',
+      timestamp: Date.now(),
+      lat:       userPos ? userPos.lat : null,
+      lon:       userPos ? userPos.lon : null,
+    });
+    showAlert('تم رفع صورة الحادثة ✓ — Incident photo uploaded', 'success');
+    if (window.CapacitorBridge) CapacitorBridge.vibrate('light');
+  } catch (_) {
+    showAlert('فشل رفع الصورة — Photo upload failed', 'warn');
   }
 }
 
