@@ -972,7 +972,7 @@ All systems healthy. Previous blocker (`operators` table missing) has been resol
 
 ---
 
-## Health Check — 2026-04-18 ~11:34 UTC
+## Health Check — 2026-04-18 ~11:45 UTC
 
 **Performed by:** Apps Builder agent ([DAM-465](/DAM/issues/DAM-465))
 
@@ -981,7 +981,7 @@ All systems healthy. Previous blocker (`operators` table missing) has been resol
 - **Status:** ✅ PASS — HTTP 200
 - **Database connectivity:** ✅ true
 - **Redis connectivity:** ✅ true
-- **Last position update:** 2026-04-18T00:51:07 UTC (~10.7 hours ago)
+- **Last position update:** 2026-04-18T00:51:07 UTC (~10.9 hours ago)
 - **Active vehicles:** 18
 
 ### /api/stats
@@ -998,6 +998,6 @@ All systems healthy. Previous blocker (`operators` table missing) has been resol
 
 ### Summary
 
-All systems healthy. Database and Redis connectivity confirmed. Position data is ~10.7 hours stale (last update 00:51 UTC), consistent with overnight non-service hours for Damascus (UTC+3 = 03:51 local). Vehicles resume active reporting at service start each morning. Stop count increased from 42 → 54 since last check (new stops added). No issues to escalate.
+All systems healthy. Database and Redis connectivity confirmed. Position data is ~10.9 hours stale (last update 00:51 UTC), consistent with overnight non-service hours for Damascus (UTC+3 = 03:51 local). Vehicles resume active reporting at service start each morning. No issues to escalate.
 
 ---
