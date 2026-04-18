@@ -666,20 +666,7 @@ function updateRouteCards() {
     });
   });
 
-  // Assign unmatched vehicles round-robin with real ETA
-  const unmatched = Object.values(vehicles).filter(v => {
-    const rname = v.route_name || v.assigned_route_id || '';
-    return !ROUTES.some(r => rname.toLowerCase().includes(r.id.replace(/_/g,' ')));
-  });
-  unmatched.forEach((v, i) => {
-    const r = ROUTES[i % ROUTES.length];
-    routeCounts[r.id] = (routeCounts[r.id] || 0) + 1;
-    if (!routeETAs[r.id]) {
-      const stop = getRouteRepresentativeStop(r.id);
-      const eta = stop ? calcETA(v, stop.lat, stop.lon) : 10;
-      routeETAs[r.id] = { eta, vehicle: v };
-    }
-  });
+  // DAM-454: removed round-robin padding — show routes with no matched vehicles as empty.
 
   const searchVal = document.getElementById('searchInput').value;
   const filtered = ROUTES.filter(r => matchesSearch(r, searchVal));
@@ -801,13 +788,8 @@ function computeClientSideETA(stop) {
       if (eta < bestEta) { bestEta = eta; bestVehicle = v; }
     });
 
-    if (!bestVehicle) {
-      Object.values(vehicles).forEach(v => {
-        const eta = calcETA(v, stop.lat, stop.lon);
-        if (eta < bestEta) { bestEta = eta; bestVehicle = v; }
-      });
-    }
-
+    // DAM-453: suppress arrival when no vehicle matched this route — a nearby
+    // vehicle on a different line is not a valid arrival for this route.
     if (!bestVehicle) return null;
     return {
       vehicle_id: bestVehicle.vehicle_id || bestVehicle.vehicle_name || '',
