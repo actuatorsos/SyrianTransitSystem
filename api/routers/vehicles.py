@@ -133,8 +133,9 @@ async def get_vehicle_positions(
         if cached is not None:
             return cached
 
-        # Query all non-decommissioned vehicles first so every vehicle appears
-        # in the response regardless of whether it has position data yet.
+        # Query all non-decommissioned vehicles that have position data.
+        # Vehicles without a position (null lat/lon simulator stubs) are
+        # intentionally excluded — DAM-449.
         veh_query = (
             "vehicles?select=id,vehicle_id,vehicle_type,name,name_ar,assigned_route_id"
             "&status=neq.decommissioned"
@@ -158,6 +159,9 @@ async def get_vehicle_positions(
         for vehicle in vehicles or []:
             pos = pos_by_id.get(vehicle["id"], {})
             lat, lon = parse_location(pos.get("location")) if pos else (None, None)
+            # Skip vehicles with no position data — DAM-449.
+            if lat is None or lon is None:
+                continue
             result.append(
                 {
                     "vehicle_id": vehicle.get("vehicle_id"),
