@@ -42,9 +42,7 @@ def _require_secret() -> str:
 def verify_traccar_signature(request_body: bytes, signature: str) -> bool:
     """Verify Traccar webhook signature using HMAC."""
     secret = _require_secret()
-    computed = hmac.new(
-        secret.encode(), request_body, hashlib.sha256
-    ).hexdigest()
+    computed = hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(computed, signature)
 
 
@@ -63,7 +61,7 @@ async def traccar_position_webhook(
         )
 
     try:
-        quoted_id = urllib.parse.quote(position.deviceId, safe='')
+        quoted_id = urllib.parse.quote(position.deviceId, safe="")
         devices = await _supabase_get(
             f"vehicles?gps_device_id=eq.{quoted_id}&select=id,vehicle_id"
         )
@@ -108,7 +106,7 @@ async def traccar_event_webhook(
         )
 
     try:
-        quoted_id = urllib.parse.quote(event.deviceId, safe='')
+        quoted_id = urllib.parse.quote(event.deviceId, safe="")
         devices = await _supabase_get(
             f"vehicles?gps_device_id=eq.{quoted_id}&select=id"
         )

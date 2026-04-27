@@ -12,7 +12,6 @@ so the contract (HTTP method + path + content-type) is still validated.
 """
 
 
-
 # ---------------------------------------------------------------------------
 # Public / unauthenticated endpoints
 # ---------------------------------------------------------------------------
