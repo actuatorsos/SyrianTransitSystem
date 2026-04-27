@@ -11,7 +11,6 @@ assert the *shape* of the error envelope rather than a success payload,
 so the contract (HTTP method + path + content-type) is still validated.
 """
 
-import pytest
 
 
 # ---------------------------------------------------------------------------

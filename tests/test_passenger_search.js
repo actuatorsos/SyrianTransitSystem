@@ -7,7 +7,8 @@
 
 'use strict';
 
-// ─── Extracted from public/passenger/index.html (lines 302–323) ───
+// ─── Extracted from public/passenger/index.html ───
+// Keep in sync with the production copy (DAM-458 added kaf/yeh/digit normalization).
 
 function normalizeArabic(text) {
   return text
@@ -19,6 +20,14 @@ function normalizeArabic(text) {
     .replace(/\u0629/g, '\u0647')
     // Normalize alef maqsura (ى) → ي
     .replace(/\u0649/g, '\u064A')
+    // Normalize Persian/Urdu kaf (ک U+06A9) → Arabic kaf (ك U+0643)
+    .replace(/\u06A9/g, '\u0643')
+    // Normalize Persian/Urdu yeh (ی U+06CC) → Arabic yeh (ي U+064A)
+    .replace(/\u06CC/g, '\u064A')
+    // Normalize Arabic-Indic digits (٠-٩ U+0660-U+0669) → ASCII 0-9
+    .replace(/[\u0660-\u0669]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0630))
+    // Normalize Extended Arabic-Indic digits (۰-۹ U+06F0-U+06F9) → ASCII 0-9
+    .replace(/[\u06F0-\u06F9]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x06C0))
     .toLowerCase()
     .trim();
 }
@@ -322,6 +331,86 @@ assert(
 assert(
   'Mixed teh marbuta + alef + tashkeel all normalized together',
   normalizeArabic('أُوتُوسْتِرَادُ المُزَّةِ') === normalizeArabic('اوتوستراد المزه')
+);
+
+// ─── 13. normalizeArabic: Persian/Urdu kaf normalization (DAM-458) ───
+section('normalizeArabic — Persian/Urdu kaf (ک U+06A9) → Arabic kaf (ك U+0643)');
+assert(
+  'Persian kaf (ک) normalizes to Arabic kaf (ك)',
+  normalizeArabic('\u06A9') === '\u0643'
+);
+assert(
+  'word with Persian kaf matches word with Arabic kaf',
+  normalizeArabic('کتاب') === normalizeArabic('كتاب')
+);
+assert(
+  'Persian kaf in a route name matches Arabic kaf query',
+  normalizeArabic('شارع کبیر') === normalizeArabic('شارع كبير').replace(/\u064A/g, '\u064A')
+);
+
+// ─── 14. normalizeArabic: Persian/Urdu yeh normalization (DAM-458) ───
+section('normalizeArabic — Persian/Urdu yeh (ی U+06CC) → Arabic yeh (ي U+064A)');
+assert(
+  'Persian yeh (ی) normalizes to Arabic yeh (ي)',
+  normalizeArabic('\u06CC') === '\u064A'
+);
+assert(
+  'word with Persian yeh matches word with Arabic yeh',
+  normalizeArabic('تهران') === normalizeArabic('تهران')
+);
+assert(
+  'Persian yeh and Arabic yeh produce same normalized form',
+  normalizeArabic('علی') === normalizeArabic('علي')
+);
+assert(
+  'Persian yeh + kaf together normalize correctly',
+  normalizeArabic('یک') === normalizeArabic('يك')
+);
+
+// ─── 15. normalizeArabic: Arabic-Indic digit normalization (DAM-458) ───
+section('normalizeArabic — Arabic-Indic digits (U+0660-U+0669) → ASCII 0-9');
+assert(
+  '٠ (U+0660) → "0"',
+  normalizeArabic('\u0660') === '0'
+);
+assert(
+  '٥ (U+0665) → "5"',
+  normalizeArabic('\u0665') === '5'
+);
+assert(
+  '٩ (U+0669) → "9"',
+  normalizeArabic('\u0669') === '9'
+);
+assert(
+  'full Arabic-Indic sequence ٠١٢٣٤٥٦٧٨٩ → "0123456789"',
+  normalizeArabic('\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669') === '0123456789'
+);
+assert(
+  'mixed Arabic text and Arabic-Indic digits normalize correctly',
+  normalizeArabic('خط ٥') === normalizeArabic('خط 5')
+);
+
+// ─── 16. normalizeArabic: Extended Arabic-Indic digit normalization (DAM-458) ───
+section('normalizeArabic — Extended Arabic-Indic digits (U+06F0-U+06F9) → ASCII 0-9');
+assert(
+  '۰ (U+06F0) → "0"',
+  normalizeArabic('\u06F0') === '0'
+);
+assert(
+  '۵ (U+06F5) → "5"',
+  normalizeArabic('\u06F5') === '5'
+);
+assert(
+  '۹ (U+06F9) → "9"',
+  normalizeArabic('\u06F9') === '9'
+);
+assert(
+  'full Extended Arabic-Indic sequence ۰۱۲۳۴۵۶۷۸۹ → "0123456789"',
+  normalizeArabic('\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9') === '0123456789'
+);
+assert(
+  'both digit sets normalize to same ASCII digits',
+  normalizeArabic('\u0660\u0661\u0662') === normalizeArabic('\u06F0\u06F1\u06F2')
 );
 
 // ─── Summary ───

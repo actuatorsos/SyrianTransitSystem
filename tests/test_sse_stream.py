@@ -7,8 +7,6 @@ Run with: pytest tests/test_sse_stream.py -v
 """
 
 import json
-import threading
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
@@ -32,18 +30,46 @@ def seeded_client():
     with TestClient(app, raise_server_exceptions=False) as c:
         # Seed 3 vehicles by posting positions as test drivers
         drivers = [
-            ("driver001@test.damascustransit.sy", "VEH-001", 33.5117, 36.2963, 35.0, 90),
-            ("driver002@test.damascustransit.sy", "VEH-002", 33.5142, 36.2765, 42.0, 180),
-            ("driver003@test.damascustransit.sy", "VEH-003", 33.5573, 36.3637, 28.0, 270),
+            (
+                "driver001@test.damascustransit.sy",
+                "VEH-001",
+                33.5117,
+                36.2963,
+                35.0,
+                90,
+            ),
+            (
+                "driver002@test.damascustransit.sy",
+                "VEH-002",
+                33.5142,
+                36.2765,
+                42.0,
+                180,
+            ),
+            (
+                "driver003@test.damascustransit.sy",
+                "VEH-003",
+                33.5573,
+                36.3637,
+                28.0,
+                270,
+            ),
         ]
         for email, _, lat, lon, speed, heading in drivers:
-            login = c.post("/api/auth/login", json={"email": email, "password": "test123"})
+            login = c.post(
+                "/api/auth/login", json={"email": email, "password": "test123"}
+            )
             if login.status_code == 200:
                 token = login.json().get("access_token")
                 if token:
                     c.post(
                         "/api/driver/position",
-                        json={"latitude": lat, "longitude": lon, "speed_kmh": speed, "heading": heading},
+                        json={
+                            "latitude": lat,
+                            "longitude": lon,
+                            "speed_kmh": speed,
+                            "heading": heading,
+                        },
                         headers={"Authorization": f"Bearer {token}"},
                     )
         yield c
@@ -65,10 +91,15 @@ class TestSSEHeaders:
 
     def test_stream_cors_header_present(self, client):
         """CORS must allow passenger PWA (cross-origin) connections."""
-        with client.stream("GET", "/api/stream", headers={"Origin": "http://localhost:3000"}) as r:
+        with client.stream(
+            "GET", "/api/stream", headers={"Origin": "http://localhost:3000"}
+        ) as r:
             assert r.status_code == 200
             # Stub server allows all origins
-            assert r.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")
+            assert r.headers.get("access-control-allow-origin") in (
+                "*",
+                "http://localhost:3000",
+            )
 
 
 # ─── 2. SSE Event Format ─────────────────────────────────────────────────────
@@ -91,7 +122,7 @@ class TestSSEEventFormat:
                 lines.append(line)
                 if len(lines) >= 4:
                     break
-        non_empty = [l for l in lines if l.strip()]
+        non_empty = [line for line in lines if line.strip()]
         for line in non_empty:
             assert line.startswith("data: "), f"Unexpected line format: {line!r}"
 
@@ -146,7 +177,9 @@ class TestSSEEventFormat:
         if not positions:
             pytest.skip("No vehicles in stream")
         for pos in positions:
-            assert -180 <= pos["longitude"] <= 180, f"Invalid longitude: {pos['longitude']}"
+            assert -180 <= pos["longitude"] <= 180, (
+                f"Invalid longitude: {pos['longitude']}"
+            )
 
     def test_vehicle_id_is_string(self, seeded_client):
         raw = self._read_first_event(seeded_client)
@@ -299,6 +332,7 @@ class TestSSEReconnection:
         We verify this by inspecting the source code for the guard pattern.
         """
         import os
+
         html_path = os.path.join(
             os.path.dirname(__file__),
             "..",
@@ -323,6 +357,7 @@ class TestSSEReconnection:
     def test_reconnection_timeout_is_5_seconds(self):
         """Reconnect delay must be 5 000 ms to avoid hammering the server."""
         import os
+
         html_path = os.path.join(
             os.path.dirname(__file__),
             "..",
@@ -342,6 +377,7 @@ class TestSSEReconnection:
     def test_onerror_handler_marks_connection_disconnected(self):
         """onerror must add 'disconnected' class to connectionBar."""
         import os
+
         html_path = os.path.join(
             os.path.dirname(__file__),
             "..",
@@ -361,6 +397,7 @@ class TestSSEReconnection:
     def test_onmessage_handler_clears_disconnected_class(self):
         """On successful event, connectionBar 'disconnected' class must be removed."""
         import os
+
         html_path = os.path.join(
             os.path.dirname(__file__),
             "..",
@@ -371,10 +408,10 @@ class TestSSEReconnection:
         )
         if os.path.exists(html_path):
             source = open(html_path).read()
-            assert "classList.remove('disconnected')" in source or \
-                   'classList.remove("disconnected")' in source, (
-                "onmessage must remove 'disconnected' class from connectionBar"
-            )
+            assert (
+                "classList.remove('disconnected')" in source
+                or 'classList.remove("disconnected")' in source
+            ), "onmessage must remove 'disconnected' class from connectionBar"
         else:
             pytest.skip("Passenger HTML not found — skipping source-level check")
 
@@ -396,7 +433,10 @@ class TestSSEConcurrentConnections:
         """Two simultaneous SSE connections must each receive valid events."""
         results = []
         with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [pool.submit(self._open_and_read_one_event, "/api/stream") for _ in range(2)]
+            futures = [
+                pool.submit(self._open_and_read_one_event, "/api/stream")
+                for _ in range(2)
+            ]
             for f in as_completed(futures):
                 status, event = f.result()
                 results.append((status, event))
@@ -410,14 +450,19 @@ class TestSSEConcurrentConnections:
         """Five simultaneous SSE connections must all receive valid events."""
         results = []
         with ThreadPoolExecutor(max_workers=5) as pool:
-            futures = [pool.submit(self._open_and_read_one_event, "/api/stream") for _ in range(5)]
+            futures = [
+                pool.submit(self._open_and_read_one_event, "/api/stream")
+                for _ in range(5)
+            ]
             for f in as_completed(futures):
                 status, event = f.result()
                 results.append((status, event))
 
         assert len(results) == 5
         failures = [r for r in results if r[0] != 200]
-        assert not failures, f"{len(failures)} of 5 concurrent connections failed: {failures}"
+        assert not failures, (
+            f"{len(failures)} of 5 concurrent connections failed: {failures}"
+        )
 
     def test_concurrent_connections_see_same_vehicle_state(self):
         """All concurrent connections should reflect the same vehicle snapshot."""
@@ -433,7 +478,10 @@ class TestSSEConcurrentConnections:
         try:
             results = []
             with ThreadPoolExecutor(max_workers=3) as pool:
-                futures = [pool.submit(self._open_and_read_one_event, "/api/stream") for _ in range(3)]
+                futures = [
+                    pool.submit(self._open_and_read_one_event, "/api/stream")
+                    for _ in range(3)
+                ]
                 for f in as_completed(futures):
                     _, event = f.result()
                     if event is not None:
@@ -493,6 +541,7 @@ class TestConnectionStatusBarLogic:
     @pytest.fixture(scope="class")
     def passenger_source(self):
         import os
+
         html_path = os.path.join(
             os.path.dirname(__file__),
             "..",
@@ -506,31 +555,38 @@ class TestConnectionStatusBarLogic:
         return open(html_path).read()
 
     def test_connection_bar_element_exists_in_html(self, passenger_source):
-        assert 'id="connectionBar"' in passenger_source or \
-               "id='connectionBar'" in passenger_source, (
-            "HTML must define a #connectionBar element"
-        )
+        assert (
+            'id="connectionBar"' in passenger_source
+            or "id='connectionBar'" in passenger_source
+        ), "HTML must define a #connectionBar element"
 
     def test_onmessage_removes_disconnected_class(self, passenger_source):
-        assert "classList.remove" in passenger_source and "disconnected" in passenger_source
+        assert (
+            "classList.remove" in passenger_source
+            and "disconnected" in passenger_source
+        )
 
     def test_onerror_adds_disconnected_class(self, passenger_source):
-        assert "classList.add" in passenger_source and "disconnected" in passenger_source
+        assert (
+            "classList.add" in passenger_source and "disconnected" in passenger_source
+        )
 
     def test_sse_url_constant_defined(self, passenger_source):
         assert "SSE_URL" in passenger_source, "SSE_URL constant must be defined"
 
     def test_sse_url_references_api_stream(self, passenger_source):
-        assert "/api/stream" in passenger_source, "SSE_URL must reference /api/stream endpoint"
+        assert "/api/stream" in passenger_source, (
+            "SSE_URL must reference /api/stream endpoint"
+        )
 
     def test_connect_sse_function_defined(self, passenger_source):
         assert "function connectSSE" in passenger_source, "connectSSE() must be defined"
 
     def test_event_source_instantiation(self, passenger_source):
-        assert "new EventSource(SSE_URL)" in passenger_source or \
-               "new EventSource(" in passenger_source, (
-            "connectSSE must instantiate EventSource"
-        )
+        assert (
+            "new EventSource(SSE_URL)" in passenger_source
+            or "new EventSource(" in passenger_source
+        ), "connectSSE must instantiate EventSource"
 
     def test_onmessage_parses_json(self, passenger_source):
         assert "JSON.parse(event.data)" in passenger_source, (
@@ -538,14 +594,19 @@ class TestConnectionStatusBarLogic:
         )
 
     def test_onerror_schedules_reconnect(self, passenger_source):
-        assert "eventSource.onerror" in passenger_source, "onerror handler must be registered"
+        assert "eventSource.onerror" in passenger_source, (
+            "onerror handler must be registered"
+        )
         assert "connectSSE" in passenger_source and "setTimeout" in passenger_source
 
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import subprocess, sys
+    import subprocess
+    import sys
+    import os
+
     result = subprocess.run(
         [sys.executable, "-m", "pytest", __file__, "-v", "--tb=short"],
         cwd=os.path.join(os.path.dirname(__file__), ".."),

@@ -4,7 +4,6 @@ Tests for WebSocket real-time vehicle tracking (ConnectionManager upgrade).
 
 import json
 import pytest
-from unittest.mock import AsyncMock, patch
 
 from api.routers.websocket import ConnectionManager
 

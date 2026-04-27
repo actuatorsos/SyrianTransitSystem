@@ -636,12 +636,14 @@ class TestRoutesList:
                 "is_active": True,
             }
         ]
-        with patch(
-            "api.routers.routes._supabase_get", new_callable=AsyncMock
-        ) as mock_get, patch(
-            "api.routers.routes._cache_get", new_callable=AsyncMock
-        ) as mock_cache_get, patch(
-            "api.routers.routes._cache_set", new_callable=AsyncMock
+        with (
+            patch(
+                "api.routers.routes._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.routes._cache_get", new_callable=AsyncMock
+            ) as mock_cache_get,
+            patch("api.routers.routes._cache_set", new_callable=AsyncMock),
         ):
             mock_cache_get.return_value = None
             mock_get.side_effect = [mock_routes, []]  # routes then stops
@@ -651,11 +653,14 @@ class TestRoutesList:
         assert isinstance(data, list)
 
     def test_get_route_not_found(self, client):
-        with patch(
-            "api.routers.routes._supabase_get", new_callable=AsyncMock
-        ) as mock_get, patch(
-            "api.routers.routes._cache_get", new_callable=AsyncMock
-        ) as mock_cache_get:
+        with (
+            patch(
+                "api.routers.routes._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.routes._cache_get", new_callable=AsyncMock
+            ) as mock_cache_get,
+        ):
             mock_cache_get.return_value = None
             mock_get.return_value = []
             r = client.get("/api/routes/nonexistent-id")
@@ -674,12 +679,14 @@ class TestRoutesList:
             "fare_syp": 500,
             "is_active": True,
         }
-        with patch(
-            "api.routers.routes._supabase_get", new_callable=AsyncMock
-        ) as mock_get, patch(
-            "api.routers.routes._cache_get", new_callable=AsyncMock
-        ) as mock_cache_get, patch(
-            "api.routers.routes._cache_set", new_callable=AsyncMock
+        with (
+            patch(
+                "api.routers.routes._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.routes._cache_get", new_callable=AsyncMock
+            ) as mock_cache_get,
+            patch("api.routers.routes._cache_set", new_callable=AsyncMock),
         ):
             mock_cache_get.return_value = None
             mock_get.side_effect = [[mock_route], []]  # route then stops
@@ -707,14 +714,17 @@ class TestDriverOperations:
         )
 
     def test_report_position_success(self, client, driver_token):
-        with patch(
-            "api.routers.driver._supabase_get", new_callable=AsyncMock
-        ) as mock_get, patch(
-            "api.routers.driver._supabase_rpc", new_callable=AsyncMock
-        ) as mock_rpc, patch(
-            "api.routers.driver._rate_limit_check", new_callable=AsyncMock
-        ) as mock_rl, patch(
-            "api.routers.driver._cache_delete", new_callable=AsyncMock
+        with (
+            patch(
+                "api.routers.driver._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.driver._supabase_rpc", new_callable=AsyncMock
+            ) as mock_rpc,
+            patch(
+                "api.routers.driver._rate_limit_check", new_callable=AsyncMock
+            ) as mock_rl,
+            patch("api.routers.driver._cache_delete", new_callable=AsyncMock),
         ):
             mock_rl.return_value = True
             mock_get.return_value = [{"id": "v-001", "assigned_route_id": "r-001"}]
@@ -727,11 +737,14 @@ class TestDriverOperations:
         assert r.status_code == 200
 
     def test_report_position_no_vehicle(self, client, driver_token):
-        with patch(
-            "api.routers.driver._supabase_get", new_callable=AsyncMock
-        ) as mock_get, patch(
-            "api.routers.driver._rate_limit_check", new_callable=AsyncMock
-        ) as mock_rl:
+        with (
+            patch(
+                "api.routers.driver._supabase_get", new_callable=AsyncMock
+            ) as mock_get,
+            patch(
+                "api.routers.driver._rate_limit_check", new_callable=AsyncMock
+            ) as mock_rl,
+        ):
             mock_rl.return_value = True
             mock_get.return_value = []
             r = client.post(
@@ -774,7 +787,12 @@ class TestFormValidation:
     def test_create_vehicle_missing_vehicle_id(self, client, admin_token):
         r = client.post(
             "/api/admin/vehicles",
-            json={"name": "Bus", "name_ar": "حافلة", "vehicle_type": "bus", "capacity": 40},
+            json={
+                "name": "Bus",
+                "name_ar": "حافلة",
+                "vehicle_type": "bus",
+                "capacity": 40,
+            },
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert r.status_code == 422
@@ -782,7 +800,12 @@ class TestFormValidation:
     def test_create_vehicle_missing_name(self, client, admin_token):
         r = client.post(
             "/api/admin/vehicles",
-            json={"vehicle_id": "BUS-X", "name_ar": "حافلة", "vehicle_type": "bus", "capacity": 40},
+            json={
+                "vehicle_id": "BUS-X",
+                "name_ar": "حافلة",
+                "vehicle_type": "bus",
+                "capacity": 40,
+            },
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert r.status_code == 422

@@ -6,7 +6,6 @@ GET /api/stats/drivers/{id}   — individual driver detail with sparklines
 """
 
 import os
-from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,8 +23,18 @@ os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000")
 # ---------------------------------------------------------------------------
 
 MOCK_DRIVERS = [
-    {"id": "drv-001", "full_name": "Ahmad Khalil", "full_name_ar": "أحمد خليل", "is_active": True},
-    {"id": "drv-002", "full_name": "Sara Nasser", "full_name_ar": "سارة ناصر", "is_active": False},
+    {
+        "id": "drv-001",
+        "full_name": "Ahmad Khalil",
+        "full_name_ar": "أحمد خليل",
+        "is_active": True,
+    },
+    {
+        "id": "drv-002",
+        "full_name": "Sara Nasser",
+        "full_name_ar": "سارة ناصر",
+        "is_active": False,
+    },
 ]
 
 MOCK_TRIPS = [
@@ -106,6 +115,7 @@ def _mock_supabase_get(url: str):
 # GET /api/stats/drivers
 # ---------------------------------------------------------------------------
 
+
 class TestGetDriverStats:
     def test_returns_list(self, client):
         with patch(
@@ -137,10 +147,12 @@ class TestGetDriverStats:
             resp = client.get("/api/stats/drivers")
         d = next(x for x in resp.json() if x["driver_id"] == "drv-001")
         assert d["total_trips"] == 2
-        assert d["on_time_pct"] == 80.0          # (90 + 70) / 2
-        assert d["avg_speed_kmh"] == 40.0        # (42 + 38) / 2
-        assert d["total_distance_km"] == 27.5    # 15.5 + 12.0
-        assert d["active_hours"] == 1.8          # 60min + 45min = 6300s = 1.75h → round(1.75,1) = 1.8
+        assert d["on_time_pct"] == 80.0  # (90 + 70) / 2
+        assert d["avg_speed_kmh"] == 40.0  # (42 + 38) / 2
+        assert d["total_distance_km"] == 27.5  # 15.5 + 12.0
+        assert (
+            d["active_hours"] == 1.8
+        )  # 60min + 45min = 6300s = 1.75h → round(1.75,1) = 1.8
 
     def test_null_on_time_for_driver_with_no_pct(self, client):
         with patch(
@@ -187,6 +199,7 @@ class TestGetDriverStats:
 # ---------------------------------------------------------------------------
 # GET /api/stats/drivers/{driver_id}
 # ---------------------------------------------------------------------------
+
 
 class TestGetDriverDetail:
     def test_returns_single_driver(self, client):
@@ -251,12 +264,17 @@ class TestGetDriverDetail:
 
     def test_driver_with_no_trips(self, client):
         """Driver exists but has no trips — metrics should be zero/null."""
-        no_trip_mock = AsyncMock(side_effect=lambda url: (
-            [MOCK_DRIVERS[1]] if "id=eq.drv-002" in url and "users?" in url
-            else [] if "trips?" in url
-            else [] if "vehicles?" in url
-            else []
-        ))
+        no_trip_mock = AsyncMock(
+            side_effect=lambda url: (
+                [MOCK_DRIVERS[1]]
+                if "id=eq.drv-002" in url and "users?" in url
+                else []
+                if "trips?" in url
+                else []
+                if "vehicles?" in url
+                else []
+            )
+        )
         with patch("api.routers.stats._supabase_get", new=no_trip_mock):
             resp = client.get("/api/stats/drivers/drv-002")
         assert resp.status_code == 200

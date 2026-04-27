@@ -2,6 +2,7 @@
 DAM-196 Load Test — 100 concurrent requests, p50/p95/p99 latency
 Target: <200ms p95 on /api/vehicles and /api/routes
 """
+
 import asyncio
 import statistics
 import time
@@ -47,7 +48,9 @@ async def run_concurrent_burst(endpoint: str, concurrency: int, label: str):
     results = []
     print(f"\n  {label} — {concurrency} concurrent requests to {url}")
 
-    limits = httpx.Limits(max_connections=concurrency + 10, max_keepalive_connections=concurrency)
+    limits = httpx.Limits(
+        max_connections=concurrency + 10, max_keepalive_connections=concurrency
+    )
     async with httpx.AsyncClient(limits=limits, follow_redirects=True) as client:
         tasks = [
             asyncio.create_task(single_request(client, url, results, i))
@@ -80,7 +83,9 @@ async def run_concurrent_burst(endpoint: str, concurrency: int, label: str):
     print(f"    Responses: {status_counts}")
     print(f"    Errors:    {len(errors)}")
     print(f"    Latency (200s only, n={ok_count}):")
-    print(f"      min={p_min:.0f}ms  mean={p_mean:.0f}ms  p50={p50:.0f}ms  p95={p95:.0f}ms  p99={p99:.0f}ms  max={p_max:.0f}ms")
+    print(
+        f"      min={p_min:.0f}ms  mean={p_mean:.0f}ms  p50={p50:.0f}ms  p95={p95:.0f}ms  p99={p99:.0f}ms  max={p_max:.0f}ms"
+    )
     print(f"    Rate limited (429): {rate_limited}")
     target_ok = p95 < 200 if latencies else False
     print(f"    Target <200ms p95: {'PASS ✓' if target_ok else 'FAIL ✗'}")
@@ -131,13 +136,13 @@ async def main():
     all_results = []
 
     for endpoint in ENDPOINTS:
-        print(f"\n{'─'*60}")
+        print(f"\n{'─' * 60}")
         print(f"Endpoint: {endpoint}")
-        print(f"{'─'*60}")
+        print(f"{'─' * 60}")
 
         # Warm-up (cold-start measurement)
         print("\n[1] Cold-start / warm-up phase:")
-        warmup_times = await warmup(endpoint)
+        await warmup(endpoint)
 
         # Brief pause
         await asyncio.sleep(2)
@@ -158,7 +163,9 @@ async def main():
     print("\n" + "=" * 64)
     print("SUMMARY")
     print("=" * 64)
-    print(f"{'Endpoint':<25} {'Phase':<20} {'n_ok':>5} {'p50':>6} {'p95':>6} {'p99':>6} {'429':>5} {'Pass':>5}")
+    print(
+        f"{'Endpoint':<25} {'Phase':<20} {'n_ok':>5} {'p50':>6} {'p95':>6} {'p99':>6} {'429':>5} {'Pass':>5}"
+    )
     print("-" * 80)
     for r in all_results:
         status = "PASS" if r["target_pass"] else "FAIL"

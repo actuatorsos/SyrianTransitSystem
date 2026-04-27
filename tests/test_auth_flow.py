@@ -100,9 +100,13 @@ class TestRegistration:
             "created_at": "2026-04-02T00:00:00",
         }
         with (
-            patch("api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)),
+            patch(
+                "api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)
+            ),
             patch("api.routers.auth._supabase_get", new=AsyncMock(return_value=[])),
-            patch("api.routers.auth._supabase_post", new=AsyncMock(return_value=created)),
+            patch(
+                "api.routers.auth._supabase_post", new=AsyncMock(return_value=created)
+            ),
         ):
             resp = client.post(
                 "/api/auth/register",
@@ -119,7 +123,9 @@ class TestRegistration:
 
     def test_register_duplicate_email(self, client):
         with (
-            patch("api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)),
+            patch(
+                "api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)
+            ),
             patch(
                 "api.routers.auth._supabase_get",
                 new=AsyncMock(return_value=[{"id": "existing-001"}]),
@@ -137,7 +143,9 @@ class TestRegistration:
 
     def test_register_password_too_short(self, client):
         with (
-            patch("api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)),
+            patch(
+                "api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)
+            ),
             patch("api.routers.auth._supabase_get", new=AsyncMock(return_value=[])),
         ):
             resp = client.post(
@@ -174,7 +182,9 @@ class TestLogin:
     def test_login_success_returns_jwt(self, client):
         user = _hashed_user("Secur3Pass!")
         with (
-            patch("api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)),
+            patch(
+                "api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)
+            ),
             patch("api.routers.auth._supabase_get", new=AsyncMock(return_value=[user])),
         ):
             resp = client.post(
@@ -190,7 +200,9 @@ class TestLogin:
     def test_login_wrong_password(self, client):
         user = _hashed_user("Secur3Pass!")
         with (
-            patch("api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)),
+            patch(
+                "api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)
+            ),
             patch("api.routers.auth._supabase_get", new=AsyncMock(return_value=[user])),
         ):
             resp = client.post(
@@ -201,7 +213,9 @@ class TestLogin:
 
     def test_login_nonexistent_user(self, client):
         with (
-            patch("api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)),
+            patch(
+                "api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)
+            ),
             patch("api.routers.auth._supabase_get", new=AsyncMock(return_value=[])),
         ):
             resp = client.post(
@@ -233,7 +247,9 @@ class TestLogin:
             return vehicle_data
 
         with (
-            patch("api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)),
+            patch(
+                "api.routers.auth._rate_limit_check", new=AsyncMock(return_value=True)
+            ),
             patch("api.routers.auth._supabase_get", new=mock_get),
         ):
             resp = client.post(
@@ -293,9 +309,7 @@ class TestProtectedEndpoints:
 
     def test_get_me_expired_token(self, client):
         token = _make_expired_token("admin")
-        resp = client.get(
-            "/api/auth/me", headers={"Authorization": f"Bearer {token}"}
-        )
+        resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 401
 
 
@@ -307,9 +321,7 @@ class TestProtectedEndpoints:
 class TestRoleBasedAccess:
     def test_admin_can_access_admin_users(self, client):
         token = _make_token("admin")
-        with patch(
-            "api.routers.admin._supabase_get", new=AsyncMock(return_value=[])
-        ):
+        with patch("api.routers.admin._supabase_get", new=AsyncMock(return_value=[])):
             resp = client.get(
                 "/api/admin/users", headers={"Authorization": f"Bearer {token}"}
             )
@@ -343,15 +355,11 @@ class TestRoleBasedAccess:
             expires_delta=timedelta(hours=1),
         )
         with (
-            patch(
-                "api.routers.driver._supabase_rpc", new=AsyncMock(return_value={})
-            ),
+            patch("api.routers.driver._supabase_rpc", new=AsyncMock(return_value={})),
             patch(
                 "api.routers.driver._rate_limit_check", new=AsyncMock(return_value=True)
             ),
-            patch(
-                "api.routers.driver._cache_delete", new=AsyncMock(return_value=None)
-            ),
+            patch("api.routers.driver._cache_delete", new=AsyncMock(return_value=None)),
         ):
             resp = client.post(
                 "/api/driver/position",
@@ -387,9 +395,7 @@ class TestRoleBasedAccess:
 
     def test_dispatcher_can_list_users(self, client):
         token = _make_token("dispatcher", user_id="disp-001", email="disp@transit.sy")
-        with patch(
-            "api.routers.admin._supabase_get", new=AsyncMock(return_value=[])
-        ):
+        with patch("api.routers.admin._supabase_get", new=AsyncMock(return_value=[])):
             resp = client.get(
                 "/api/admin/users", headers={"Authorization": f"Bearer {token}"}
             )
@@ -464,9 +470,7 @@ class TestConcurrentSessions:
         admin_token = _make_token("admin", user_id="user-001")
         driver_token = _make_token("driver", user_id="user-002", email="d@transit.sy")
 
-        with patch(
-            "api.routers.admin._supabase_get", new=AsyncMock(return_value=[])
-        ):
+        with patch("api.routers.admin._supabase_get", new=AsyncMock(return_value=[])):
             admin_resp = client.get(
                 "/api/admin/users",
                 headers={"Authorization": f"Bearer {admin_token}"},

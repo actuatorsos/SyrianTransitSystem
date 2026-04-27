@@ -8,7 +8,7 @@ Redis are marked with @pytest.mark.integration.
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 try:
     from fastapi.testclient import TestClient

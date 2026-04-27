@@ -80,7 +80,13 @@ class TestGTFSStaticFiles:
     def test_routes_have_required_fields(self, client):
         resp = client.get("/api/gtfs/static/routes.txt")
         rows = _read_csv_from_text(resp.text)
-        required = {"route_id", "agency_id", "route_short_name", "route_long_name", "route_type"}
+        required = {
+            "route_id",
+            "agency_id",
+            "route_short_name",
+            "route_long_name",
+            "route_type",
+        }
         assert required <= set(rows[0].keys())
 
     def test_routes_are_bus_type(self, client):
@@ -146,6 +152,7 @@ class TestGTFSStaticFiles:
     def test_stop_times_time_format(self, client):
         """All times must match HH:MM:SS format."""
         import re
+
         time_re = re.compile(r"^\d{1,2}:\d{2}:\d{2}$")
         resp = client.get("/api/gtfs/static/stop_times.txt")
         stop_times = _read_csv_from_text(resp.text)
@@ -153,11 +160,14 @@ class TestGTFSStaticFiles:
         for st in stop_times:
             for field in ("arrival_time", "departure_time"):
                 if not time_re.match(st[field]):
-                    bad.append(f"{st['trip_id']}:{st['stop_sequence']} {field}={st[field]}")
+                    bad.append(
+                        f"{st['trip_id']}:{st['stop_sequence']} {field}={st[field]}"
+                    )
         assert not bad, f"Invalid time formats: {bad[:5]}"
 
     def test_each_trip_has_at_least_two_stops(self, client):
         from collections import Counter
+
         resp = client.get("/api/gtfs/static/stop_times.txt")
         counts = Counter(st["trip_id"] for st in _read_csv_from_text(resp.text))
         short = [tid for tid, c in counts.items() if c < 2]
@@ -213,8 +223,12 @@ class TestGTFSFeedZip:
         bad_trips = [t["trip_id"] for t in trips if t["route_id"] not in route_ids]
         assert not bad_trips
 
-        bad_st_trips = {st["trip_id"] for st in stop_times if st["trip_id"] not in trip_ids}
+        bad_st_trips = {
+            st["trip_id"] for st in stop_times if st["trip_id"] not in trip_ids
+        }
         assert not bad_st_trips
 
-        bad_st_stops = {st["stop_id"] for st in stop_times if st["stop_id"] not in stop_ids}
+        bad_st_stops = {
+            st["stop_id"] for st in stop_times if st["stop_id"] not in stop_ids
+        }
         assert not bad_st_stops

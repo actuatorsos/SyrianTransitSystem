@@ -142,8 +142,12 @@ def _make_supabase_get(
 ):
     """Return an AsyncMock that dispatches based on the query prefix."""
     stop_rows = stop_rows if stop_rows is not None else [MOCK_STOP]
-    route_stop_rows = route_stop_rows if route_stop_rows is not None else [MOCK_ROUTE_STOP]
-    position_rows = position_rows if position_rows is not None else [MOCK_POSITION_ON_ROUTE]
+    route_stop_rows = (
+        route_stop_rows if route_stop_rows is not None else [MOCK_ROUTE_STOP]
+    )
+    position_rows = (
+        position_rows if position_rows is not None else [MOCK_POSITION_ON_ROUTE]
+    )
     route_rows = route_rows if route_rows is not None else [MOCK_ROUTE]
 
     async def _get(query: str):
@@ -282,9 +286,19 @@ class TestGetStopETA:
     def test_arrivals_sorted_by_eta_ascending(self, client):
         """Arrivals on the same route should be sorted by eta_minutes ascending."""
         near = {**MOCK_POSITION_ON_ROUTE, "vehicle_id": "veh-near"}
-        near["vehicles"] = {**MOCK_POSITION_ON_ROUTE["vehicles"], "vehicle_id": "BUS-NEAR"}
-        far = {**MOCK_POSITION_ON_ROUTE, "location": VEHICLE_LOCATION_FAR, "vehicle_id": "veh-far"}
-        far["vehicles"] = {**MOCK_POSITION_ON_ROUTE["vehicles"], "vehicle_id": "BUS-FAR"}
+        near["vehicles"] = {
+            **MOCK_POSITION_ON_ROUTE["vehicles"],
+            "vehicle_id": "BUS-NEAR",
+        }
+        far = {
+            **MOCK_POSITION_ON_ROUTE,
+            "location": VEHICLE_LOCATION_FAR,
+            "vehicle_id": "veh-far",
+        }
+        far["vehicles"] = {
+            **MOCK_POSITION_ON_ROUTE["vehicles"],
+            "vehicle_id": "BUS-FAR",
+        }
         mock_get = _make_supabase_get(position_rows=[far, near])
         with patch("api.routers.stops._supabase_get", mock_get):
             resp = client.get(f"/api/stops/{STOP_UUID}/eta?limit=2")
@@ -295,7 +309,6 @@ class TestGetStopETA:
 
     def test_stop_id_string_lookup_fallback(self, client):
         """When UUID lookup returns nothing, should fall back to stop_id string lookup."""
-        call_count = {"n": 0}
 
         async def _get_with_fallback(query: str):
             if query.startswith("stops?id=eq."):
@@ -310,7 +323,9 @@ class TestGetStopETA:
                 return [MOCK_ROUTE]
             return []
 
-        with patch("api.routers.stops._supabase_get", AsyncMock(side_effect=_get_with_fallback)):
+        with patch(
+            "api.routers.stops._supabase_get", AsyncMock(side_effect=_get_with_fallback)
+        ):
             resp = client.get(f"/api/stops/{STOP_ID_STR}/eta")
         assert resp.status_code == 200
         assert resp.json()["stop_id"] == STOP_ID_STR
@@ -321,16 +336,19 @@ class TestHaversineHelper:
 
     def test_same_point_is_zero(self):
         from api.routers.stops import _haversine_km
+
         assert _haversine_km(33.5, 36.3, 33.5, 36.3) == pytest.approx(0.0, abs=1e-6)
 
     def test_known_distance(self):
         """Damascus center to ~1 degree north is roughly 111 km."""
         from api.routers.stops import _haversine_km
+
         dist = _haversine_km(33.5, 36.3, 34.5, 36.3)
         assert 100 < dist < 120
 
     def test_symmetry(self):
         from api.routers.stops import _haversine_km
+
         d1 = _haversine_km(33.5, 36.3, 33.6, 36.4)
         d2 = _haversine_km(33.6, 36.4, 33.5, 36.3)
         assert d1 == pytest.approx(d2, rel=1e-6)

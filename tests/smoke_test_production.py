@@ -43,7 +43,9 @@ HTTP_TIMEOUT = 15.0
 HOMEPAGE_MAX_LOAD_SECONDS = 3.0
 
 # WebSocket URL — wss:// for production (https -> wss)
-WS_URL = BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/api/ws/track"
+WS_URL = (
+    BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/api/ws/track"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +56,9 @@ WS_URL = BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/
 @pytest.fixture(scope="module")
 def client():
     """Synchronous httpx client pointing at production."""
-    with httpx.Client(base_url=BASE_URL, timeout=HTTP_TIMEOUT, follow_redirects=True) as c:
+    with httpx.Client(
+        base_url=BASE_URL, timeout=HTTP_TIMEOUT, follow_redirects=True
+    ) as c:
         yield c
 
 
@@ -103,7 +107,9 @@ class TestVehicles:
     def test_vehicles_returns_list(self, client):
         r = client.get("/api/vehicles", params={"operator": OPERATOR})
         body = r.json()
-        assert isinstance(body, list), f"Expected list, got {type(body).__name__}: {body}"
+        assert isinstance(body, list), (
+            f"Expected list, got {type(body).__name__}: {body}"
+        )
 
     def test_vehicles_have_positions(self, client):
         r = client.get("/api/vehicles", params={"operator": OPERATOR})
@@ -111,9 +117,7 @@ class TestVehicles:
         if not vehicles:
             pytest.skip("No vehicles in production data — skipping position check")
         for v in vehicles:
-            assert "latitude" in v or "lat" in v, (
-                f"Vehicle missing latitude field: {v}"
-            )
+            assert "latitude" in v or "lat" in v, f"Vehicle missing latitude field: {v}"
             assert "longitude" in v or "lng" in v or "lon" in v, (
                 f"Vehicle missing longitude field: {v}"
             )
@@ -132,7 +136,9 @@ class TestRoutes:
     def test_routes_returns_list(self, client):
         r = client.get("/api/routes", params={"operator": OPERATOR})
         body = r.json()
-        assert isinstance(body, list), f"Expected list, got {type(body).__name__}: {body}"
+        assert isinstance(body, list), (
+            f"Expected list, got {type(body).__name__}: {body}"
+        )
 
     def test_routes_have_stop_count(self, client):
         r = client.get("/api/routes", params={"operator": OPERATOR})
@@ -181,8 +187,7 @@ class TestHomepage:
         # The homepage HTML should reference a map library (Leaflet, MapboxGL, etc.)
         text = r.text.lower()
         has_map = any(
-            kw in text
-            for kw in ("leaflet", "mapbox", "maplibre", "map", "tile")
+            kw in text for kw in ("leaflet", "mapbox", "maplibre", "map", "tile")
         )
         assert has_map, "Homepage HTML contains no reference to a map library"
 
@@ -250,9 +255,7 @@ class TestWebSocket:
                     await ws.send(json.dumps({"type": "ping"}))
                     raw = await asyncio.wait_for(ws.recv(), timeout=10)
                     msg = json.loads(raw)
-                    assert msg.get("type") == "pong", (
-                        f"Expected pong, got: {msg}"
-                    )
+                    assert msg.get("type") == "pong", f"Expected pong, got: {msg}"
             except InvalidStatus as exc:
                 if exc.response.status_code == 404:
                     pytest.skip(
@@ -288,9 +291,7 @@ class TestAdmin:
             "/api/auth/login",
             json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
         )
-        assert r.status_code == 200, (
-            f"Admin login failed ({r.status_code}): {r.text}"
-        )
+        assert r.status_code == 200, f"Admin login failed ({r.status_code}): {r.text}"
         body = r.json()
         assert "access_token" in body, f"Login response missing access_token: {body}"
         assert body.get("role") in ("admin", "superadmin"), (
