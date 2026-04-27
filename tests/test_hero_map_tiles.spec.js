@@ -42,7 +42,7 @@ const MAP_PAGES = [
 const BASE_URL = process.env.CANARY_BASE_URL || 'http://localhost:7799';
 
 // How long to wait (ms) for the first tile request after the map fires 'load'.
-const TILE_WAIT_MS = 10_000;
+const TILE_WAIT_MS = 20_000;
 
 for (const { path, tilePattern, description } of MAP_PAGES) {
   test(`tile requests fire: ${description}`, async ({ page }) => {

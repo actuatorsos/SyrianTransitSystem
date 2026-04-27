@@ -24,7 +24,7 @@ module.exports = defineConfig({
   webServer: {
     command: 'python3 -m http.server 7799 --directory public',
     port: 7799,
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 15_000,
   },
 });

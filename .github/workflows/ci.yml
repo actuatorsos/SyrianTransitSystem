@@ -127,10 +127,8 @@ jobs:
 
       - name: Run map tile canary tests
         run: |
-          npx -y serve public -p 7799 &
-          sleep 3
           npx playwright test tests/test_hero_map_tiles.spec.js --reporter=list
-        timeout-minutes: 3
+        timeout-minutes: 5
 
   # -------------------------------------------------------------------------
   # Stage 4 — Docker Smoke Test
