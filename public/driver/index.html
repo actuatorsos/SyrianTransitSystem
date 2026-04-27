@@ -595,7 +595,6 @@ function handleLogin() {
       }
       document.getElementById('loginScreen').classList.add('hidden');
       document.dispatchEvent(new Event('driver:logged-in'));
-      initMap();
     } else {
       showLoginError(data.error || t('drv_login_failed'));
     }
@@ -623,7 +622,6 @@ async function handleBiometricLogin() {
       }
       document.getElementById('loginScreen').classList.add('hidden');
       document.dispatchEvent(new Event('driver:logged-in'));
-      initMap();
       CapacitorBridge.vibrate('medium');
     } else {
       showLoginError('لم يتم حفظ بيانات الجلسة — Please sign in with email first');
@@ -696,12 +694,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (authToken) {
     document.getElementById('loginScreen').classList.add('hidden');
-    initMap();
   }
+  initMap();
 });
 
 // ── Map ──
 function initMap() {
+  if (map) return;
   if (window.CapacitorBridge) {
     CapacitorBridge.hideSplash();
     CapacitorBridge.setupStatusBar();
