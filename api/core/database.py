@@ -5,25 +5,37 @@ from typing import Optional
 import httpx
 from fastapi import HTTPException
 
+try:
+    from api.core.auth import current_user_token
+except ImportError:
+    current_user_token = None
+
+
 logger = logging.getLogger(__name__)
 
 
-def _supabase_headers(use_service_key: bool = True) -> dict:
-    if use_service_key:
+def _supabase_headers(use_service_key: bool = False) -> dict:
+    token = current_user_token.get() if current_user_token else None
+
+    if use_service_key and not token:
         key = os.getenv("SUPABASE_SERVICE_KEY", "")
         if not key:
             raise HTTPException(
                 status_code=500, detail="SUPABASE_SERVICE_KEY not configured"
             )
+        auth_header = f"Bearer {key}"
+        apikey = key
     else:
-        key = os.getenv("SUPABASE_ANON_KEY", os.getenv("SUPABASE_KEY", ""))
-        if not key:
+        apikey = os.getenv("SUPABASE_ANON_KEY", os.getenv("SUPABASE_KEY", ""))
+        if not apikey:
             raise HTTPException(
                 status_code=500, detail="SUPABASE_ANON_KEY not configured"
             )
+        auth_header = f"Bearer {token}" if token else f"Bearer {apikey}"
+
     return {
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
+        "apikey": apikey,
+        "Authorization": auth_header,
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }

@@ -8,6 +8,20 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================================
+-- 0. OPERATORS
+-- ============================================================
+
+CREATE TABLE operators (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    name_ar TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- 1. USERS & AUTH
 -- ============================================================
 
@@ -22,6 +36,7 @@ CREATE TABLE users (
     role user_role NOT NULL DEFAULT 'viewer',
     phone TEXT,
     is_active BOOLEAN NOT NULL DEFAULT true,
+    operator_id UUID REFERENCES operators(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -47,6 +62,7 @@ CREATE TABLE routes (
     avg_duration_min INTEGER,
     fare_syp INTEGER,                        -- fare in Syrian Pounds
     is_active BOOLEAN NOT NULL DEFAULT true,
+    operator_id UUID REFERENCES operators(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -70,6 +86,7 @@ CREATE TABLE stops (
     has_shelter BOOLEAN DEFAULT false,
     has_display BOOLEAN DEFAULT false,
     is_active BOOLEAN NOT NULL DEFAULT true,
+    operator_id UUID REFERENCES operators(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -113,6 +130,7 @@ CREATE TABLE vehicles (
     gps_device_type TEXT,                    -- e.g. "FMC650", "OsmAnd"
     is_real_gps BOOLEAN NOT NULL DEFAULT false,
     is_active BOOLEAN NOT NULL DEFAULT true,
+    operator_id UUID REFERENCES operators(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -135,6 +153,7 @@ CREATE TABLE vehicle_positions (
     source TEXT NOT NULL DEFAULT 'simulator',  -- 'simulator', 'traccar', 'osmand'
     route_id UUID REFERENCES routes(id),
     occupancy_pct INTEGER DEFAULT 0,
+    operator_id UUID REFERENCES operators(id),
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -160,6 +179,7 @@ CREATE TABLE vehicle_positions_latest (
     source TEXT NOT NULL DEFAULT 'simulator',
     route_id UUID REFERENCES routes(id),
     occupancy_pct INTEGER DEFAULT 0,
+    operator_id UUID REFERENCES operators(id),
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -184,6 +204,7 @@ CREATE TABLE trips (
     distance_km NUMERIC(6,2),
     on_time_pct NUMERIC(5,2),
     notes TEXT,
+    operator_id UUID REFERENCES operators(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -214,6 +235,7 @@ CREATE TABLE alerts (
     is_resolved BOOLEAN NOT NULL DEFAULT false,
     resolved_by UUID REFERENCES users(id),
     resolved_at TIMESTAMPTZ,
+    operator_id UUID REFERENCES operators(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -234,6 +256,7 @@ CREATE TABLE geofences (
     geofence_type TEXT NOT NULL DEFAULT 'zone',  -- 'zone', 'depot', 'terminal'
     speed_limit_kmh INTEGER,
     is_active BOOLEAN NOT NULL DEFAULT true,
+    operator_id UUID REFERENCES operators(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -250,7 +273,8 @@ CREATE TABLE schedules (
     first_departure TIME NOT NULL,
     last_departure TIME NOT NULL,
     frequency_min INTEGER NOT NULL DEFAULT 15,
-    is_active BOOLEAN NOT NULL DEFAULT true
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    operator_id UUID REFERENCES operators(id)
 );
 
 CREATE INDEX idx_schedules_route ON schedules(route_id);
@@ -291,6 +315,10 @@ ALTER TABLE route_stops ENABLE ROW LEVEL SECURITY;
 ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE geofences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE vehicle_positions_latest ENABLE ROW LEVEL SECURITY;
+ALTER TABLE operators ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY public_read_operators ON operators FOR SELECT USING (true);
+CREATE POLICY admin_write_operators ON operators FOR ALL USING (auth.jwt() ->> 'role' = 'super_admin');
 
 -- Admins can do everything
 CREATE POLICY admin_all ON users FOR ALL
@@ -340,14 +368,18 @@ CREATE OR REPLACE FUNCTION upsert_vehicle_position(
     p_route_id UUID DEFAULT NULL,
     p_occupancy INTEGER DEFAULT 0
 ) RETURNS void AS $$
+DECLARE
+    v_operator_id UUID;
 BEGIN
+    SELECT operator_id INTO v_operator_id FROM vehicles WHERE id = p_vehicle_id;
+
     -- Insert into history
-    INSERT INTO vehicle_positions (vehicle_id, location, speed_kmh, heading, source, route_id, occupancy_pct)
-    VALUES (p_vehicle_id, ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326), p_speed, p_heading, p_source, p_route_id, p_occupancy);
+    INSERT INTO vehicle_positions (vehicle_id, location, speed_kmh, heading, source, route_id, occupancy_pct, operator_id)
+    VALUES (p_vehicle_id, ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326), p_speed, p_heading, p_source, p_route_id, p_occupancy, v_operator_id);
 
     -- Upsert latest
-    INSERT INTO vehicle_positions_latest (vehicle_id, location, speed_kmh, heading, source, route_id, occupancy_pct, recorded_at)
-    VALUES (p_vehicle_id, ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326), p_speed, p_heading, p_source, p_route_id, p_occupancy, NOW())
+    INSERT INTO vehicle_positions_latest (vehicle_id, location, speed_kmh, heading, source, route_id, occupancy_pct, operator_id, recorded_at)
+    VALUES (p_vehicle_id, ST_SetSRID(ST_MakePoint(p_lon, p_lat), 4326), p_speed, p_heading, p_source, p_route_id, p_occupancy, v_operator_id, NOW())
     ON CONFLICT (vehicle_id)
     DO UPDATE SET
         location = EXCLUDED.location,
@@ -356,6 +388,7 @@ BEGIN
         source = EXCLUDED.source,
         route_id = EXCLUDED.route_id,
         occupancy_pct = EXCLUDED.occupancy_pct,
+        operator_id = EXCLUDED.operator_id,
         recorded_at = NOW();
 END;
 $$ LANGUAGE plpgsql;

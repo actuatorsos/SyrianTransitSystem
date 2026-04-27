@@ -242,6 +242,7 @@ from api.routers import (  # noqa: E402
     admin,
     alerts,
     auth,
+    client_log,
     cron,
     driver,
     gtfs,
@@ -260,6 +261,7 @@ from api.routers import (  # noqa: E402
 
 for _router in [
     health.router,
+    client_log.router,
     auth.router,
     routes.router,
     stops.router,
@@ -283,17 +285,17 @@ for _router in [
 # ── Startup event ─────────────────────────────────────────────────────────────
 async def _seed_default_operator():
     """Ensure the default 'damascus' operator exists in the database."""
-    from api.core.database import _supabase_get, _supabase_headers, _supabase_url
+    from api.core.database import _service_get, _supabase_headers, _supabase_url
 
     try:
-        rows = await _supabase_get("operators?slug=eq.damascus&select=id,is_active")
+        rows = await _service_get("operators?slug=eq.damascus&select=id,is_active")
         if rows and rows[0].get("is_active"):
             logger.info("Default operator 'damascus' exists and is active")
             return
         # Insert or reactivate
         import httpx as _httpx
 
-        headers = _supabase_headers()
+        headers = _supabase_headers(use_service_key=True)
         headers["Prefer"] = "return=representation"
         async with _httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
@@ -310,7 +312,9 @@ async def _seed_default_operator():
             resp.raise_for_status()
         logger.info("Default operator 'damascus' seeded/reactivated successfully")
     except Exception as e:
-        logger.error(f"Failed to seed default operator: {e}")
+        logger.critical(f"Failed to seed default operator: {e}")
+        import sys
+        sys.exit(1)
 
 
 @app.on_event("startup")

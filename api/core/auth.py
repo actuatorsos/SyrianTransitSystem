@@ -1,4 +1,5 @@
 import os
+import contextvars
 from datetime import datetime, timedelta
 from typing import Literal, Optional
 
@@ -16,6 +17,8 @@ security = HTTPBearer()
 optional_security = HTTPBearer(auto_error=False)
 
 UserRole = Literal["admin", "dispatcher", "driver", "viewer", "super_admin"]
+
+current_user_token = contextvars.ContextVar("current_user_token", default=None)
 
 _PLACEHOLDER_JWT_SECRETS = {"change-me-to-a-random-64-char-string", "secret", ""}
 
@@ -121,6 +124,7 @@ async def get_current_user(
     credentials: HTTPAuthCredentials = Depends(security),
 ) -> CurrentUser:
     token = credentials.credentials
+    current_user_token.set(token)
     token_payload = verify_token(token)
     return CurrentUser(
         user_id=token_payload.user_id,
@@ -150,8 +154,11 @@ def optional_auth(
     credentials: Optional[HTTPAuthCredentials] = Depends(optional_security),
 ) -> Optional[CurrentUser]:
     if credentials is None:
+        current_user_token.set(None)
         return None
-    token_payload = verify_token(credentials.credentials)
+    token = credentials.credentials
+    current_user_token.set(token)
+    token_payload = verify_token(token)
     return CurrentUser(
         user_id=token_payload.user_id,
         email=token_payload.email,

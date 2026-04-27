@@ -478,11 +478,11 @@ async def list_trips(
     try:
         params = []
         if vehicle_id:
-            params.append(f"vehicle_id=eq.{vehicle_id}")
+            params.append(f"vehicle_id=eq.{urllib.parse.quote(vehicle_id, safe='')}")
         if driver_id:
-            params.append(f"driver_id=eq.{driver_id}")
+            params.append(f"driver_id=eq.{urllib.parse.quote(driver_id, safe='')}")
         if status_filter:
-            params.append(f"status=eq.{status_filter}")
+            params.append(f"status=eq.{urllib.parse.quote(status_filter, safe='')}")
         if current_user.role != "super_admin" and current_user.operator_id:
             params.append(_op_filter(current_user.operator_id))
 

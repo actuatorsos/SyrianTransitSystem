@@ -4,7 +4,8 @@ import os
 import sys
 from datetime import datetime
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
+import urllib.parse
 
 from api.core.database import _supabase_get, _supabase_post, _supabase_rpc
 from api.core.logging import logger
@@ -38,11 +39,11 @@ def _require_secret() -> str:
     return TRACCAR_WEBHOOK_SECRET
 
 
-def verify_traccar_signature(request_body: str, signature: str) -> bool:
+def verify_traccar_signature(request_body: bytes, signature: str) -> bool:
     """Verify Traccar webhook signature using HMAC."""
     secret = _require_secret()
     computed = hmac.new(
-        secret.encode(), request_body.encode(), hashlib.sha256
+        secret.encode(), request_body, hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(computed, signature)
 
@@ -50,18 +51,21 @@ def verify_traccar_signature(request_body: str, signature: str) -> bool:
 @router.post("/api/traccar/position", response_model=WebhookResponse, tags=["traccar"])
 async def traccar_position_webhook(
     position: TraccarPosition,
+    request: Request,
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
 ):
     """Webhook for Traccar GPS position updates. Secured by HMAC signature."""
-    if not verify_traccar_signature(position.json(), x_traccar_signature):
+    raw_body = await request.body()
+    if not verify_traccar_signature(raw_body, x_traccar_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid signature",
         )
 
     try:
+        quoted_id = urllib.parse.quote(position.deviceId, safe='')
         devices = await _supabase_get(
-            f"vehicles?gps_device_id=eq.{position.deviceId}&select=id,vehicle_id"
+            f"vehicles?gps_device_id=eq.{quoted_id}&select=id,vehicle_id"
         )
         if not devices:
             return {"status": "ignored", "reason": "device_not_found"}
@@ -92,18 +96,21 @@ async def traccar_position_webhook(
 @router.post("/api/traccar/event", response_model=WebhookResponse, tags=["traccar"])
 async def traccar_event_webhook(
     event: TraccarEvent,
+    request: Request,
     x_traccar_signature: str = Header(..., description="HMAC-SHA256 signature"),
 ):
     """Webhook for Traccar events (engine on/off, speeding, etc). Secured by HMAC."""
-    if not verify_traccar_signature(event.json(), x_traccar_signature):
+    raw_body = await request.body()
+    if not verify_traccar_signature(raw_body, x_traccar_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid signature",
         )
 
     try:
+        quoted_id = urllib.parse.quote(event.deviceId, safe='')
         devices = await _supabase_get(
-            f"vehicles?gps_device_id=eq.{event.deviceId}&select=id"
+            f"vehicles?gps_device_id=eq.{quoted_id}&select=id"
         )
         if not devices:
             return {"status": "ignored", "reason": "device_not_found"}
