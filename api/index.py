@@ -313,8 +313,6 @@ async def _seed_default_operator():
         logger.info("Default operator 'damascus' seeded/reactivated successfully")
     except Exception as e:
         logger.critical(f"Failed to seed default operator: {e}")
-        import sys
-        sys.exit(1)
 
 
 @app.on_event("startup")

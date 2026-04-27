@@ -22,11 +22,11 @@
 :root {
   --green-dark: #002623;
   --green-mid: #054239;
-  --green-light: #428177;
-  --gold: #b9a779;
-  --gold-light: #edebe0;
+  --green-light: #34d399;
+  --gold: #f59e0b;
+  --gold-light: #fef3c7;
   --umber: #6b1f2a;
-  --charcoal: #3d3a3b;
+  --charcoal: #1f2937;
   --white: #ffffff;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -40,8 +40,11 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 /* ─── Top Bar ─── */
 .top-bar {
   position:absolute; top:0; left:0; right:0; z-index:100;
-  padding:calc(var(--safe-top) + 12px) 16px 12px;
-  background:linear-gradient(180deg, rgba(0,38,35,0.95) 0%, rgba(0,38,35,0.7) 70%, transparent 100%);
+  padding:calc(var(--safe-top) + 16px) 20px 16px;
+  background:rgba(0, 38, 35, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .top-bar .logo-row { display:flex; align-items:center; gap:10px; }
 .top-bar h1 { color:var(--white); font-size:20px; font-weight:700; }
@@ -51,9 +54,10 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 
 /* ─── Search Bar ─── */
 .search-bar {
-  margin-top:12px; background:var(--white); border-radius:16px; padding:14px 18px;
-  display:flex; align-items:center; gap:12px; box-shadow:0 4px 24px rgba(0,0,0,0.12);
-  min-height:52px; transition:box-shadow 0.2s;
+  margin-top:16px; background:rgba(255, 255, 255, 0.95); border-radius:18px; padding:16px 20px;
+  display:flex; align-items:center; gap:12px; box-shadow:0 8px 32px rgba(0, 0, 0, 0.15);
+  min-height:56px; transition:box-shadow 0.3s ease, transform 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 .search-bar:focus-within {
   box-shadow:0 4px 28px rgba(66,129,119,0.25);
@@ -71,8 +75,9 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 /* ─── Bottom Sheet ─── */
 .bottom-sheet {
   position:absolute; bottom:0; left:0; right:0; z-index:200;
-  background:#fafaf8; border-radius:22px 22px 0 0;
-  box-shadow:0 -4px 30px rgba(0,0,0,0.1);
+  background:rgba(250, 250, 248, 0.94); border-radius:28px 28px 0 0;
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  box-shadow:0 -8px 40px rgba(0,0,0,0.15);
   transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
   max-height:70vh; overflow:hidden;
   padding-bottom:var(--safe-bottom);
@@ -95,11 +100,12 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 .routes-scroll { overflow-y:auto; max-height:calc(70vh - 100px); padding:0 16px 20px; }
 
 .route-card {
-  background:var(--gold-light); border-radius:16px; padding:16px;
-  margin-bottom:12px; position:relative; overflow:hidden;
-  transition:transform 0.15s, box-shadow 0.2s;
+  background:rgba(250, 250, 248, 0.9); border-radius:18px; padding:18px;
+  margin-bottom:14px; position:relative; overflow:hidden;
+  transition:transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s;
   cursor:pointer;
-  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+  box-shadow:0 4px 16px rgba(0,0,0,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.8);
 }
 .route-card:active { transform:scale(0.98); box-shadow:0 1px 8px rgba(0,0,0,0.08); }
 .route-card::before {
@@ -154,14 +160,15 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 /* ─── Nav Bar ─── */
 .nav-bar {
   position:absolute; bottom:0; left:0; right:0; z-index:300;
-  background:rgba(255,255,255,0.97); backdrop-filter:blur(10px);
-  border-top:1px solid rgba(0,0,0,0.06);
-  display:flex; padding:8px 0 calc(var(--safe-bottom) + 4px);
+  background:rgba(255, 255, 255, 0.85); backdrop-filter:blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top:1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:0 -4px 24px rgba(0, 0, 0, 0.05);
+  display:flex; padding:12px 0 calc(var(--safe-bottom) + 8px);
 }
 .nav-item {
-  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
-  font-size:10px; color:#aaa; cursor:pointer; border:none; background:none; padding:8px 4px;
-  min-height:44px; transition:color 0.2s;
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+  font-size:11px; color:#888; cursor:pointer; border:none; background:none; padding:8px 4px;
+  min-height:48px; transition:color 0.25s, transform 0.25s;
 }
 .nav-item.active { color:var(--green-light); }
 .nav-item .nav-icon { font-size:22px; }
@@ -195,14 +202,14 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
   border-radius: 3px;
 }
 
-/* ── UI: route card hover lift ── */
 .route-card {
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
 }
 .route-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
+.nav-item:active { transform: scale(0.92); }
 
 /* ── UI: nav item active indicator ── */
 .nav-item.active {
@@ -431,6 +438,7 @@ function findRealStopId(localStop) {
 // ─── Arabic search normalization ───
 // Strips diacritics (tashkeel) and normalizes alef/hamza/teh-marbuta variants
 // so searching "مرجه" matches "مرجة", "اوتوستراد" matches "أوتوستراد", etc.
+// Also handles Persian/Urdu kaf/yeh and Arabic-Indic digit variants (DAM-458).
 function normalizeArabic(text) {
   return text
     // Remove tashkeel (harakat, shadda, etc.)
@@ -441,6 +449,14 @@ function normalizeArabic(text) {
     .replace(/\u0629/g, '\u0647')
     // Normalize alef maqsura (ى) → ي
     .replace(/\u0649/g, '\u064A')
+    // Normalize Persian/Urdu kaf (ک U+06A9) → Arabic kaf (ك U+0643)
+    .replace(/\u06A9/g, '\u0643')
+    // Normalize Persian/Urdu yeh (ی U+06CC) → Arabic yeh (ي U+064A)
+    .replace(/\u06CC/g, '\u064A')
+    // Normalize Arabic-Indic digits (٠-٩ U+0660-U+0669) → ASCII 0-9
+    .replace(/[\u0660-\u0669]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0630))
+    // Normalize Extended Arabic-Indic digits (۰-۹ U+06F0-U+06F9) → ASCII 0-9
+    .replace(/[\u06F0-\u06F9]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x06C0))
     .toLowerCase()
     .trim();
 }

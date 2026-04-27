@@ -38,21 +38,21 @@
         }
 
         :root {
-            --forest-green: #428177;
-            --forest-dark: #054239;
-            --forest-black: #002623;
-            --golden: #edebe0;
-            --golden-mid: #b9a779;
-            --golden-dark: #988561;
-            --umber: #6b1f2a;
-            --umber-dark: #4a151e;
-            --umber-black: #260f14;
-            --charcoal: #3d3a3b;
-            --charcoal-light: #161616;
+            --forest-green: #34d399;
+            --forest-dark: #059669;
+            --forest-black: #022c22;
+            --golden: #f59e0b;
+            --golden-mid: #fbbf24;
+            --golden-dark: #b45309;
+            --umber: #be123c;
+            --umber-dark: #881337;
+            --umber-black: #4c0519;
+            --charcoal: #1f2937;
+            --charcoal-light: #111827;
             --white: #ffffff;
-            --text-light: #e8e8e8;
-            --text-muted: #b0b0b0;
-            --border-color: #4a4a4a;
+            --text-light: #f9fafb;
+            --text-muted: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.15);
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
@@ -71,16 +71,18 @@
             overflow: hidden;
         }
 
-        /* ==================== SIDEBAR ==================== */
         .sidebar {
             width: 260px;
-            background: linear-gradient(180deg, var(--forest-dark) 0%, var(--forest-black) 100%);
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-right: 1px solid var(--border-color);
-            padding: 20px 0;
+            padding: 24px 0;
             overflow-y: auto;
             position: relative;
             z-index: 100;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
         }
 
         .sidebar.mobile-closed {
@@ -153,17 +155,20 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            background: var(--charcoal);
+            background: radial-gradient(circle at top right, rgba(52, 211, 153, 0.1), transparent 50%), var(--charcoal-light);
         }
 
         .topbar {
-            background: var(--charcoal);
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border-color);
             padding: 16px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             min-height: 70px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
         }
 
         .topbar-left {
@@ -250,21 +255,27 @@
         }
 
         .stat-card {
-            background: linear-gradient(135deg, rgba(66, 129, 119, 0.2) 0%, rgba(5, 66, 57, 0.2) 100%);
-            border: 1px solid var(--forest-green);
-            border-radius: 8px;
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
             padding: 24px;
             text-align: right;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(52, 211, 153, 0.1);
         }
 
         .stat-card.accent-umber {
-            background: linear-gradient(135deg, rgba(107, 31, 42, 0.2) 0%, rgba(74, 21, 30, 0.2) 100%);
-            border-color: var(--umber);
+            border-color: rgba(239, 68, 68, 0.3);
         }
 
         .stat-card.accent-warning {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
-            border-color: var(--warning);
+            border-color: rgba(245, 158, 11, 0.3);
         }
 
         .stat-label {
@@ -290,11 +301,12 @@
         .map-container {
             width: 100%;
             height: 500px;
-            border-radius: 8px;
+            border-radius: 16px;
             overflow: hidden;
             border: 1px solid var(--border-color);
             margin-bottom: 30px;
             background: var(--charcoal-light);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
         }
 
         #map {

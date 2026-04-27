@@ -56,15 +56,15 @@
         }
 
         :root {
-            --forest-green-primary: #428177;
-            --forest-green-dark: #054239;
-            --forest-green-darker: #002623;
-            --golden-wheat-light: #edebe0;
-            --golden-wheat-mid: #b9a779;
-            --golden-wheat-dark: #988561;
-            --deep-umber-light: #6b1f2a;
-            --charcoal-dark: #161616;
-            --charcoal-light: #3d3a3b;
+            --forest-green-primary: #34d399;
+            --forest-green-dark: #059669;
+            --forest-green-darker: #022c22;
+            --golden-wheat-light: #fef3c7;
+            --golden-wheat-mid: #fbbf24;
+            --golden-wheat-dark: #b45309;
+            --deep-umber-light: #be123c;
+            --charcoal-dark: #111827;
+            --charcoal-light: #1f2937;
         }
 
         html {
@@ -73,9 +73,12 @@
 
         body {
             font-family: 'IBM Plex Sans Arabic', sans-serif;
-            background-color: var(--forest-green-darker);
+            background-color: var(--charcoal-dark);
+            background-image: radial-gradient(circle at top left, rgba(52, 211, 153, 0.15), transparent 40%),
+                              radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.1), transparent 40%);
             color: var(--golden-wheat-light);
             overflow-x: hidden;
+            min-height: 100vh;
         }
 
         /* ── Language Toggle ── */
@@ -117,9 +120,10 @@
             align-items: center;
             justify-content: space-between;
             padding: 1rem 2rem;
-            background: rgba(0, 38, 35, 0.9);
-            border-bottom: 1px solid rgba(66, 129, 119, 0.3);
-            backdrop-filter: blur(12px);
+            background: rgba(17, 24, 39, 0.85);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
 
         .nav-logo {
@@ -132,12 +136,13 @@
         .nav-logo-icon {
             width: 32px;
             height: 32px;
-            background: var(--forest-green-primary);
+            background: linear-gradient(135deg, var(--forest-green-primary), #10b981);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.1rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
 
         .nav-logo-text {
@@ -178,13 +183,17 @@
         }
 
         .nav-link.primary {
-            background: var(--forest-green-primary);
-            color: var(--golden-wheat-light);
-            border-color: var(--forest-green-primary);
+            background: linear-gradient(135deg, var(--forest-green-primary), #10b981);
+            color: var(--charcoal-dark);
+            border-color: transparent;
+            font-weight: 700;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
         }
 
         .nav-link.primary:hover {
-            background: #4e9b8f;
+            background: linear-gradient(135deg, #10b981, var(--forest-green-dark));
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
 
         /* ── Hero ── */
@@ -300,10 +309,16 @@
         .hero-map {
             position: relative;
             height: 480px;
-            border-radius: 1rem;
+            border-radius: 20px;
             overflow: hidden;
-            border: 1px solid rgba(66, 129, 119, 0.3);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(52, 211, 153, 0.1);
+            transform: perspective(1000px) rotateY(-5deg) rotateX(2deg);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hero-map:hover {
+            transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
         }
 
         #hero-map-container {
@@ -321,15 +336,17 @@
 
         .map-label {
             position: absolute;
-            bottom: 1rem;
-            right: 1rem;
-            background: rgba(5, 66, 57, 0.85);
-            border: 1px solid rgba(66, 129, 119, 0.4);
-            border-radius: 0.5rem;
-            padding: 0.5rem 0.8rem;
-            font-size: 0.75rem;
-            color: var(--golden-wheat-mid);
-            backdrop-filter: blur(8px);
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: rgba(31, 41, 55, 0.85);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--golden-wheat-light);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
         /* ── Stats Bar ── */
@@ -421,26 +438,40 @@
         }
 
         .app-card {
-            background: rgba(5, 66, 57, 0.4);
-            border: 1px solid rgba(66, 129, 119, 0.25);
-            border-radius: 1rem;
-            padding: 1.75rem 1.25rem;
+            background: rgba(31, 41, 55, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border-radius: 1.25rem;
+            padding: 2rem 1.5rem;
             text-align: center;
             text-decoration: none;
             color: var(--golden-wheat-light);
-            transition: all 0.25s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.75rem;
+            gap: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 100%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
         .app-card:hover {
-            background: rgba(66, 129, 119, 0.2);
-            border-color: rgba(66, 129, 119, 0.5);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            background: rgba(31, 41, 55, 0.8);
+            border-color: rgba(52, 211, 153, 0.4);
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(52, 211, 153, 0.1);
         }
+        
+        .app-card:hover::before { opacity: 1; }
 
         .app-icon {
             width: 52px;
