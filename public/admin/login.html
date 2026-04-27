@@ -1,308 +1,164 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Syrian Transit | Admin Login — تسجيل الدخول</title>
-    <meta name="theme-color" content="#0F4C5C">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            /* Syrian National Identity: Dark Teal-Green + Light Gold */
-            --forest-green: #0F4C5C;
-            --forest-dark: #0B3945;
-            --forest-black: #051A20;
-            --golden: #D4AF37;
-            --golden-mid: #C9A227;
-            --charcoal: #1a2a30;
-            --charcoal-light: #0d1f25;
-            --white: #ffffff;
-            --text-light: #F7E7CE;
-            --text-muted: #9eb5bc;
-            --border-color: rgba(212, 175, 55, 0.25);
-            --danger: #ef4444;
-        }
-
-        html, body {
-            font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; /* Syrian Identity — Tajawal */
-            background: var(--charcoal-light);
-            color: var(--text-light);
-            height: 100%;
-        }
-
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, var(--forest-black) 0%, var(--charcoal-light) 60%, #030d10 100%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(15, 76, 92, 0.35), transparent 70%);
-            top: -150px;
-            right: -150px;
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        .login-card {
-            background: rgba(31, 41, 55, 0.6);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 48px 40px;
-            width: 100%;
-            max-width: 420px;
-            text-align: center;
-            box-shadow: 0 16px 40px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 10;
-        }
-
-        .login-logo {
-            font-size: 30px;
-            font-weight: 700;
-            color: var(--golden);
-            margin-bottom: 6px;
-        }
-
-        .login-logo-en {
-            font-size: 13px;
-            color: var(--golden-mid);
-            letter-spacing: 0.05em;
-            margin-bottom: 32px;
-        }
-
-        .login-error {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #fca5a5;
-            padding: 12px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            display: none;
-            text-align: right;
-        }
-
-        .login-error.show { display: block; }
-
-        .field-group {
-            margin-bottom: 16px;
-            text-align: right;
-        }
-
-        .field-label {
-            display: block;
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-        }
-
-        .field-label span { font-size: 11px; color: var(--border-color); margin-right: 4px; }
-
-        .login-input {
-            width: 100%;
-            padding: 12px 14px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-color);
-            color: var(--text-light);
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            text-align: right;
-            direction: ltr;
-            transition: all 0.25s ease;
-        }
-
-        .login-input::placeholder { color: var(--text-muted); direction: rtl; }
-
-        .login-input:focus {
-            outline: none;
-            border-color: var(--golden);
-            background: rgba(212, 175, 55, 0.05);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
-        }
-
-        .login-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, var(--golden), var(--golden-mid));
-            color: var(--charcoal-light);
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            font-family: inherit;
-            margin-top: 12px;
-            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
-        }
-
-        .login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(212, 175, 55, 0.45); }
-        .login-btn:active { transform: translateY(1px); }
-        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
-
-        .login-divider {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 20px 0 4px;
-            color: var(--text-muted);
-            font-size: 11px;
-        }
-
-        .login-divider::before,
-        .login-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border-color);
-        }
-
-        .role-hint {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 20px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>هيئة النقل الوطنية السورية | Admin Login</title>
+<meta name="theme-color" content="#0F4C5C">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --primary:#0F4C5C;--primary-light:#1a6070;--primary-dark:#081f26;
+  --gold:#C8A951;--gold-light:#e8c96a;
+  --bg:#F5F5F7;--card:#FFFFFF;
+  --text-primary:#1D1D1F;--text-secondary:#515154;--text-tertiary:#86868B;
+  --border:rgba(0,0,0,0.1);--danger:#DC3545;
+}
+body{
+  font-family:'Noto Naskh Arabic','Inter',sans-serif;
+  background:var(--bg);
+  min-height:100vh;display:flex;flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+}
+.gov-bar{
+  background:var(--primary);color:rgba(255,255,255,0.85);
+  text-align:center;padding:0.45rem 1rem;font-size:0.72rem;
+  letter-spacing:0.03em;border-bottom:2px solid var(--gold);
+}
+.gov-bar span{color:var(--gold-light);}
+.main{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:2.5rem 2rem;
+  width:100%;max-width:400px;
+  box-shadow:0 8px 40px rgba(0,0,0,0.08);
+}
+.card-seal{
+  width:64px;height:64px;
+  background:var(--primary);
+  border-radius:50%;margin:0 auto 1rem;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.8rem;border:3px solid var(--gold);
+}
+.card-title{font-size:1.1rem;font-weight:700;color:var(--primary);text-align:center;margin-bottom:0.25rem;}
+.card-subtitle{font-size:0.78rem;color:var(--text-tertiary);text-align:center;font-family:'Inter',sans-serif;margin-bottom:2rem;}
+.divider{height:1px;background:var(--border);margin:1.5rem 0;}
+.field{margin-bottom:1rem;}
+.field-label{display:block;font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.4rem;}
+.field-label span{font-size:0.72rem;color:var(--text-tertiary);font-weight:400;}
+.field-input{
+  width:100%;padding:0.65rem 0.9rem;
+  border:1.5px solid var(--border);border-radius:8px;
+  font-size:0.88rem;font-family:inherit;
+  color:var(--text-primary);background:#fff;
+  transition:border-color 0.2s,box-shadow 0.2s;
+  direction:ltr;text-align:right;
+}
+.field-input::placeholder{color:var(--text-tertiary);}
+.field-input:focus{
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(15,76,92,0.12);
+}
+.login-btn{
+  width:100%;padding:0.8rem;margin-top:0.5rem;
+  background:var(--primary);color:#fff;
+  border:none;border-radius:8px;
+  font-size:0.9rem;font-weight:600;
+  cursor:pointer;font-family:inherit;
+  transition:background 0.2s,transform 0.15s,box-shadow 0.2s;
+  box-shadow:0 4px 12px rgba(15,76,92,0.2);
+}
+.login-btn:hover{background:var(--primary-light);transform:translateY(-1px);box-shadow:0 6px 16px rgba(15,76,92,0.3);}
+.login-btn:active{transform:translateY(0);}
+.login-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.error-box{
+  display:none;background:rgba(220,53,69,0.06);
+  border:1px solid rgba(220,53,69,0.25);border-radius:8px;
+  padding:0.65rem 0.9rem;font-size:0.82rem;color:#c0392b;
+  margin-bottom:1rem;text-align:right;
+}
+.error-box.show{display:block;}
+.hint{font-size:0.75rem;color:var(--text-tertiary);text-align:center;margin-top:1rem;}
+footer{
+  background:var(--primary-dark,#081f26);
+  color:rgba(255,255,255,0.5);
+  text-align:center;padding:1rem;font-size:0.72rem;
+  border-top:2px solid var(--gold);
+}
+</style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="login-logo">🦅 النقل السوري</div>
-        <div class="login-logo-en">Syrian Transit · Admin Panel</div>
-
-        <div class="login-error" id="loginError"></div>
-
-        <div class="field-group">
-            <label class="field-label" for="loginEmail">
-                البريد الإلكتروني <span>/ Email</span>
-            </label>
-            <input
-                type="email"
-                id="loginEmail"
-                class="login-input"
-                placeholder="admin@example.com"
-                autocomplete="email"
-            >
-        </div>
-
-        <div class="field-group">
-            <label class="field-label" for="loginPassword">
-                كلمة المرور <span>/ Password</span>
-            </label>
-            <input
-                type="password"
-                id="loginPassword"
-                class="login-input"
-                placeholder="••••••••"
-                autocomplete="current-password"
-            >
-        </div>
-
-        <button class="login-btn" id="loginBtn" onclick="handleLogin()">
-            دخول &nbsp;/&nbsp; Sign In
-        </button>
-
-        <div class="role-hint">
-            للمديرين والمشغّلين فقط · Authorized personnel only
-        </div>
-
+<div class="gov-bar">
+  الجمهورية العربية السورية — <span>هيئة النقل الوطنية</span> — Authorized Access Only
+</div>
+<div class="main">
+  <div class="card">
+    <div class="card-seal">🦅</div>
+    <div class="card-title">هيئة النقل الوطنية السورية</div>
+    <div class="card-subtitle">Syrian Transit Authority · Admin Panel</div>
+    <div class="divider"></div>
+    <div class="error-box" id="loginError"></div>
+    <div class="field">
+      <label class="field-label" for="loginEmail">البريد الإلكتروني <span>/ Email</span></label>
+      <input type="email" id="loginEmail" class="field-input" placeholder="admin@example.com" autocomplete="email">
     </div>
+    <div class="field">
+      <label class="field-label" for="loginPassword">كلمة المرور <span>/ Password</span></label>
+      <input type="password" id="loginPassword" class="field-input" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" id="loginBtn" onclick="handleLogin()">دخول / Sign In</button>
+    <div class="hint">للمديرين والمشغّلين فقط · Authorized personnel only</div>
+  </div>
+</div>
+<footer>© 2026 هيئة النقل الوطنية السورية · Syrian National Transit Authority</footer>
+<script>
+function getApiBase(){
+  const h=window.location.hostname;
+  if(h==='localhost'||h.includes('vercel'))return window.location.origin;
+  return '';
+}
+const API_BASE=getApiBase();
+(function(){const t=sessionStorage.getItem('adminToken');if(t)window.location.replace('/admin/');})();
 
-    <script>
-        // ==================== CONFIG ====================
-        function getApiBase() {
-            const h = window.location.hostname;
-            if (h === 'localhost' || h.includes('vercel')) return window.location.origin;
-            return '';
-        }
-
-        const API_BASE = getApiBase();
-
-        // Redirect to dashboard if already authenticated
-        (function checkExistingSession() {
-            const token = sessionStorage.getItem('adminToken');
-            if (token) {
-                window.location.replace('/admin/');
-            }
-        })();
-
-        // ==================== LOGIN ====================
-        function handleLogin() {
-            const email = document.getElementById('loginEmail').value.trim();
-            const password = document.getElementById('loginPassword').value.trim();
-            const loginBtn = document.getElementById('loginBtn');
-
-            if (!email || !password) {
-                showError('يرجى ملء جميع الحقول · Please fill in all fields');
-                return;
-            }
-
-            loginBtn.disabled = true;
-            loginBtn.textContent = '...جاري الدخول';
-
-            fetch(`${API_BASE}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            })
-            .then(res => res.json().then(data => ({ ok: res.ok, data })))
-            .then(({ ok, data }) => {
-                if (ok && data.access_token) {
-                    const role = data.role || 'viewer';
-                    const allowedRoles = ['admin', 'super_admin', 'dispatcher'];
-                    if (!allowedRoles.includes(role)) {
-                        showError('ليس لديك صلاحية الوصول · Access not authorized for your role');
-                        return;
-                    }
-                    // Store in sessionStorage (in-memory per tab, not persisted like localStorage)
-                    sessionStorage.setItem('adminToken', data.access_token);
-                    sessionStorage.setItem('adminUserId', data.user_id);
-                    sessionStorage.setItem('adminRole', role);
-                    window.location.replace('/admin/');
-                } else {
-                    showError(data.detail || data.error || 'فشل تسجيل الدخول · Login failed');
-                }
-            })
-            .catch(() => {
-                showError('خطأ في الاتصال · Connection error. Please try again.');
-            })
-            .finally(() => {
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'دخول / Sign In';
-            });
-        }
-
-        function showError(msg) {
-            const el = document.getElementById('loginError');
-            el.textContent = msg;
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 6000);
-        }
-
-        // Allow Enter key to submit
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Enter') handleLogin();
-        });
-    </script>
+function handleLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const password=document.getElementById('loginPassword').value.trim();
+  const btn=document.getElementById('loginBtn');
+  if(!email||!password){showError('يرجى ملء جميع الحقول · Please fill in all fields');return;}
+  btn.disabled=true;btn.textContent='جارٍ التحقق...';
+  fetch(`${API_BASE}/api/auth/login`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email,password})
+  })
+  .then(r=>r.json().then(d=>({ok:r.ok,d})))
+  .then(({ok,d})=>{
+    if(ok&&d.access_token){
+      const role=d.role||'viewer';
+      if(!['admin','super_admin','dispatcher'].includes(role)){
+        showError('ليس لديك صلاحية الوصول · Access not authorized');return;
+      }
+      sessionStorage.setItem('adminToken',d.access_token);
+      sessionStorage.setItem('adminUserId',d.user_id);
+      sessionStorage.setItem('adminRole',role);
+      window.location.replace('/admin/');
+    }else{showError(d.detail||d.error||'فشل تسجيل الدخول · Login failed');}
+  })
+  .catch(()=>showError('خطأ في الاتصال · Connection error'))
+  .finally(()=>{btn.disabled=false;btn.textContent='دخول / Sign In';});
+}
+function showError(msg){
+  const el=document.getElementById('loginError');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),6000);
+}
+document.addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
+</script>
 </body>
 </html>

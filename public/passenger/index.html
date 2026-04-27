@@ -13,7 +13,7 @@
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
 <script src="/lib/error-handler.js"></script>
@@ -32,7 +32,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body { font-family:'Tajawal',system-ui,sans-serif; background:var(--green-dark); overflow:hidden; height:100vh; height:100dvh; }
+body { font-family:'Noto Naskh Arabic','Inter',system-ui,sans-serif; background:var(--green-dark); overflow:hidden; height:100vh; height:100dvh; }
 
 /* ─── Map ─── */
 #map { position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; }
@@ -528,7 +528,7 @@ function initMap() {
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([stop.lon, stop.lat])
       .setPopup(new maplibregl.Popup({ offset: 15, className: 'stop-popup' })
-        .setHTML(`<div style="font-family:'Tajawal';padding:4px;direction:rtl;">
+        .setHTML(`<div style="font-family:'Noto Naskh Arabic','Inter';padding:4px;direction:rtl;">
           <strong>${stop.nameAr}</strong><br>
           <span style="color:#888;font-size:12px;">${stop.name}</span><br>
           <span style="font-size:12px;color:var(--green-mid);">اضغط لعرض المواعيد ←</span>
@@ -558,24 +558,29 @@ function connectSSE() {
   if (eventSource) eventSource.close();
   eventSource = new EventSource(SSE_URL);
   eventSource.onmessage = (event) => {
-    const parsed = JSON.parse(event.data);
-    const vehicles_data = Array.isArray(parsed) ? parsed : [parsed];
-    vehicles_data.forEach(v => {
-      const id = v.vehicle_id || v.device_id;
-      vehicles[id] = v;
-      if (v.latitude != null && v.longitude != null) updateMarker({ ...v, vehicle_id: id });
-    });
-    updateRouteCards();
-    connectionBar.classList.remove('disconnected');
-
-    // If stop detail is visible, refresh ETA via client-side calc on SSE updates
-    // (rate-limited to once every 5 s to avoid thrashing the display)
-    if (currentStop) {
-      const now = Date.now();
-      if (now - _lastSSEEtaRefresh > 5000) {
-        _lastSSEEtaRefresh = now;
-        computeClientSideETA(currentStop);
+    try {
+      const parsed = JSON.parse(event.data);
+      // Skip server-side error events
+      if (parsed && parsed.error) return;
+      // Production stream sends one object per event; stub sends arrays
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      list.forEach(v => {
+        const id = v.vehicle_id || v.device_id;
+        if (!id) return;
+        vehicles[id] = v;
+        if (v.latitude != null && v.longitude != null) updateMarker({ ...v, vehicle_id: id });
+      });
+      updateRouteCards();
+      connectionBar.classList.remove('disconnected');
+      if (currentStop) {
+        const now = Date.now();
+        if (now - _lastSSEEtaRefresh > 5000) {
+          _lastSSEEtaRefresh = now;
+          computeClientSideETA(currentStop);
+        }
       }
+    } catch(e) {
+      // Malformed SSE event — ignore silently
     }
   };
   eventSource.onerror = () => {
@@ -628,11 +633,12 @@ function updateMarker(v) {
     return;
   }
 
+  const BUS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3" fill="${isReal ? '#7C3AED' : (v.status==='stopped' ? '#DC3545' : '#0F4C5C')}"/><rect x="4" y="3" width="16" height="4" rx="1" fill="#C8A951"/><circle cx="7" cy="19" r="2.5" fill="#fff" stroke="${isReal?'#7C3AED':'#0F4C5C'}" stroke-width="1.5"/><circle cx="17" cy="19" r="2.5" fill="#fff" stroke="${isReal?'#7C3AED':'#0F4C5C'}" stroke-width="1.5"/><rect x="5" y="8" width="14" height="5" rx="1" fill="rgba(255,255,255,0.25)"/></svg>`;
   const el = document.createElement('div');
-  const color = isReal ? '#8B5CF6' : (v.status === 'stopped' ? '#EF4444' : (typeColors[v.vehicle_type] || '#6B7280'));
-  const size = isReal ? 28 : 20;
-  el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid ${isReal?'#DDD6FE':'#fff'};box-shadow:${isReal?'0 0 10px rgba(139,92,246,0.5),':''}0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:${isReal?14:11}px;cursor:pointer;`;
-  el.textContent = isReal ? '📍' : (v.vehicle_type === 'bus' ? '🦅⭐⭐⭐' : v.vehicle_type === 'microbus' ? '🚐' : '🚕');
+  el.innerHTML = BUS_SVG;
+  el.style.cssText = `cursor:pointer;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));transition:transform 0.2s;`;
+  el.onmouseenter = () => el.style.transform = 'scale(1.2)';
+  el.onmouseleave = () => el.style.transform = 'scale(1)';
 
   const popup = new maplibregl.Popup({ offset: 15 }).setHTML(markerPopupHTML(v, isReal));
 
@@ -644,7 +650,7 @@ function updateMarker(v) {
 
 function markerPopupHTML(v, isReal) {
   return `
-    <div style="font-family:'Tajawal';padding:4px;">
+    <div style="font-family:'Noto Naskh Arabic','Inter';padding:4px;">
       <strong>${v.vehicle_id}</strong>
       ${isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;margin-right:4px;">GPS حقيقي</span>' : ''}
       <br><span style="color:#888;font-size:12px;">${v.route_name || v.assigned_route_id || 'خط غير معروف'}</span>

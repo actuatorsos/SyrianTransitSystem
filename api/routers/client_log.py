@@ -46,21 +46,19 @@ async def log_client_error(payload: ClientErrorPayload, request: Request):
         },
     )
 
-    # Forward to Sentry when available so client errors appear alongside
-    # server errors in the same project.
     try:
         import sentry_sdk
 
-        with sentry_sdk.push_scope() as scope:
-            scope.set_tag("source", "client_js")
-            scope.set_extra("page_url", payload.url)
-            scope.set_extra("error_source_file", payload.source)
-            scope.set_extra("lineno", payload.lineno)
-            scope.set_extra("colno", payload.colno)
-            scope.set_extra("userAgent", payload.userAgent)
-            sentry_sdk.capture_message(
-                f"[Client JS] {payload.type}: {payload.message}",
-                level="error",
-            )
+        sentry_sdk.capture_message(
+            f"[Client JS] {payload.type}: {payload.message}",
+            level="error",
+            extras={
+                "page_url": payload.url,
+                "error_source_file": payload.source,
+                "lineno": payload.lineno,
+                "colno": payload.colno,
+                "userAgent": payload.userAgent,
+            },
+        )
     except Exception:
         pass  # Sentry not configured — already logged above

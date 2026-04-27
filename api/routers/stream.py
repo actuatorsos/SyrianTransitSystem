@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from datetime import datetime
 from typing import Optional
@@ -57,7 +58,7 @@ async def stream_positions(
                 await asyncio.sleep(2)
 
             except Exception as e:
-                yield f"data: {{'error': '{str(e)}'}}\n\n"
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 await asyncio.sleep(2)
 
     return StreamingResponse(generate(), media_type="text/event-stream")
