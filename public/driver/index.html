@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Syrian Transit | Driver App — تطبيق السائق</title>
+<title>هيئة النقل الوطنية السورية | تطبيق السائق</title>
 <meta name="description" content="تطبيق السائق — نظام النقل الذكي لمدينة دمشق | Syrian Transit driver application for real-time location reporting.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,26 +22,50 @@
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
 <style>
 :root {
-  --green-dark:#002623; --green-mid:#054239; --green-light:#428177;
-  --gold:#b9a779; --gold-light:#edebe0; --umber:#6b1f2a;
-  --charcoal:#3d3a3b; --white:#ffffff;
+  /* ── Syrian Ministry palette ── */
+  --primary:#0F4C5C; --primary-light:#1a6070; --primary-dark:#081f26;
+  --gold:#C8A951; --gold-light:#e8c96a; --gold-muted:#9a7e38;
+  /* Legacy aliases kept so existing JS/CSS references still work */
+  --green-dark:#081f26; --green-mid:#0F4C5C; --green-light:#1a6070;
+  --umber:#be123c; --charcoal:#1D1D1F; --white:#FFFFFF;
+  --surface:#F5F5F7; --border:rgba(0,0,0,0.1);
+  --text-primary:#1D1D1F; --text-secondary:#515154; --text-tertiary:#86868B;
   --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{font-family:'Noto Naskh Arabic','Inter',system-ui,sans-serif;background:var(--green-dark);overflow:hidden;height:100vh;height:100dvh;}
+body{font-family:'Noto Naskh Arabic','Inter',system-ui,sans-serif;background:var(--surface);overflow:hidden;height:100vh;height:100dvh;}
 
 /* ── Login Screen ── */
 #loginScreen {
-  position:fixed;inset:0;z-index:999;background:var(--green-dark);
+  position:fixed;inset:0;z-index:999;
+  background:linear-gradient(135deg,#F5F5F7 0%,#EBEBED 100%);
   display:flex;align-items:center;justify-content:center;padding:24px;
+  flex-direction:column;gap:0;
 }
 #loginScreen.hidden{display:none;}
 .login-card {
   background:var(--white);border-radius:20px;padding:32px 24px;width:100%;max-width:360px;
   box-shadow:0 20px 60px rgba(0,0,0,0.4);
 }
-.login-logo { font-size:28px;font-weight:700;color:var(--green-mid);text-align:center;margin-bottom:4px; }
-.login-sub  { font-size:13px;color:#888;text-align:center;margin-bottom:24px; }
+.login-gov-bar{
+  width:100%;max-width:360px;
+  background:var(--primary);color:rgba(255,255,255,0.85);
+  text-align:center;padding:0.45rem 1rem;font-size:0.72rem;
+  border-radius:12px 12px 0 0;
+  border-bottom:2px solid var(--gold);
+  letter-spacing:0.03em;
+}
+.login-gov-bar span{color:var(--gold-light);}
+.login-card{border-radius:0 0 20px 20px !important;}
+.login-seal{
+  width:56px;height:56px;
+  background:var(--primary);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.5rem;border:2.5px solid var(--gold);
+  margin:0 auto 0.75rem;
+}
+.login-logo { font-size:1rem;font-weight:700;color:var(--primary);text-align:center;margin-bottom:4px; }
+.login-sub  { font-size:0.78rem;color:var(--text-tertiary);text-align:center;margin-bottom:1.25rem; font-family:'Inter',sans-serif; }
 .login-error{
   background:#fef2f2;color:#991b1b;border-radius:8px;padding:10px 14px;
   font-size:13px;margin-bottom:12px;display:none;
@@ -52,12 +76,14 @@ body{font-family:'Noto Naskh Arabic','Inter',system-ui,sans-serif;background:var
   font-family:inherit;font-size:15px;margin-bottom:12px;outline:none;
   direction:ltr;text-align:left;
 }
-.login-input:focus{border-color:var(--green-mid);}
+.login-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(15,76,92,0.1);}
 .login-btn {
-  width:100%;padding:15px;background:var(--green-mid);color:var(--white);
-  border:none;border-radius:10px;font-family:inherit;font-size:16px;font-weight:700;
-  cursor:pointer;transition:opacity 0.2s;
+  width:100%;padding:14px;background:var(--primary);color:var(--white);
+  border:none;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;
+  cursor:pointer;transition:all 0.2s;
+  box-shadow:0 4px 12px rgba(15,76,92,0.25);
 }
+.login-btn:hover{background:var(--primary-light);transform:translateY(-1px);}
 .login-btn:disabled{opacity:0.6;cursor:not-allowed;}
 
 /* ── Main App ── */
@@ -265,7 +291,9 @@ body{font-family:'Noto Naskh Arabic','Inter',system-ui,sans-serif;background:var
 
 <!-- ── Login Screen ── -->
 <div id="loginScreen">
-  <div class="login-card">
+  <div class="login-gov-bar">الجمهورية العربية السورية — <span>هيئة النقل الوطنية</span></div>
+    <div class="login-card">
+      <div class="login-seal">🦅</div>
     <div class="login-logo" data-i18n="drv_title">🦅⭐⭐⭐ نقل دمشق</div>
     <div class="login-sub"><span data-i18n="drv_subtitle">تطبيق السائق</span></div>
     <div class="login-error" id="loginError"></div>
@@ -687,7 +715,7 @@ function initMap() {
   maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl-csp-worker.js';
   map = new maplibregl.Map({
     container:'map',
-    style:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    style:'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
     center:[36.2913,33.5138], zoom:14,
     attributionControl:false,
   });
@@ -695,11 +723,11 @@ function initMap() {
   map.on('load', () => {
     const coords = ROUTE_STOPS.map(s => [s.lon, s.lat]);
     map.addSource('route', { type:'geojson', data:{ type:'Feature', geometry:{ type:'LineString', coordinates:coords } } });
-    map.addLayer({ id:'route-line', type:'line', source:'route', paint:{ 'line-color':'#b9a779', 'line-width':4, 'line-dasharray':[2,1] } });
+    map.addLayer({ id:'route-line', type:'line', source:'route', paint:{ 'line-color':'#0F4C5C', 'line-width':4, 'line-dasharray':[2,1] } });
 
     ROUTE_STOPS.forEach((stop, i) => {
       const el = document.createElement('div');
-      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #b9a779;box-shadow:0 2px 6px rgba(0,0,0,0.3);`;
+      el.style.cssText = `width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #C8A951;box-shadow:0 2px 6px rgba(0,0,0,0.3);`;
       new maplibregl.Marker({ element:el }).setLngLat([stop.lon,stop.lat]).addTo(map);
     });
 
@@ -812,7 +840,7 @@ function handlePosition(lat, lon, speed) {
   // Map marker
   if (!driverMarker) {
     const el = document.createElement('div');
-    el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#054239;border:3px solid #b9a779;box-shadow:0 0 16px rgba(185,167,121,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;';
+    el.style.cssText = 'width:36px;height:36px;border-radius:50%;background:#0F4C5C;border:3px solid #C8A951;box-shadow:0 0 16px rgba(200,169,81,0.5),0 4px 12px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;';
     el.textContent = '🦅⭐⭐⭐';
     driverMarker = new maplibregl.Marker({ element:el }).setLngLat([lon,lat]).addTo(map);
     map.flyTo({ center:[lon,lat], zoom:15 });

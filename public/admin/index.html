@@ -38,32 +38,51 @@
         }
 
         :root {
+            /* Syrian Ministry + Apple palette */
+            --primary: #0F4C5C;
+            --primary-light: #1a6070;
+            --primary-dark: #081f26;
+            --gold: #C8A951;
+            --gold-light: #e8c96a;
+            --gold-dark: #9a7e38;
+            /* bg / surface */
+            --bg: #FFFFFF;
+            --surface: #F5F5F7;
+            --surface2: #EBEBED;
+            /* text */
+            --text-primary: #1D1D1F;
+            --text-secondary: #515154;
+            --text-muted: #86868B;
+            --text-light: #FFFFFF;
+            /* borders / shadows */
+            --border-color: rgba(0,0,0,0.1);
+            --border-gold: rgba(200,169,81,0.3);
+            --shadow: 0 2px 20px rgba(0,0,0,0.06);
+            --shadow-md: 0 8px 40px rgba(0,0,0,0.1);
+            /* Legacy aliases */
             --forest-green: #0F4C5C;
             --forest-dark: #0B3945;
-            --forest-black: #051A20;
-            --golden: #f59e0b;
-            --golden-mid: #D4AF37;
-            --golden-dark: #AA8C2C;
-            --umber: #be123c;
-            --umber-dark: #881337;
-            --umber-black: #4c0519;
-            --charcoal: #1a2a30;
-            --charcoal-light: #0d1f25;
-            --white: #ffffff;
-            --text-light: #f9fafb;
-            --text-muted: #9ca3af;
-            --border-color: rgba(255, 255, 255, 0.15);
-            --success: #D4AF37;
-            --warning: #f59e0b;
-            --danger: #ef4444;
+            --forest-black: #081f26;
+            --golden: #C8A951;
+            --golden-mid: #C8A951;
+            --golden-dark: #9a7e38;
+            --charcoal: #F5F5F7;
+            --charcoal-light: #FFFFFF;
+            --umber: #DC3545;
+            --umber-dark: #c0392b;
+            --umber-black: #7b1325;
+            --success: #0F4C5C;
+            --warning: #C8A951;
+            --danger: #DC3545;
             --info: #3b82f6;
         }
 
         html, body {
             font-family: 'Noto Naskh Arabic','Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--charcoal-light);
-            color: var(--text-light);
+            background: var(--surface);
+            color: var(--text-primary);
             height: 100%;
+            -webkit-font-smoothing: antialiased;
         }
 
         body {
@@ -73,16 +92,15 @@
 
         .sidebar {
             width: 260px;
-            background: rgba(17, 24, 39, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: var(--bg);
             border-right: 1px solid var(--border-color);
+            border-right: 1px solid rgba(200,169,81,0.2);
             padding: 24px 0;
             overflow-y: auto;
             position: relative;
             z-index: 100;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+            box-shadow: 2px 0 12px rgba(0,0,0,0.06);
         }
 
         .sidebar.mobile-closed {
@@ -96,15 +114,15 @@
         }
 
         .logo {
-            padding: 0 20px 30px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 20px;
+            padding: 0 20px 24px;
+            border-bottom: 2px solid var(--gold);
+            margin-bottom: 16px;
         }
 
         .logo-text {
             font-size: 18px;
             font-weight: 700;
-            color: var(--golden);
+            color: var(--primary);
             text-align: right;
         }
 
@@ -116,8 +134,8 @@
         }
 
         .nav-item {
-            padding: 14px 20px;
-            color: var(--text-muted);
+            padding: 12px 20px;
+            color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: right;
@@ -127,6 +145,7 @@
             align-items: center;
             justify-content: flex-end;
             gap: 12px;
+            font-size: 14px;
         }
 
         .nav-item:hover {
@@ -155,20 +174,18 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            background: radial-gradient(circle at top right, rgba(15, 76, 92, 0.1), transparent 50%), var(--charcoal-light);
+            background: var(--surface);
         }
 
         .topbar {
-            background: rgba(17, 24, 39, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            background: var(--bg);
             border-bottom: 1px solid var(--border-color);
-            padding: 16px 30px;
+            padding: 14px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            min-height: 70px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+            min-height: 64px;
+            box-shadow: 0 1px 0 var(--border-color);
         }
 
         .topbar-left {
@@ -188,9 +205,9 @@
         }
 
         .topbar-title {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
-            color: var(--golden);
+            color: var(--primary);
         }
 
         .topbar-right {
@@ -255,14 +272,14 @@
         }
 
         .stat-card {
-            background: rgba(31, 41, 55, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(15, 76, 92, 0.3);
+            background: var(--bg);
+            border: 1px solid var(--border-color);
+            border-top: 3px solid var(--primary);
             border-radius: 12px;
-            padding: 24px;
+            padding: 20px 24px;
             text-align: right;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         
         .stat-card:hover {
@@ -326,11 +343,12 @@
         }
 
         .alerts-container {
-            background: var(--charcoal-light);
+            background: var(--bg);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 12px;
             max-height: 400px;
             overflow-y: auto;
+            box-shadow: var(--shadow);
         }
 
         .alert-item {
@@ -388,10 +406,11 @@
 
         /* ==================== TABLES ==================== */
         .table-wrapper {
-            background: var(--charcoal-light);
+            background: var(--bg);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
+            box-shadow: var(--shadow);
         }
 
         .table-controls {
@@ -411,11 +430,11 @@
         }
 
         .filter-select {
-            background: var(--charcoal);
-            border: 1px solid var(--border-color);
-            color: var(--text-light);
+            background: var(--bg);
+            border: 1.5px solid var(--border-color);
+            color: var(--text-primary);
             padding: 8px 12px;
-            border-radius: 4px;
+            border-radius: 8px;
             font-size: 13px;
             font-family: inherit;
             cursor: pointer;
@@ -453,7 +472,7 @@
             padding: 12px 14px;
             border-bottom: 1px solid var(--border-color);
             border-right: 1px solid var(--border-color);
-            color: var(--text-light);
+            color: var(--text-primary);
         }
 
         td:last-child {
@@ -588,13 +607,14 @@
         }
 
         .modal-content {
-            background: var(--charcoal);
+            background: var(--bg);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 16px;
             width: 90%;
             max-width: 500px;
             max-height: 90vh;
             overflow-y: auto;
+            box-shadow: var(--shadow-md);
         }
 
         .modal-header {
@@ -651,10 +671,10 @@
         .form-textarea {
             width: 100%;
             padding: 10px 12px;
-            background: var(--charcoal-light);
-            border: 1px solid var(--border-color);
-            color: var(--text-light);
-            border-radius: 4px;
+            background: var(--surface);
+            border: 1.5px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
             font-size: 13px;
             font-family: inherit;
             text-align: right;
@@ -735,11 +755,12 @@
 
         /* ==================== CHARTS ==================== */
         .chart-container {
-            background: var(--charcoal-light);
+            background: var(--bg);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 24px;
             margin-bottom: 20px;
+            box-shadow: var(--shadow);
         }
 
         .chart-title {
@@ -1198,6 +1219,10 @@
     </style>
 </head>
 <body>
+<div style="background:#0F4C5C;color:rgba(255,255,255,0.85);text-align:center;padding:0.4rem 1rem;font-size:0.72rem;letter-spacing:0.03em;border-bottom:2px solid #C8A951;position:relative;z-index:1001;">
+  الجمهورية العربية السورية — <span style="color:#e8c96a;">هيئة النقل الوطنية</span> — Syrian Arab Republic · National Transit Authority
+</div>
+
     <!-- LOGIN REDIRECT PLACEHOLDER (auth handled by /admin/login) -->
     <div id="loginView" class="login-container" style="display:none;"></div>
     <!-- Sidebar backdrop for mobile -->

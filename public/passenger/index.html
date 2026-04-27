@@ -222,6 +222,25 @@ body { font-family:'Noto Naskh Arabic','Inter',system-ui,sans-serif; background:
   .search-bar { padding: 10px 14px; }
   .search-bar input { font-size: 14px; }
 }
+
+    /* ── Light ministry theme overrides ── */
+    :root {
+      --primary: #0F4C5C !important;
+      --gold: #C8A951 !important;
+    }
+    /* Nav bar: white with gold border */
+    .app-header, header, [class*='header'], [class*='topbar'] {
+      background: rgba(255,255,255,0.95) !important;
+      backdrop-filter: blur(20px) !important;
+      border-bottom: 1px solid rgba(200,169,81,0.3) !important;
+      color: #1D1D1F !important;
+    }
+    /* Bottom sheet: white */
+    .bottom-sheet, [class*='sheet'] {
+      background: #ffffff !important;
+      color: #1D1D1F !important;
+    }
+
 </style>
 </head>
 <body>
@@ -495,7 +514,7 @@ function initMap() {
   maplibregl.workerUrl = 'https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl-csp-worker.js';
   map = new maplibregl.Map({
     container: 'map',
-    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
     center: DAMASCUS_CENTER,
     zoom: 12,
     attributionControl: false,
