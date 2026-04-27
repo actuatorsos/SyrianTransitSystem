@@ -261,19 +261,25 @@ async def get_stats():
 
 @app.get("/api/stream")
 async def stream():
-    """SSE stream: sends vehicle positions every 5s (no auth — public in production)."""
+    """SSE stream: sends vehicle positions rapidly for unit tests.
+
+    Note: sleep is kept very short (50ms) so tests using TestClient.stream()
+    complete well within the pytest-timeout window. The real production endpoint
+    uses longer intervals; this stub is only for fast CI verification.
+    """
 
     async def event_generator():
-        for _ in range(6):  # 30s stream for load test
+        import json
+
+        for _ in range(5):  # 5 events, fast cadence for test clients
             data = [
                 {"vehicle_id": vid, **pos} for vid, pos in list(_vehicles.items())[:50]
             ]
-            import json
-
             yield f"data: {json.dumps(data)}\n\n"
-            await asyncio.sleep(5)
+            await asyncio.sleep(0.05)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 
 # ── Driver API ────────────────────────────────────────────────────────────────

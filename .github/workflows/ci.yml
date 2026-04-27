@@ -60,7 +60,7 @@ jobs:
         run: pip install -r requirements.txt uvicorn pytest pytest-cov pytest-asyncio httpx
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short --timeout=30
 
       - name: Run coverage
         run: |
@@ -68,7 +68,8 @@ jobs:
             --cov=api \
             --cov=lib \
             --cov-report=term \
-            --cov-fail-under=50
+            --cov-fail-under=50 \
+            --timeout=30
 
   # -------------------------------------------------------------------------
   # Stage 3 — API Contract Validation
@@ -98,7 +99,7 @@ jobs:
         run: pip install -r requirements.txt uvicorn pytest httpx
 
       - name: Validate all 26 API endpoint contracts
-        run: pytest tests/test_api_contract.py -v --tb=short
+        run: pytest tests/test_api_contract.py -v --tb=short --timeout=30
 
   # -------------------------------------------------------------------------
   # Stage 4a — Map Tile Canary (workerUrl regression guard)
@@ -125,7 +126,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run map tile canary tests
-        run: npx playwright test tests/test_hero_map_tiles.spec.js --reporter=list
+        run: |
+          npx -y serve public -p 7799 &
+          sleep 3
+          npx playwright test tests/test_hero_map_tiles.spec.js --reporter=list
         timeout-minutes: 3
 
   # -------------------------------------------------------------------------

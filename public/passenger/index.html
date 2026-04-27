@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Damascus Transit | Track Buses — تتبع الحافلات</title>
+<title>Syrian Transit | Track Buses — تتبع الحافلات</title>
 <meta name="description" content="تتبع حافلات نقل دمشق في الوقت الفعلي — اعرف موعد وصول حافلتك | Track Damascus buses in real-time and get live arrival estimates.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#428177">
+<meta name="theme-color" content="#0F4C5C">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
 <script src="/lib/error-handler.js"></script>
@@ -22,17 +22,17 @@
 :root {
   --green-dark: #002623;
   --green-mid: #054239;
-  --green-light: #34d399;
+  --green-light: #0F4C5C;
   --gold: #f59e0b;
-  --gold-light: #fef3c7;
+  --gold-light: #F7E7CE;
   --umber: #6b1f2a;
-  --charcoal: #1f2937;
+  --charcoal: #1a2a30;
   --white: #ffffff;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(--green-dark); overflow:hidden; height:100vh; height:100dvh; }
+body { font-family:'Tajawal',system-ui,sans-serif; background:var(--green-dark); overflow:hidden; height:100vh; height:100dvh; }
 
 /* ─── Map ─── */
 #map { position:absolute; top:0; left:0; right:0; bottom:0; z-index:1; }
@@ -228,7 +228,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 
 <!-- Loading -->
 <div class="loading-overlay" id="loading">
-  <h2>DamascusTransit</h2>
+  <h2>SyriaTransit</h2>
   <div class="spinner"></div>
   <p data-i18n="pax_loading_fleet">جاري تحميل بيانات الأسطول...</p>
 </div>
@@ -239,7 +239,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 <!-- Top Bar -->
 <div class="top-bar">
   <div class="logo-row">
-    <h1>DamascusTransit</h1>
+    <h1>SyriaTransit</h1>
     <div class="badge" data-i18n="pax_live_badge">مباشر</div>
     <div class="live-dot"></div>
   </div>
@@ -282,7 +282,7 @@ body { font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; background:var(-
 <!-- Nav Bar -->
 <div class="nav-bar">
   <button class="nav-item active" onclick="switchTab('map')"><span class="nav-icon">🗺️</span><span data-i18n="pax_nav_map">الخريطة</span></button>
-  <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🚌</span><span data-i18n="pax_nav_routes">الخطوط</span></button>
+  <button class="nav-item" onclick="switchTab('routes')"><span class="nav-icon">🦅⭐⭐⭐</span><span data-i18n="pax_nav_routes">الخطوط</span></button>
   <button class="nav-item" onclick="switchTab('stops')"><span class="nav-icon">📍</span><span data-i18n="pax_nav_stops">المحطات</span></button>
   <button id="pushToggleBtn" class="nav-item" onclick="switchTab('alerts'); togglePushNotifications()"><span class="nav-icon">🔔</span><span data-i18n="pax_nav_alerts">التنبيهات</span></button>
   <button class="dt-lang-toggle nav-item" onclick="i18n.toggleLanguage()" style="font-size:11px;font-weight:600;letter-spacing:0.3px;border:none;background:transparent;color:inherit;cursor:pointer;font-family:inherit;padding:0 6px;">EN</button>
@@ -528,7 +528,7 @@ function initMap() {
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([stop.lon, stop.lat])
       .setPopup(new maplibregl.Popup({ offset: 15, className: 'stop-popup' })
-        .setHTML(`<div style="font-family:'IBM Plex Sans Arabic';padding:4px;direction:rtl;">
+        .setHTML(`<div style="font-family:'Tajawal';padding:4px;direction:rtl;">
           <strong>${stop.nameAr}</strong><br>
           <span style="color:#888;font-size:12px;">${stop.name}</span><br>
           <span style="font-size:12px;color:var(--green-mid);">اضغط لعرض المواعيد ←</span>
@@ -632,7 +632,7 @@ function updateMarker(v) {
   const color = isReal ? '#8B5CF6' : (v.status === 'stopped' ? '#EF4444' : (typeColors[v.vehicle_type] || '#6B7280'));
   const size = isReal ? 28 : 20;
   el.style.cssText = `width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid ${isReal?'#DDD6FE':'#fff'};box-shadow:${isReal?'0 0 10px rgba(139,92,246,0.5),':''}0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:${isReal?14:11}px;cursor:pointer;`;
-  el.textContent = isReal ? '📍' : (v.vehicle_type === 'bus' ? '🚌' : v.vehicle_type === 'microbus' ? '🚐' : '🚕');
+  el.textContent = isReal ? '📍' : (v.vehicle_type === 'bus' ? '🦅⭐⭐⭐' : v.vehicle_type === 'microbus' ? '🚐' : '🚕');
 
   const popup = new maplibregl.Popup({ offset: 15 }).setHTML(markerPopupHTML(v, isReal));
 
@@ -644,7 +644,7 @@ function updateMarker(v) {
 
 function markerPopupHTML(v, isReal) {
   return `
-    <div style="font-family:'IBM Plex Sans Arabic';padding:4px;">
+    <div style="font-family:'Tajawal';padding:4px;">
       <strong>${v.vehicle_id}</strong>
       ${isReal ? '<span style="background:#8B5CF6;color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;margin-right:4px;">GPS حقيقي</span>' : ''}
       <br><span style="color:#888;font-size:12px;">${v.route_name || v.assigned_route_id || 'خط غير معروف'}</span>

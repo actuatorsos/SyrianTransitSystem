@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Damascus Transit | Driver App — تطبيق السائق</title>
-<meta name="description" content="تطبيق السائق — نظام النقل الذكي لمدينة دمشق | Damascus Transit driver application for real-time location reporting.">
+<title>Syrian Transit | Driver App — تطبيق السائق</title>
+<meta name="description" content="تطبيق السائق — نظام النقل الذكي لمدينة دمشق | Syrian Transit driver application for real-time location reporting.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#428177">
+<meta name="theme-color" content="#0F4C5C">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -17,7 +17,7 @@
 <script src="/lib/capacitor-bridge.js"></script>
 <script src="/lib/i18n.js"></script>
 <script src="/lib/error-handler.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.1.2/dist/maplibre-gl.js"></script>
 <style>
@@ -28,7 +28,7 @@
   --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--green-dark);overflow:hidden;height:100vh;height:100dvh;}
+body{font-family:'Tajawal',system-ui,sans-serif;background:var(--green-dark);overflow:hidden;height:100vh;height:100dvh;}
 
 /* ── Login Screen ── */
 #loginScreen {
@@ -254,7 +254,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 <!-- ── Login Screen ── -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="login-logo" data-i18n="drv_title">🚌 نقل دمشق</div>
+    <div class="login-logo" data-i18n="drv_title">🦅⭐⭐⭐ نقل دمشق</div>
     <div class="login-sub"><span data-i18n="drv_subtitle">تطبيق السائق</span></div>
     <div class="login-error" id="loginError"></div>
     <input type="email" id="loginEmail" class="login-input" data-i18n-placeholder="drv_email_ph" placeholder="البريد الإلكتروني" autocomplete="email">
@@ -280,7 +280,7 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--gr
 
   <!-- Top bar -->
   <div class="driver-bar">
-    <div class="logo" data-i18n="drv_driver_label">🚌 سائق</div>
+    <div class="logo" data-i18n="drv_driver_label">🦅⭐⭐⭐ سائق</div>
     <div class="route-badge" id="routeBadge">المرجة ← الغربية</div>
     <div class="status-pill off-duty" id="statusPill">
       <div class="dot"></div>
@@ -563,7 +563,7 @@ async function handleBiometricLogin() {
   if (!window.CapacitorBridge) return;
   const btn = document.getElementById('biometricBtn');
   if (btn) btn.disabled = true;
-  const ok = await CapacitorBridge.authenticateBiometric('تسجيل الدخول — Sign in to Damascus Transit Driver');
+  const ok = await CapacitorBridge.authenticateBiometric('تسجيل الدخول — Sign in to Syrian Transit Driver');
   if (ok) {
     // Biometric passed — restore saved session or fall through to email/password
     const savedToken = localStorage.getItem('authToken_persistent');
@@ -795,7 +795,7 @@ function handlePosition(lat, lon, speed) {
   if (!driverMarker) {
     const el = document.createElement('div');
     el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#054239;border:3px solid #b9a779;box-shadow:0 0 16px rgba(185,167,121,0.5);display:flex;align-items:center;justify-content:center;font-size:18px;';
-    el.textContent = '🚌';
+    el.textContent = '🦅⭐⭐⭐';
     driverMarker = new maplibregl.Marker({ element:el }).setLngLat([lon,lat]).addTo(map);
     map.flyTo({ center:[lon,lat], zoom:15 });
   } else {
@@ -916,7 +916,7 @@ function confirmStartTrip() {
       } else if (_isDemoAllowed()) {
         // Dev/local demo fallback — explicitly NOT used in production.
         _beginTripState('demo-' + Date.now(), routeId);
-        showAlert('🚌 ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية — Demo trip started' : 'Demo trip started — رحلة تجريبية'), 'info');
+        showAlert('🦅⭐⭐⭐ ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية — Demo trip started' : 'Demo trip started — رحلة تجريبية'), 'info');
       } else {
         // Production: surface the failure so the driver contacts dispatch
         // instead of driving a ghost trip that's never persisted.
@@ -928,7 +928,7 @@ function confirmStartTrip() {
     .catch((err) => {
       if (_isDemoAllowed()) {
         _beginTripState('demo-' + Date.now(), routeId);
-        showAlert('🚌 ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية (لا اتصال) — Demo mode' : 'Demo mode — رحلة تجريبية'), 'info');
+        showAlert('🦅⭐⭐⭐ ' + (i18n.getCurrentLang() === 'ar' ? 'رحلة تجريبية (لا اتصال) — Demo mode' : 'Demo mode — رحلة تجريبية'), 'info');
       } else {
         console.warn('[driver] trip/start failed in prod:', err);
         showAlert('⚠️ ' + (i18n.getCurrentLang() === 'ar'

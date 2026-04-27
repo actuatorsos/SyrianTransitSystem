@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Damascus Transit | Admin Panel — لوحة الإدارة</title>
-    <meta name="description" content="لوحة إدارة نظام النقل في دمشق — إدارة المركبات والمسارات والمحطات | Damascus Transit admin panel for fleet, route, and stop management.">
-    <meta name="theme-color" content="#428177">
+    <title>Syrian Transit | Admin Panel — لوحة الإدارة</title>
+    <meta name="description" content="لوحة إدارة نظام النقل في دمشق — إدارة المركبات والمسارات والمحطات | Syrian Transit admin panel for fleet, route, and stop management.">
+    <meta name="theme-color" content="#0F4C5C">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
@@ -17,7 +17,7 @@
     <!-- Google Fonts: IBM Plex Sans Arabic -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
 
     <!-- MapLibre GL JS -->
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.3.1/dist/maplibre-gl.css" />
@@ -38,29 +38,29 @@
         }
 
         :root {
-            --forest-green: #34d399;
-            --forest-dark: #059669;
-            --forest-black: #022c22;
+            --forest-green: #0F4C5C;
+            --forest-dark: #0B3945;
+            --forest-black: #051A20;
             --golden: #f59e0b;
-            --golden-mid: #fbbf24;
-            --golden-dark: #b45309;
+            --golden-mid: #D4AF37;
+            --golden-dark: #AA8C2C;
             --umber: #be123c;
             --umber-dark: #881337;
             --umber-black: #4c0519;
-            --charcoal: #1f2937;
-            --charcoal-light: #111827;
+            --charcoal: #1a2a30;
+            --charcoal-light: #0d1f25;
             --white: #ffffff;
             --text-light: #f9fafb;
             --text-muted: #9ca3af;
             --border-color: rgba(255, 255, 255, 0.15);
-            --success: #10b981;
+            --success: #D4AF37;
             --warning: #f59e0b;
             --danger: #ef4444;
             --info: #3b82f6;
         }
 
         html, body {
-            font-family: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--charcoal-light);
             color: var(--text-light);
             height: 100%;
@@ -155,7 +155,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            background: radial-gradient(circle at top right, rgba(52, 211, 153, 0.1), transparent 50%), var(--charcoal-light);
+            background: radial-gradient(circle at top right, rgba(15, 76, 92, 0.1), transparent 50%), var(--charcoal-light);
         }
 
         .topbar {
@@ -257,7 +257,7 @@
         .stat-card {
             background: rgba(31, 41, 55, 0.7);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(52, 211, 153, 0.3);
+            border: 1px solid rgba(15, 76, 92, 0.3);
             border-radius: 12px;
             padding: 24px;
             text-align: right;
@@ -267,7 +267,7 @@
         
         .stat-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(52, 211, 153, 0.1);
+            box-shadow: 0 12px 40px rgba(15, 76, 92, 0.1);
         }
 
         .stat-card.accent-umber {
@@ -433,7 +433,7 @@
         }
 
         thead {
-            background: rgba(66, 129, 119, 0.1);
+            background: rgba(15, 76, 92, 0.1);
             border-bottom: 2px solid var(--border-color);
         }
 
@@ -461,7 +461,7 @@
         }
 
         tbody tr:hover {
-            background: rgba(66, 129, 119, 0.05);
+            background: rgba(15, 76, 92, 0.05);
         }
 
         .badge {
@@ -475,7 +475,7 @@
         }
 
         .badge-active {
-            background: rgba(16, 185, 129, 0.2);
+            background: rgba(212, 175, 55, 0.2);
             color: #6ee7b7;
         }
 
@@ -490,7 +490,7 @@
         }
 
         .badge-bus {
-            background: rgba(66, 129, 119, 0.2);
+            background: rgba(15, 76, 92, 0.2);
             color: var(--golden);
         }
 
@@ -535,7 +535,7 @@
         }
 
         .btn-secondary:hover {
-            background: rgba(66, 129, 119, 0.2);
+            background: rgba(15, 76, 92, 0.2);
             border-color: var(--forest-green);
         }
 
@@ -545,7 +545,7 @@
         }
 
         .btn-success:hover {
-            background: #059669;
+            background: #0B3945;
         }
 
         .btn-danger {
@@ -670,7 +670,7 @@
         .form-textarea:focus {
             outline: none;
             border-color: var(--forest-green);
-            background: rgba(66, 129, 119, 0.05);
+            background: rgba(15, 76, 92, 0.05);
         }
 
         .modal-footer {
@@ -701,7 +701,7 @@
         }
 
         .route-card {
-            background: linear-gradient(135deg, rgba(66, 129, 119, 0.15) 0%, rgba(5, 66, 57, 0.15) 100%);
+            background: linear-gradient(135deg, rgba(15, 76, 92, 0.15) 0%, rgba(5, 26, 32, 0.15) 100%);
             border: 1px solid var(--forest-green);
             border-radius: 8px;
             padding: 20px;
@@ -713,7 +713,7 @@
         .route-card:hover {
             transform: translateY(-4px);
             border-color: var(--golden);
-            box-shadow: 0 8px 16px rgba(66, 129, 119, 0.2);
+            box-shadow: 0 8px 16px rgba(15, 76, 92, 0.2);
         }
 
         .route-name {
@@ -861,7 +861,7 @@
         .login-input:focus {
             outline: none;
             border-color: var(--forest-green);
-            background: rgba(66, 129, 119, 0.05);
+            background: rgba(15, 76, 92, 0.05);
         }
 
         .login-btn {
@@ -1132,7 +1132,7 @@
         }
 
         tbody tr:hover {
-            background: rgba(66, 129, 119, 0.1);
+            background: rgba(15, 76, 92, 0.1);
         }
 
         /* ── Modernization: logout button ── */
@@ -1217,7 +1217,7 @@
                 <span data-i18n="adm_nav_dashboard">لوحة التحكم</span>
             </div>
             <div class="nav-item" onclick="switchTab('vehicles', this)">
-                <span class="nav-icon">🚌</span>
+                <span class="nav-icon">🦅⭐⭐⭐</span>
                 <span data-i18n="adm_nav_vehicles">المركبات</span>
             </div>
             <div class="nav-item" onclick="switchTab('routes', this)">
@@ -1951,7 +1951,7 @@
             const tbody = document.getElementById('vehiclesTable');
             if (!vehicles.length) {
                 tbody.innerHTML = '<tr><td colspan="7" style="padding:0;">' +
-                    '<div class="dt-empty"><div class="e-icon">🚌</div>' +
+                    '<div class="dt-empty"><div class="e-icon">🦅⭐⭐⭐</div>' +
                     '<div class="e-ar">' + t('adm_no_vehicles_reg') + '</div>' +
                     '<div class="e-en">No vehicles registered</div>' +
                     '<div class="e-hint">' + t('adm_add_vehicle_hint') + '</div></div></td></tr>';
@@ -2305,7 +2305,7 @@
                                 {
                                     label: t('adm_chart_active'),
                                     data: activeData,
-                                    backgroundColor: 'rgba(66, 129, 119, 0.85)',
+                                    backgroundColor: 'rgba(15, 76, 92, 0.85)',
                                     borderColor: '#428177',
                                     borderWidth: 1,
                                     stack: 'fleet'
@@ -2325,7 +2325,7 @@
                             maintainAspectRatio: false,
                             plugins: {
                                 legend: {
-                                    labels: { color: '#e8e8e8', font: { family: 'IBM Plex Sans Arabic' } }
+                                    labels: { color: '#e8e8e8', font: { family: 'Tajawal' } }
                                 },
                                 tooltip: {
                                     callbacks: {

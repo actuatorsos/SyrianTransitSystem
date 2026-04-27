@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Damascus Transit | Real-Time Fleet Tracking</title>
+    <title>Syrian Transit | النقل الوطني السوري</title>
 
     <!-- Primary Meta -->
-    <meta name="description" content="نظام النقل الذكي لمدينة دمشق — تتبع الحافلات في الوقت الفعلي وإدارة المسارات | Damascus Transit System: real-time bus tracking and route management for Damascus city.">
-    <meta name="theme-color" content="#428177">
-    <meta name="application-name" content="Damascus Transit System">
+    <meta name="description" content="النظام الوطني للنقل الذكي — تتبع الحافلات في الوقت الفعلي وإدارة المسارات | Syrian Transit System: modern national transit platform."> 
+    <meta name="theme-color" content="#0F4C5C">
+    <meta name="application-name" content="Syrian Transit System">
 
     <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -20,27 +20,27 @@
 
     <!-- Open Graph -->
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="Damascus Transit System">
-    <meta property="og:title" content="Damascus Transit System">
+    <meta property="og:site_name" content="Syrian Transit System">
+    <meta property="og:title" content="Syrian Transit System">
     <meta property="og:description" content="نظام النقل الذكي لمدينة دمشق — تتبع الحافلات في الوقت الفعلي وإدارة المسارات | Real-time bus tracking and route management for Damascus.">
     <meta property="og:image" content="/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Damascus Transit System — Real-Time Fleet Tracking">
+    <meta property="og:image:alt" content="Syrian Transit System — Real-Time Fleet Tracking">
     <meta property="og:locale" content="ar_SY">
     <meta property="og:locale:alternate" content="en_US">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Damascus Transit System">
+    <meta name="twitter:title" content="Syrian Transit System">
     <meta name="twitter:description" content="نظام النقل الذكي لمدينة دمشق — تتبع الحافلات في الوقت الفعلي | Real-time bus tracking for Damascus.">
     <meta name="twitter:image" content="/og-image.png">
-    <meta name="twitter:image:alt" content="Damascus Transit System dashboard preview">
+    <meta name="twitter:image:alt" content="Syrian Transit System dashboard preview">
 
-    <!-- Google Fonts: IBM Plex Sans Arabic -->
+    <!-- Google Fonts: Tajawal (Syrian National Identity — modern heritage typography) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <!-- MapLibre GL JS for hero map preview -->
     <!-- DAM-450: pinned to unpkg @ 4.1.2 to match driver/passenger and the service-worker cache -->
@@ -56,12 +56,12 @@
         }
 
         :root {
-            --forest-green-primary: #34d399;
-            --forest-green-dark: #059669;
-            --forest-green-darker: #022c22;
-            --golden-wheat-light: #fef3c7;
-            --golden-wheat-mid: #fbbf24;
-            --golden-wheat-dark: #b45309;
+            --forest-green-primary: #0F4C5C;
+            --forest-green-dark: #0B3945;
+            --forest-green-darker: #051A20;
+            --golden-wheat-light: #F7E7CE;
+            --golden-wheat-mid: #D4AF37;
+            --golden-wheat-dark: #AA8C2C;
             --deep-umber-light: #be123c;
             --charcoal-dark: #111827;
             --charcoal-light: #1f2937;
@@ -72,10 +72,10 @@
         }
 
         body {
-            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            font-family: 'Tajawal', sans-serif;
             background-color: var(--charcoal-dark);
-            background-image: radial-gradient(circle at top left, rgba(52, 211, 153, 0.15), transparent 40%),
-                              radial-gradient(circle at bottom right, rgba(251, 191, 36, 0.1), transparent 40%);
+            background-image: radial-gradient(circle at top left, rgba(15, 76, 92, 0.3), transparent 40%),
+                              radial-gradient(circle at bottom right, rgba(212, 175, 55, 0.12), transparent 40%);
             color: var(--golden-wheat-light);
             overflow-x: hidden;
             min-height: 100vh;
@@ -85,8 +85,8 @@
         .lang-toggle {
             display: flex;
             gap: 0.25rem;
-            background: rgba(5, 66, 57, 0.85);
-            border: 1px solid rgba(66, 129, 119, 0.4);
+            background: rgba(5, 26, 32, 0.85);
+            border: 1px solid rgba(15, 76, 92, 0.45);
             border-radius: 2rem;
             padding: 0.25rem;
         }
@@ -96,7 +96,7 @@
             border: none;
             border-radius: 1.5rem;
             cursor: pointer;
-            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            font-family: 'Tajawal', sans-serif;
             font-size: 0.8rem;
             font-weight: 600;
             transition: all 0.2s;
@@ -105,8 +105,8 @@
         }
 
         .lang-btn.active {
-            background: var(--forest-green-primary);
-            color: var(--golden-wheat-light);
+            background: var(--golden-wheat-mid);
+            color: var(--charcoal-dark);
         }
 
         /* ── Nav ── */
@@ -136,13 +136,13 @@
         .nav-logo-icon {
             width: 32px;
             height: 32px;
-            background: linear-gradient(135deg, var(--forest-green-primary), #10b981);
+            background: linear-gradient(135deg, var(--golden-wheat-mid), #b89230);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.1rem;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
         }
 
         .nav-logo-text {
@@ -183,17 +183,17 @@
         }
 
         .nav-link.primary {
-            background: linear-gradient(135deg, var(--forest-green-primary), #10b981);
+            background: linear-gradient(135deg, var(--golden-wheat-mid), #b89230);
             color: var(--charcoal-dark);
             border-color: transparent;
             font-weight: 700;
-            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+            box-shadow: 0 4px 16px rgba(212, 175, 55, 0.3);
         }
 
         .nav-link.primary:hover {
-            background: linear-gradient(135deg, #10b981, var(--forest-green-dark));
+            background: linear-gradient(135deg, #c9a227, var(--golden-wheat-dark));
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45);
         }
 
         /* ── Hero ── */
@@ -275,7 +275,7 @@
             padding: 0.75rem 1.5rem;
             border-radius: 0.6rem;
             text-decoration: none;
-            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            font-family: 'Tajawal', sans-serif;
             font-size: 0.9rem;
             font-weight: 600;
             transition: all 0.2s;
@@ -284,14 +284,14 @@
         }
 
         .btn-primary {
-            background: var(--forest-green-primary);
-            color: var(--golden-wheat-light);
+            background: linear-gradient(135deg, var(--golden-wheat-mid), #b89230);
+            color: var(--charcoal-dark);
         }
 
         .btn-primary:hover {
-            background: #4e9b8f;
+            background: linear-gradient(135deg, #c9a227, var(--golden-wheat-dark));
             transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(66, 129, 119, 0.4);
+            box-shadow: 0 4px 16px rgba(212, 175, 55, 0.4);
         }
 
         .btn-secondary {
@@ -311,8 +311,8 @@
             height: 480px;
             border-radius: 20px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(52, 211, 153, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(212, 175, 55, 0.12);
             transform: perspective(1000px) rotateY(-5deg) rotateX(2deg);
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -338,8 +338,8 @@
             position: absolute;
             bottom: 1.5rem;
             right: 1.5rem;
-            background: rgba(31, 41, 55, 0.85);
-            border: 1px solid rgba(52, 211, 153, 0.3);
+            background: rgba(13, 31, 37, 0.85);
+            border: 1px solid rgba(212, 175, 55, 0.35);
             border-radius: 12px;
             padding: 0.6rem 1rem;
             font-size: 0.8rem;
@@ -352,9 +352,9 @@
         /* ── Stats Bar ── */
         .stats-bar {
             padding: 3rem 4rem;
-            background: rgba(5, 66, 57, 0.4);
-            border-top: 1px solid rgba(66, 129, 119, 0.2);
-            border-bottom: 1px solid rgba(66, 129, 119, 0.2);
+            background: rgba(5, 26, 32, 0.5);
+            border-top: 1px solid rgba(15, 76, 92, 0.3);
+            border-bottom: 1px solid rgba(15, 76, 92, 0.3);
         }
 
         .stats-grid {
@@ -465,10 +465,10 @@
         }
 
         .app-card:hover {
-            background: rgba(31, 41, 55, 0.8);
-            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(26, 42, 48, 0.9);
+            border-color: rgba(212, 175, 55, 0.45);
             transform: translateY(-6px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(52, 211, 153, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(212, 175, 55, 0.12);
         }
         
         .app-card:hover::before { opacity: 1; }
@@ -502,7 +502,7 @@
         /* ── Footer ── */
         footer {
             padding: 2rem 4rem;
-            border-top: 1px solid rgba(66, 129, 119, 0.2);
+            border-top: 1px solid rgba(15, 76, 92, 0.3);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -632,7 +632,7 @@
 
         /* ── Accessibility: focus states ── */
         *:focus-visible {
-            outline: 2px solid var(--forest-green-primary);
+            outline: 2px solid var(--golden-wheat-mid);
             outline-offset: 2px;
             border-radius: 3px;
         }
@@ -661,10 +661,10 @@
     <!-- Nav -->
     <nav>
         <a href="/" class="nav-logo">
-            <div class="nav-logo-icon">🚌</div>
+            <div class="nav-logo-icon">🦅</div>
             <div>
-                <div class="nav-logo-text">DamascusTransit</div>
-                <div class="nav-logo-sub" id="nav-sub">هيئة النقل في دمشق</div>
+                <div class="nav-logo-text">SyriaTransit</div>
+                <div class="nav-logo-sub" id="nav-sub">هيئة النقل الوطنية السورية</div>
             </div>
         </a>
         <div class="nav-links">
@@ -683,9 +683,9 @@
     <!-- Hero -->
     <section class="hero">
         <div class="hero-content">
-            <div class="hero-badge" id="hero-badge">نظام نقل حي ومتصل</div>
-            <h1 class="hero-title" id="hero-title">نقل ذكي<br>لمدينة دمشق</h1>
-            <span class="hero-title-en" id="hero-title-en">Smart Transit for Damascus</span>
+            <div class="hero-badge" id="hero-badge">نظام نقل وطني حي ومتصل</div>
+            <h1 class="hero-title" id="hero-title">هوية جديدة<br>لمستقبل النقل في سوريا</h1>
+            <span class="hero-title-en" id="hero-title-en">Modern Transit for Syria</span>
             <p class="hero-desc" id="hero-desc">
                 منصة متكاملة لتتبع الحافلات في الوقت الفعلي، وإدارة المسارات، ومشاركة الركاب.
                 مصممة لهيئة نقل دمشق لتحسين الخدمة وتوفير تجربة سفر سلسة لجميع المواطنين.
@@ -742,7 +742,7 @@
                 <div class="app-name-en">Dashboard</div>
             </a>
             <a href="/driver" class="app-card">
-                <div class="app-icon">🚌</div>
+                <div class="app-icon">🦅⭐⭐⭐</div>
                 <div class="app-name-ar" id="app2-ar">تطبيق السائق</div>
                 <div class="app-name-en">Driver App</div>
             </a>
@@ -762,10 +762,10 @@
     <!-- Footer -->
     <footer>
         <div class="footer-brand" id="footer-brand">
-            © <span id="footer-year"></span> DamascusTransit — هيئة النقل في دمشق
+            © <span id="footer-year"></span> SyriaTransit — هيئة النقل الوطنية السورية
         </div>
         <div class="footer-powered" id="footer-powered">
-            مدعوم من هيئة النقل في دمشق | Powered by Damascus Transit Authority
+            مدعوم من هيئة النقل الوطنية السورية | Powered by Damascus Transit Authority
         </div>
     </footer>
 
@@ -773,14 +773,14 @@
         // ── Language strings ──────────────────────────────────────────────
         const strings = {
             ar: {
-                'nav-sub': 'هيئة النقل في دمشق',
+                'nav-sub': 'هيئة النقل الوطنية السورية',
                 'nav-dashboard': 'لوحة التحكم',
                 'nav-driver': 'السائق',
                 'nav-admin': 'الإدارة',
                 'nav-passenger': 'تتبع الحافلات',
                 'hero-badge': 'نظام نقل حي ومتصل',
-                'hero-title': 'نقل ذكي<br>لمدينة دمشق',
-                'hero-title-en': 'Smart Transit for Damascus',
+                'hero-title': 'هوية جديدة<br>لمستقبل النقل في سوريا',
+                'hero-title-en': 'Modern Transit for Syria',
                 'hero-desc': 'منصة متكاملة لتتبع الحافلات في الوقت الفعلي، وإدارة المسارات، ومشاركة الركاب. مصممة لهيئة نقل دمشق لتحسين الخدمة وتوفير تجربة سفر سلسة لجميع المواطنين.',
                 'cta-dashboard-text': 'لوحة تتبع المركبات',
                 'cta-passenger-text': 'تطبيق الركاب',
@@ -794,8 +794,8 @@
                 'app2-ar': 'تطبيق السائق',
                 'app3-ar': 'لوحة الإدارة',
                 'app4-ar': 'تطبيق الراكب',
-                'footer-brand': '© ' + new Date().getFullYear() + ' DamascusTransit — هيئة النقل في دمشق',
-                'footer-powered': 'مدعوم من هيئة النقل في دمشق | Powered by Damascus Transit Authority',
+                'footer-brand': '© ' + new Date().getFullYear() + ' SyriaTransit — هيئة النقل الوطنية السورية',
+                'footer-powered': 'مدعوم من هيئة النقل الوطنية السورية | Powered by Damascus Transit Authority',
             },
             en: {
                 'nav-sub': 'Damascus Transit Authority',
@@ -819,8 +819,8 @@
                 'app2-ar': 'Driver App',
                 'app3-ar': 'Admin Panel',
                 'app4-ar': 'Passenger App',
-                'footer-brand': '© ' + new Date().getFullYear() + ' DamascusTransit — Damascus Transit Authority',
-                'footer-powered': 'Powered by Damascus Transit Authority | مدعوم من هيئة النقل في دمشق',
+                'footer-brand': '© ' + new Date().getFullYear() + ' SyriaTransit — Damascus Transit Authority',
+                'footer-powered': 'Powered by Damascus Transit Authority | مدعوم من هيئة النقل الوطنية السورية',
             }
         };
 
@@ -896,7 +896,7 @@
                 'box-shadow:0 2px 6px rgba(0,0,0,0.45)',
                 'transition:transform 0.2s'
             ].join(';');
-            el.textContent = v.vehicle_type === 'minibus' ? '🚐' : '🚌';
+            el.textContent = v.vehicle_type === 'minibus' ? '🚐' : '🦅⭐⭐⭐';
             return el;
         }
 
@@ -909,7 +909,7 @@
                         const el = createVehicleMarker(v);
                         const label = v.vehicle_name_ar || v.vehicle_name || v.vehicle_id || '';
                         const popup = new maplibregl.Popup({ offset: 14, closeButton: false })
-                            .setHTML(`<div style="font-family:'IBM Plex Sans Arabic',sans-serif;font-size:12px;color:#054239;padding:2px 4px">${label}</div>`);
+                            .setHTML(`<div style="font-family:'Tajawal',sans-serif;font-size:12px;color:#054239;padding:2px 4px">${label}</div>`);
                         const marker = new maplibregl.Marker({ element: el })
                             .setLngLat([v.lon, v.lat])
                             .setPopup(popup)

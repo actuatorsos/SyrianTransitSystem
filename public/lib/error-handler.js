@@ -113,6 +113,50 @@
     var _overlay = null;
     var _overlayShown = false;
 
+    // Rate-limit: track timestamps of errors that reached the handler.
+    // Second and subsequent errors within 30 s are downgraded to toast.
+    var _recentErrors = [];
+    var _RATE_WINDOW_MS = 30000;
+
+    function _isRateLimited() {
+        var now = Date.now();
+        _recentErrors = _recentErrors.filter(function (t) { return now - t < _RATE_WINDOW_MS; });
+        return _recentErrors.length > 0;
+    }
+
+    function _recordErrorTime() {
+        _recentErrors.push(Date.now());
+    }
+
+    /** Return true for errors that indicate the page is genuinely broken. */
+    function _isFatalError(err) {
+        if (!err) return false;
+        if (err instanceof ReferenceError) return true;
+        if (err instanceof SyntaxError) return true;
+        if (err instanceof TypeError && /is not a function/i.test(err.message || '')) return true;
+        return false;
+    }
+
+    /** Best-effort POST to the backend error log. Never throws. */
+    function _logErrorToBackend(message, filename, lineno, colno, errType) {
+        try {
+            fetch('/api/log-client-error', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    source: filename || '',
+                    lineno: lineno || 0,
+                    colno: colno || 0,
+                    type: errType || 'Error',
+                    url: w.location.href,
+                    userAgent: w.navigator.userAgent,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(function () {});
+        } catch (e) { /* never let logging crash the page */ }
+    }
+
     function _ensureOverlay() {
         if (_overlay && d.body.contains(_overlay)) return _overlay;
         _overlay = d.createElement('div');
@@ -142,11 +186,28 @@
         _overlayShown = true;
     }
 
-    // Catch uncaught global JS errors (fatal script crashes)
+    // Catch uncaught global JS errors
     w.addEventListener('error', function (ev) {
-        if (ev && ev.error && !_overlayShown) {
-            console.error('[DT] Uncaught error:', ev.error);
-            showErrorPage(ev.message || String(ev.error));
+        if (!ev) return;
+        var err = ev.error;
+        var msg = ev.message || (err ? String(err) : 'Unknown error');
+        var errType = (err && err.constructor && err.constructor.name) || 'Error';
+
+        console.error('[DT] Uncaught error:', err || msg);
+
+        // Log every error to the backend regardless of severity.
+        _logErrorToBackend(msg, ev.filename, ev.lineno, ev.colno, errType);
+
+        var rateLimited = _isRateLimited();
+        _recordErrorTime();
+
+        // Show full-page overlay only for genuinely fatal errors and only once
+        // per 30-second window. Everything else becomes a discreet toast.
+        if (!rateLimited && _isFatalError(err) && !_overlayShown) {
+            showErrorPage(msg);
+        } else {
+            var shortMsg = msg.length > 80 ? msg.slice(0, 77) + '\u2026' : msg;
+            toast('\u062d\u062f\u062b \u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u062a\u0637\u0628\u064a\u0642', shortMsg, 'error', 7000);
         }
     });
 

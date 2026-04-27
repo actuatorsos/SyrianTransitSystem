@@ -4,6 +4,7 @@ PyJWT==2.12.0
 bcrypt==4.2.1
 pydantic==2.10.6
 python-dotenv>=1.2.2
+pytest-timeout>=2.3.12
 upstash-redis==1.1.0
 gtfs-realtime-bindings>=1.0.0
 protobuf>=4.21.0
